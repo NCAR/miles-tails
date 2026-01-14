@@ -21,6 +21,7 @@ This package implements Forward Flux Sampling algorithms to estimate the probabi
 - **Multi-Storm Tracking**: Simultaneous detection and tracking of multiple tropical cyclones
 - **Tropical Cyclone Classification**: Extratropical filtering with latitude/longitude rules
 - **Parallel Execution**: Multi-GPU support with thread-safe configuration management
+- **Real-time Visualization**: Optional live MSLP plotting during trajectory evolution
 - **Production-Ready**: Comprehensive logging, verification checks, and visualization output
 
 ## Installation
@@ -41,33 +42,58 @@ pip install -e .
 ## Quick Start
 
 ```python
-from tails.ffs import HurricaneGenesisFFS_Clean
+import numpy as np
+from tails.ffs import HurricaneGenesisFFS
 from credit.models import load_model
 from credit.transforms import Normalize_ERA5_and_Forcing
+from credit.datasets import Predict_Dataset_Batcher
+from credit.datasets.load_dataset_and_dataloader import BatchForecastLenDataLoader
 
 # Load your AI weather model
 model = load_model(config, load_weights=True).to('cuda')
-state_transformer = Normalize_ERA5_and_Forcing(config)
 
-# Initialize FFS
-ffs = HurricaneGenesisFFS_Clean(
-    model=model,
-    state_transformer=state_transformer,
-    config=config,
-    initial_dataset=dataset,
-    dataset_params=dataset_params,
-    state_A=1008,           # No organized system (hPa)
-    state_B=982,            # Hurricane strength (hPa)
-    interfaces=[1000, 988, 980, 975, 970],  # Progressive intensification
-    output_dir='./ffs_results'
+# Create initial dataset and loader
+forecast_times = [['2022-09-01 00:00:00', '2022-09-11 00:00:00']]
+dataset_params = {
+    'zarr_path': '/path/to/data.zarr',
+    'variables': config['data']['variables'],
+    # ... other dataset parameters
+}
+
+initial_dataset = Predict_Dataset_Batcher(
+    **dataset_params,
+    fcst_datetime=forecast_times,
 )
+initial_loader = BatchForecastLenDataLoader(initial_dataset)
+
+# Initialize FFS with tracking
+ffs = HurricaneGenesisFFS(
+    model=model,
+    state_transformer=Normalize_ERA5_and_Forcing(config),
+    config=config,
+    initial_dataset=initial_dataset,
+    dataset_params=dataset_params,
+    interfaces=[1000, 988, 980, 975, 970],  # Progressive intensification
+    state_A=1008,           # No organized system (hPa)
+    state_B=965,            # Hurricane strength (hPa)
+    output_dir='./ffs_results',
+    rank=0,
+    world_size=1,
+    worker_id=0,
+)
+
+# Enable visualization (optional - shows live MSLP plots)
+ffs.enable_visualization()
 
 # Run FFS algorithm
 ffs.run_ffs(
-    initial_loader=data_loader,
+    initial_loader=initial_loader,
     n_flux_trials=100,      # Flux generation trajectories
     n_shoot_trials=50       # Shooting attempts per interface
 )
+
+# Disable visualization when done
+ffs.disable_visualization()
 
 # Results
 print(f"Hurricane genesis rate: {ffs.flux_estimate * np.prod(ffs.transition_probs):.2e} per day")
@@ -84,7 +110,7 @@ Forward Flux Sampling estimates rare event rates by:
 **Order Parameter:** Mean sea level pressure (MSLP)
 - State A: MSLP > 1008 hPa (quiescent)
 - Interfaces: 1000, 988, 980, 975, 970 hPa
-- State B: MSLP < 982 hPa (hurricane)
+- State B: MSLP < 965 hPa (hurricane)
 
 ### Multi-Storm Tracking
 
