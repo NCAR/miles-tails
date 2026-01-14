@@ -21,7 +21,7 @@ from credit.datasets.era5_multistep_batcher import Predict_Dataset_Batcher
 from credit.datasets.load_dataset_and_dataloader import BatchForecastLenDataLoader
 from credit.transforms import Normalize_ERA5_and_Forcing
 from credit.data import concat_and_reshape, reshape_only
-from credit.interp import full_state_pressure_interpolation
+from credit.interp import full_state_pressure_interpolation, mean_sea_level_pressure_simple as mslp_simple
 from tails.ffs_logger import FFSLogger
 
 import warnings
@@ -564,10 +564,17 @@ class HurricaneGenesisFFS:
         
         return lat_mask[:, None] & lon_mask[None, :]
     
-    def calculate_mslp_wrapper(self, y_pred_phys, batch):
+    def calculate_mslp_wrapper(self, y_pred_phys, batch, simple_mslp=True):
         """Calculate MSLP from model output."""
         datetime_str = datetime.fromtimestamp(batch["datetime"][0].item()).strftime('%Y-%m-%d %H:%M:%S')
         
+        if simple_mslp:
+            surface_pressure_pa = y_pred_phys[0, 64, 0].cpu().numpy()
+            temperature_k = y_pred_phys[0, 65, 0].cpu().numpy()
+            mslp_pa = mslp_simple(surface_pressure_pa, temperature_k, self.surface_geopotential)
+            mslp_pa = torch.from_numpy(mslp_pa).unsqueeze(0).unsqueeze(0).unsqueeze(0)
+            return torch.cat([y_pred_phys, mslp_pa], dim=1)
+
         darray_upper, darray_single = make_xarray(
             y_pred_phys,
             datetime_str,
