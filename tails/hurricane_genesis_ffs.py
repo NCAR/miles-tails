@@ -373,9 +373,90 @@ class HurricaneGenesisFFS:
                     minima.append((val, lats[i], lons[j]))
     
         return minima
+
+
+    # def _plot_mslp(self, mslp_hpa, basin_mask, datetime_str, center_lat, center_lon, 
+    #                center_val, show_marker=False, marker_label=None):
+    #     """Plot MSLP field with optional crossing marker. ORIGINAL VERSION."""
+    #     from IPython.display import display, clear_output
+        
+    #     if self.fig is None:
+    #         plt.ion()
+    #         self.fig = plt.figure(figsize=(16, 10))
+    #         # Lambert Conformal
+    #         self.ax = self.fig.add_subplot(1, 1, 1, 
+    #             projection=ccrs.LambertConformal(
+    #                 central_longitude=-60.0,
+    #                 central_latitude=35.0,
+    #                 standard_parallels=(30, 50)
+    #             ))
+        
+    #     self.ax.clear()
+        
+    #     lats = self.latlons.latitude.values
+    #     lons_180 = np.where(self.latlons.longitude.values > 180, 
+    #                        self.latlons.longitude.values - 360, 
+    #                        self.latlons.longitude.values)
+        
+    #     # MORE smoothing before discrete colors
+    #     mslp_smooth = gaussian_filter(mslp_hpa, sigma=3.0)
+        
+    #     # Extended extent all the way to North Pole - show Iceland and Greenland
+    #     self.ax.set_extent([-100, -10, 0, 85], crs=ccrs.PlateCarree())
+        
+    #     # Discrete levels and norm for discrete colorbar
+    #     from matplotlib.colors import BoundaryNorm
+    #     levels = np.arange(960, 1032, 4)
+    #     norm = BoundaryNorm(levels, ncolors=plt.cm.RdBu_r.N, clip=True)
+        
+    #     pcm = self.ax.pcolormesh(lons_180, lats, mslp_smooth, 
+    #                              norm=norm,
+    #                              cmap='RdBu_r', 
+    #                              transform=ccrs.PlateCarree(), 
+    #                              shading='auto', zorder=1)
+        
+    #     self.ax.add_feature(cfeature.COASTLINE.with_scale("50m"), linewidth=1.0)
+    #     self.ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.5, alpha=0.6)
+        
+    #     # ONLY plot star during actual crossings
+    #     if show_marker and center_lat is not None and center_lon is not None:
+    #         self.ax.plot(center_lon, center_lat, marker='*', markersize=24,
+    #                    markeredgecolor='yellow', markeredgewidth=2.5, color='red',
+    #                    transform=ccrs.PlateCarree(), zorder=10,
+    #                    label=marker_label or 'Crossing')
+        
+    #     gl = self.ax.gridlines(draw_labels=True, linewidth=0.6, alpha=0.5, linestyle='--')
+    #     gl.top_labels = False
+    #     gl.right_labels = False
+        
+    #     # Title
+    #     title_parts = []
+    #     if datetime_str:
+    #         title_parts.append(datetime_str)
+        
+    #     if center_lat is not None and center_lon is not None:
+    #         lat_dir = 'N' if center_lat >= 0 else 'S'
+    #         lon_dir = 'W' if center_lon < 0 else 'E'
+    #         title_parts.append(f"MSLP: {center_val:.1f} hPa @ ({abs(center_lat):.1f}°{lat_dir}, {abs(center_lon):.1f}°{lon_dir})")
+    #     else:
+    #         title_parts.append(f"MSLP: {center_val:.1f} hPa")
+        
+    #     self.ax.set_title('\n'.join(title_parts), fontsize=14, fontweight="bold")
+        
+    #     if show_marker:
+    #         self.ax.legend(loc='upper right', fontsize=10, framealpha=0.9)
+        
+    #     if not self._colorbar_added:
+    #         cbar = plt.colorbar(pcm, ax=self.ax, label="MSLP (hPa)", shrink=0.8)
+    #         cbar.set_ticks(np.arange(960, 1032, 8))
+    #         self._colorbar_added = True
+        
+    #     clear_output(wait=True)
+    #     display(self.fig)
+    #     plt.pause(0.01)
     
     def _plot_mslp(self, mslp_hpa, basin_mask, datetime_str, center_lat, center_lon, 
-                   center_val, show_marker=False, marker_label=None):
+                center_val, show_marker=False, marker_label=None):
         """Plot MSLP field with optional crossing marker."""
         from IPython.display import display, clear_output
         
@@ -394,11 +475,22 @@ class HurricaneGenesisFFS:
         
         lats = self.latlons.latitude.values
         lons_180 = np.where(self.latlons.longitude.values > 180, 
-                           self.latlons.longitude.values - 360, 
-                           self.latlons.longitude.values)
+                        self.latlons.longitude.values - 360, 
+                        self.latlons.longitude.values)
         
-        # MORE smoothing before discrete colors
-        mslp_smooth = gaussian_filter(mslp_hpa, sigma=3.0)
+        # PERIODIC BOUNDARY FIX: Extend field periodically, smooth, then extract
+        n_pad = 20  # Pad with 20 pixels on each side
+        
+        # Wrap the field: append right edge to left, left edge to right
+        left_pad = mslp_hpa[:, -n_pad:]
+        right_pad = mslp_hpa[:, :n_pad]
+        mslp_extended = np.concatenate([left_pad, mslp_hpa, right_pad], axis=1)
+        
+        # Smooth the extended field
+        mslp_extended_smooth = gaussian_filter(mslp_extended, sigma=3.0)
+        
+        # Extract the central portion (original size)
+        mslp_smooth = mslp_extended_smooth[:, n_pad:-n_pad]
         
         # Extended extent all the way to North Pole - show Iceland and Greenland
         self.ax.set_extent([-100, -10, 0, 85], crs=ccrs.PlateCarree())
@@ -409,10 +501,10 @@ class HurricaneGenesisFFS:
         norm = BoundaryNorm(levels, ncolors=plt.cm.RdBu_r.N, clip=True)
         
         pcm = self.ax.pcolormesh(lons_180, lats, mslp_smooth, 
-                                 norm=norm,
-                                 cmap='RdBu_r', 
-                                 transform=ccrs.PlateCarree(), 
-                                 shading='auto', zorder=1)
+                                norm=norm,
+                                cmap='RdBu_r', 
+                                transform=ccrs.PlateCarree(), 
+                                shading='auto', zorder=1)
         
         self.ax.add_feature(cfeature.COASTLINE.with_scale("50m"), linewidth=1.0)
         self.ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.5, alpha=0.6)
@@ -420,9 +512,9 @@ class HurricaneGenesisFFS:
         # ONLY plot star during actual crossings
         if show_marker and center_lat is not None and center_lon is not None:
             self.ax.plot(center_lon, center_lat, marker='*', markersize=24,
-                       markeredgecolor='yellow', markeredgewidth=2.5, color='red',
-                       transform=ccrs.PlateCarree(), zorder=10,
-                       label=marker_label or 'Crossing')
+                    markeredgecolor='yellow', markeredgewidth=2.5, color='red',
+                    transform=ccrs.PlateCarree(), zorder=10,
+                    label=marker_label or 'Crossing')
         
         gl = self.ax.gridlines(draw_labels=True, linewidth=0.6, alpha=0.5, linestyle='--')
         gl.top_labels = False
