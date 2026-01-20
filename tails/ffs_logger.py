@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 import json
 from pathlib import Path
@@ -344,3 +344,109 @@ class FFSLogger:
             current = parent
         
         return list(reversed(pathway))
+
+    def log_early_stop(self, reason: str, step: int, mslp: float, 
+                    interface_idx: Optional[int] = None, 
+                    location: Optional[Tuple[float, float]] = None,
+                    cps_params: Optional[Dict] = None,
+                    mode: str = 'shoot',
+                    parent_config: Optional[str] = None):
+        """
+        Log early stopping of trajectory.
+        
+        Parameters
+        ----------
+        reason : str
+            Reason for stopping: 'extratropical', 'reached_B', 'returned_A', 
+            'returned_backward', 'completed', 'failure'
+        step : int
+            Forecast step where stopping occurred
+        mslp : float
+            MSLP value at stopping point (hPa)
+        interface_idx : int, optional
+            Current interface index if relevant
+        location : tuple, optional
+            (lat, lon) location if available
+        cps_params : dict, optional
+            CPS parameters if extratropical: {B, VTL, VTU, phase}
+        mode : str
+            'flux' or 'shoot'
+        parent_config : str, optional
+            Parent configuration name for shoot mode
+        """
+        lambda_label = interface_idx - 1 if interface_idx is not None and interface_idx > 0 else None
+        
+        entry = {
+            'timestamp': datetime.now().isoformat(),
+            'rank': self.rank,
+            'world_size': self.world_size,
+            'worker_id': self.worker_id,
+            'phase': 'early_stop',
+            'mode': mode,
+            'reason': reason,
+            'step': step,
+            'mslp': mslp,
+            'interface_idx': interface_idx,
+            'lambda_label': lambda_label,
+            'parent_config': parent_config
+        }
+        
+        if location:
+            entry['location'] = {'lat': location[0], 'lon': location[1]}
+        
+        if cps_params:
+            entry['cps'] = cps_params
+        
+        self._write_entry(entry)
+        
+        # Console output for debugging
+        if hasattr(self, '_console_output_enabled'):
+            reason_str = reason.upper().replace('_', ' ')
+            msg = f"  ⏹ STOP: {reason_str} at step {step}, MSLP={mslp:.1f} hPa"
+            
+            if interface_idx is not None:
+                msg += f", λ={interface_idx}"
+            
+            if location:
+                lat, lon = location
+                msg += f", ({lat:.1f}°N, {abs(lon):.1f}°W)"
+            
+            if cps_params:
+                msg += f", {cps_params.get('phase', 'Unknown')} (B={cps_params.get('B', 0):.1f}m)"
+            
+            print(msg)
+
+
+    def log_trajectory_stats(self, mode: str, duration_steps: int, 
+                            max_mslp: float, min_mslp: float,
+                            interface_crossings: int = 0):
+        """
+        Log summary statistics for a completed trajectory.
+        
+        Parameters
+        ----------
+        mode : str
+            'flux' or 'shoot'
+        duration_steps : int
+            Number of forecast steps
+        max_mslp : float
+            Maximum MSLP reached (hPa)
+        min_mslp : float
+            Minimum MSLP reached (hPa)
+        interface_crossings : int
+            Number of interface crossings
+        """
+        entry = {
+            'timestamp': datetime.now().isoformat(),
+            'rank': self.rank,
+            'world_size': self.world_size,
+            'worker_id': self.worker_id,
+            'phase': 'trajectory_stats',
+            'mode': mode,
+            'duration_steps': duration_steps,
+            'max_mslp': max_mslp,
+            'min_mslp': min_mslp,
+            'mslp_range': max_mslp - min_mslp,
+            'interface_crossings': interface_crossings
+        }
+        self._write_entry(entry)

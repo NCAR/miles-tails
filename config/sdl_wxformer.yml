@@ -4,7 +4,7 @@
 # The model is trained on 1 hourly model-level ERA5 data with top solar irradiance, geopotential, and land-sea mask
 # Output variables: model level [U, V, T, Q], single level [SP, t2m], and 500 hPa [U, V, T, Z, Q]
 # --------------------------------------------------------------------------------------------------------------------- #
-save_loc: '/glade/derecho/scratch/schreck/CREDIT_runs/ensemble/scheduler/'
+save_loc: '/glade/campaign/cisl/aiml/credit/models/one_degree_wxformer_6hr_ensemble/' # '/glade/derecho/scratch/schreck/CREDIT_runs/ensemble/scheduler/'
 seed: 2000
 
 data:
