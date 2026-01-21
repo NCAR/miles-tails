@@ -156,7 +156,7 @@ class HurricaneGenesisFFS:
     
     def extract_mslp(
         self,
-        y_phys: torch.Tensor,
+        y_phys,
         batch: Dict = None,
         forecast_step: int = None,
         parent_location: Optional[Tuple[float, float]] = None,
@@ -166,35 +166,37 @@ class HurricaneGenesisFFS:
         Robust Tempest-style MSLP extraction.
         Tracks existing storms deterministically and detects new ones safely.
         """
-    
+
         mslp_channel_idx = 71
         mslp_pa = y_phys[0, mslp_channel_idx, 0].cpu().numpy()
         mslp_hpa = mslp_pa / 100.0
-    
+
         lats = self.latlons.latitude.values
         lons = np.where(
             self.latlons.longitude.values > 180,
             self.latlons.longitude.values - 360,
             self.latlons.longitude.values,
         )
-    
+
         basin_mask = self.get_basin_mask()
-    
+
         # ---- SHOOT MODE: Track existing storm deterministically ----
         if mode == "shoot" and parent_location is not None:
             lat0, lon0 = parent_location
             lat_grid, lon_grid = np.meshgrid(lats, lons, indexing="ij")
             dist = np.sqrt((lat_grid - lat0) ** 2 + (lon_grid - lon0) ** 2)
-    
-            # Apply same smoothing used in visualization (sigma=1.5)
-            mslp_smooth = gaussian_filter(mslp_hpa, sigma=1.5)
+
+            # FIXED: Apply basin mask BEFORE smoothing
+            mslp_basin = np.where(basin_mask, mslp_hpa, np.nan)
+            mslp_smooth = gaussian_filter(mslp_basin, sigma=1.5)
             
             # Increased radius to 12° for fast-moving storms
             local = np.where(dist < 12.0, mslp_smooth, np.nan)
             idx = np.nanargmin(local)
             i, j = np.unravel_index(idx, local.shape)
             
-            min_mslp = float(mslp_smooth[i, j])
+            # RETURN RAW VALUE at smoothed location
+            min_mslp = float(mslp_hpa[i, j])
             lat = float(lats[i])
             lon = float(lons[j])
             
@@ -205,10 +207,10 @@ class HurricaneGenesisFFS:
                     dt = datetime.fromtimestamp(batch["datetime"][0].item())
                     datetime_str = dt.strftime('%Y-%m-%d %H:%M UTC')
                 self._plot_mslp(mslp_hpa, basin_mask, datetime_str, lat, lon, min_mslp, 
-                               show_marker=False)
-    
+                            show_marker=False)
+
             return min_mslp, 0, (lat, lon)
-    
+
         # ---- FLUX MODE: Multi-storm tracking ----
         # Detect all local minima in basin (only organized systems < 1010 hPa)
         minima = self._find_local_mslp_minima(
@@ -220,7 +222,7 @@ class HurricaneGenesisFFS:
             exclude_radius_deg=12.0,
             max_mslp_threshold=1010.0,
         )
-    
+
         if len(minima) == 0:
             # No storms detected - mark all tracked storms as lost
             for storm_id in self.tracked_storms:
@@ -309,27 +311,30 @@ class HurricaneGenesisFFS:
                     dt = datetime.fromtimestamp(batch["datetime"][0].item())
                     datetime_str = dt.strftime('%Y-%m-%d %H:%M UTC')
                 self._plot_mslp(mslp_hpa, basin_mask, datetime_str, lat, lon, min_mslp,
-                               show_marker=False)
+                            show_marker=False)
             
             return float(min_mslp), 0, (float(lat), float(lon))
         else:
             return self._extract_mslp_fallback(y_phys, batch), None, None
     
     def _extract_mslp_fallback(self, y_phys: torch.Tensor, batch: Dict = None) -> float:
-        """Fallback MSLP extraction."""
+        """Fallback MSLP extraction using simple minimum."""
         mslp_channel_idx = 71
         mslp_pa = y_phys[0, mslp_channel_idx, 0, :, :].cpu().numpy()
         mslp_hpa = mslp_pa / 100.0
         
         basin_mask = self.get_basin_mask()
-        mslp_smooth = gaussian_filter(mslp_hpa, sigma=1.5)
-        mslp_masked = np.where(basin_mask, mslp_smooth, np.nan)
         
-        min_idx = np.nanargmin(mslp_masked)
-        min_row, min_col = np.unravel_index(min_idx, mslp_masked.shape)
+        # FIXED: Apply basin mask BEFORE smoothing
+        mslp_basin = np.where(basin_mask, mslp_hpa, np.nan)
+        mslp_smooth = gaussian_filter(mslp_basin, sigma=1.5)
+        
+        min_idx = np.nanargmin(mslp_smooth)
+        min_row, min_col = np.unravel_index(min_idx, mslp_smooth.shape)
         min_mslp = float(mslp_hpa[min_row, min_col])
-        
+
         return min_mslp
+    
     
     def _find_local_mslp_minima(
         self,
@@ -344,38 +349,42 @@ class HurricaneGenesisFFS:
     ):
         """
         Tempest-style local MSLP minimum detector.
-        Returns list of (mslp, lat, lon).
+        Returns list of (mslp, lat, lon) with RAW MSLP values.
         Only returns minima below max_mslp_threshold (filters weak systems).
         """
-        mslp_smooth = gaussian_filter(mslp_hpa, sigma=smooth_sigma)
-    
-        # Apply basin mask
-        field = np.where(basin_mask, mslp_smooth, np.nan)
-    
+        # FIXED: Apply basin mask BEFORE smoothing
+        field = np.where(basin_mask, mslp_hpa, np.nan)
+        
         # Exclude existing storm explicitly
         if exclude_center is not None:
             lat0, lon0 = exclude_center
             lat_grid, lon_grid = np.meshgrid(lats, lons, indexing="ij")
             dist = np.sqrt((lat_grid - lat0) ** 2 + (lon_grid - lon0) ** 2)
             field = np.where(dist >= exclude_radius_deg, field, np.nan)
-    
+        
+        # Smooth the masked field
+        mslp_smooth = gaussian_filter(field, sigma=smooth_sigma)
+
         minima = []
-    
-        # 3x3 neighborhood test (Tempest-style)
-        for i in range(1, field.shape[0] - 1):
-            for j in range(1, field.shape[1] - 1):
-                val = field[i, j]
-                if not np.isfinite(val):
+
+        # 3x3 neighborhood test on SMOOTHED field (for stable detection)
+        for i in range(1, mslp_smooth.shape[0] - 1):
+            for j in range(1, mslp_smooth.shape[1] - 1):
+                val_smooth = mslp_smooth[i, j]
+                if not np.isfinite(val_smooth):
                     continue
-                
-                # Only consider organized systems below threshold
-                if val >= max_mslp_threshold:
-                    continue
-    
-                nbrs = field[i - 1 : i + 2, j - 1 : j + 2]
-                if np.all(val <= nbrs):
-                    minima.append((val, lats[i], lons[j]))
-    
+
+                nbrs = mslp_smooth[i - 1 : i + 2, j - 1 : j + 2]
+                if np.all(val_smooth <= nbrs):
+                    # Found minimum location - now get RAW value
+                    val_raw = mslp_hpa[i, j]
+                    
+                    # Check RAW value against threshold
+                    if val_raw >= max_mslp_threshold:
+                        continue
+                    
+                    minima.append((val_raw, lats[i], lons[j]))
+
         return minima
     
     def _plot_mslp(self, mslp_hpa, basin_mask, datetime_str, center_lat, center_lon, 
@@ -1231,505 +1240,3 @@ class HurricaneGenesisFFS:
             print(f"  → SAVED: {crossing.config_name} ({crossing.mslp_value:.1f} hPa)")
         else:
             print(f"  ✗ INCOMPLETE SAVE: {crossing.config_name} (PNG:{png_saved}, PKL:{pkl_saved})")
-
-
-class HurricaneGenesisFFS_CPS:
-    """
-    CPS-enhanced FFS - inherits from original, overrides extratropical checks.
-    
-    Usage:
-        # In notebook, just change:
-        # ffs = HurricaneGenesisFFS(...)
-        # to:
-        ffs = HurricaneGenesisFFS_CPS(...)
-    """
-    
-    def __init__(self, base_ffs_instance):
-        """
-        Initialize by wrapping an existing FFS instance.
-        
-        Parameters
-        ----------
-        base_ffs_instance : HurricaneGenesisFFS
-            Your already-initialized FFS object
-        """
-        # Store reference to base instance
-        self._base = base_ffs_instance
-        
-        # Initialize CPS tracker
-        self.cps_tracker = CyclonePhaseTracker(
-            self._base.latlons, 
-            radius_km=500
-        )
-        self.storm_track_history = {}
-        
-        print("✓ CPS tracker initialized")
-        print("✓ Using physics-based extratropical detection")
-    
-    def __getattr__(self, name):
-        """Delegate everything else to base instance."""
-        return getattr(self._base, name)
-    
-    def _compute_pressure_interp(self, y_phys, batch):
-        """Compute pressure interpolation for CPS."""
-        datetime_str = datetime.fromtimestamp(
-            batch["datetime"][0].item()
-        ).strftime('%Y-%m-%d %H:%M:%S')
-        
-        darray_upper, darray_single = make_xarray(
-            y_phys,
-            datetime_str,
-            self._base.latlons.latitude.values,
-            self._base.latlons.longitude.values,
-            self._base.config,
-        )
-        
-        ds_merged = xr.merge([
-            darray_upper.to_dataset(dim="vars"),
-            darray_single.to_dataset(dim="vars")
-        ])
-        
-        return full_state_pressure_interpolation(
-            ds_merged,
-            self._base.surface_geopotential,
-            **self._base.config["predict"]["interp_pressure"]
-        )
-    
-    def _estimate_motion(self, storm_id):
-        """Estimate storm motion direction from track history."""
-        if storm_id not in self.storm_track_history:
-            return 45.0
-        
-        hist = self.storm_track_history[storm_id]
-        if len(hist['lons']) < 2:
-            return 45.0
-        
-        dlon = hist['lons'][-1] - hist['lons'][-2]
-        dlat = hist['lats'][-1] - hist['lats'][-2]
-        return (np.degrees(np.arctan2(dlon, dlat)) + 360) % 360
-    
-    def _check_cps(self, pressure_interp, location, storm_id):
-        """
-        Check if storm is extratropical using CPS.
-        
-        Returns
-        -------
-        is_ET : bool
-            True if extratropical
-        cps_params : dict
-            CPS parameters for logging
-        """
-        lat, lon = location
-        
-        # Update track history
-        if storm_id not in self.storm_track_history:
-            self.storm_track_history[storm_id] = {'lons': [], 'lats': []}
-        
-        self.storm_track_history[storm_id]['lons'].append(lon)
-        self.storm_track_history[storm_id]['lats'].append(lat)
-        
-        # Estimate motion direction
-        motion_dir = self._estimate_motion(storm_id)
-        
-        # Compute CPS
-        cps = self.cps_tracker.compute_CPS(pressure_interp, lon, lat, motion_dir)
-        
-        return not cps['is_tropical'], cps
-    
-    def rollout(self, loader, mode='flux', initial_state=None, start_interface=-1, parent_config=None):
-        """
-        Override rollout to add CPS-based extratropical filtering.
-        Replaces all lat/lon geographic rules with physics-based checks.
-        """
-        # Reset tracking for flux mode
-        if mode == 'flux':
-            self._base.tracked_storms = {}
-            self._base.next_storm_id = 0
-            self.storm_track_history = {}
-        
-        previous_location = None
-        if parent_config and parent_config.feature_location:
-            previous_location = parent_config.feature_location
-        
-        trajectory_mslp = []
-        crossings = []
-        current_interface = start_interface
-        status = 'ongoing'
-        saved_states = {}
-        
-        with torch.no_grad():
-            for batch in loader:
-                step = batch["forecast_step"].item()
-                
-                if step == 1:
-                    if initial_state is not None:
-                        x = initial_state.to(self._base.device).float()
-                    else:
-                        if "x_surf" in batch:
-                            from credit.data import concat_and_reshape
-                            x = concat_and_reshape(batch["x"], batch["x_surf"]).to(self._base.device).float()
-                        else:
-                            from credit.data import reshape_only
-                            x = reshape_only(batch["x"]).to(self._base.device).float()
-                
-                if "x_forcing_static" in batch:
-                    x_forcing = batch["x_forcing_static"].to(self._base.device).permute(0, 2, 1, 3, 4).float()
-                    x = torch.cat((x, x_forcing), dim=1)
-                
-                y_pred = self._base.model(x, forecast_step=step - 1)
-                y_phys = self._base.state_transformer.inverse_transform(y_pred.cpu())
-                
-                # Compute pressure interpolation (needed for both MSLP and CPS)
-                pressure_interp = self._compute_pressure_interp(y_phys, batch)
-                
-                # Extract MSLP and append
-                mslp_tensor = torch.from_numpy(
-                    pressure_interp['mean_sea_level_pressure'].values
-                ).unsqueeze(1).unsqueeze(2)
-                y_with_mslp = torch.cat([y_phys, mslp_tensor], dim=1)
-                
-                mslp, feat_idx, location = self._base.extract_mslp(
-                    y_with_mslp, batch, step, previous_location, mode
-                )
-                
-                trajectory_mslp.append(mslp)
-                
-                # ========== CPS EXTRATROPICAL CHECK (SHOOT MODE) ==========
-                if mode == 'shoot' and location is not None:
-                    try:
-                        is_ET, cps = self._check_cps(pressure_interp, location, storm_id=0)
-                        
-                        if is_ET:
-                            lat, lon = location
-                            print(f"  → EXTRATROPICAL: {cps['phase']}")
-                            print(f"     B={cps['B']:.1f}m, VTL={cps['VTL']:.1f}m, VTU={cps['VTU']:.1f}m")
-                            print(f"     Location: ({lat:.1f}°N, {abs(lon):.1f}°W), MSLP={mslp:.1f} hPa")
-                            
-                            # LOG EXTRATROPICAL STOP
-                            self._base.logger.log_early_stop(
-                                reason='extratropical',
-                                step=step,
-                                mslp=mslp,
-                                interface_idx=current_interface,
-                                location=location,
-                                cps_params=cps,
-                                mode=mode,
-                                parent_config=parent_config.config_name if parent_config else None
-                            )
-                            
-                            status = 'extratropical'
-                            break
-                    
-                    except Exception as e:
-                        print(f"  ⚠ CPS check failed: {e}")
-                    
-                    previous_location = location
-                
-                # Save state
-                y_norm = self._base.state_transformer.transform_array(y_phys).to(self._base.device)
-                
-                if batch.get("y_diag") is not None:
-                    varnum_diag = batch["y_diag"].shape[1]
-                    saved_states[step] = y_norm[:, :-varnum_diag, ...].cpu().clone()
-                else:
-                    saved_states[step] = y_norm.cpu().clone()
-                
-                traj_status, interface_idx = self._base.check_trajectory_status(mslp, current_interface, mode)
-                
-                # ========== CPS EXTRATROPICAL CHECK (FLUX MODE) ==========
-                if mode == 'flux':
-                    lambda_0 = self._base.interfaces[0]
-                    
-                    for storm_id in list(self._base.tracked_storms.keys()):
-                        storm = self._base.tracked_storms[storm_id]
-                        
-                        if not storm['saved'] and storm['mslp'] < lambda_0:
-                            storm_lat, storm_lon = storm['location']
-                            
-                            try:
-                                # Check CPS instead of lat/lon rules
-                                is_ET, cps = self._check_cps(
-                                    pressure_interp, 
-                                    storm['location'], 
-                                    storm_id
-                                )
-                                
-                                if is_ET:
-                                    print(f"  → Storm {storm_id} {cps['phase']}: B={cps['B']:.1f}m, not saved")
-                                    
-                                    # LOG FLUX MODE EXTRATROPICAL REJECTION
-                                    self._base.logger.log_early_stop(
-                                        reason='extratropical_flux',
-                                        step=step,
-                                        mslp=storm['mslp'],
-                                        interface_idx=0,
-                                        location=storm['location'],
-                                        cps_params=cps,
-                                        mode='flux'
-                                    )
-                                    
-                                    storm['saved'] = True
-                                    continue
-                            
-                            except Exception as e:
-                                print(f"  ⚠ CPS check failed for storm {storm_id}: {e}")
-                            
-                            # Valid tropical genesis - save it
-                            crossing = self._base._create_crossing(
-                                saved_states[step], step, storm['mslp'], 0,
-                                batch, None, storm['location'], None, y_with_mslp
-                            )
-                            crossings.append(crossing)
-                            storm['saved'] = True
-                            print(f"  → Storm {storm_id} crossed λ₀: {storm['mslp']:.1f} hPa")
-                            
-                            if self._base.visualize_mslp:
-                                datetime_str = None
-                                if batch and "datetime" in batch:
-                                    dt = datetime.fromtimestamp(batch["datetime"][0].item())
-                                    datetime_str = dt.strftime('%Y-%m-%d %H:%M UTC')
-                                
-                                mslp_channel_idx = 71
-                                mslp_pa = y_with_mslp[0, mslp_channel_idx, 0].cpu().numpy()
-                                mslp_hpa = mslp_pa / 100.0
-                                
-                                self._base._plot_mslp(
-                                    mslp_hpa, 
-                                    self._base.get_basin_mask(),
-                                    datetime_str,
-                                    storm_lat, storm_lon, storm['mslp'],
-                                    show_marker=True,
-                                    marker_label=f'λ₀ CROSSING (Storm {storm_id})'
-                                )
-                                import matplotlib.pyplot as plt
-                                plt.pause(1.0)
-                        
-                        # Remove dissipated storms
-                        if storm['mslp'] > self._base.state_A_threshold:
-                            print(f"  → Storm {storm_id} dissipated: {storm['mslp']:.1f} hPa")
-                            del self._base.tracked_storms[storm_id]
-                
-                # ========== TRAJECTORY STATUS HANDLING WITH LOGGING ==========
-                if traj_status == 'crossed_forward':
-                    if mode == 'shoot':
-                        next_idx = current_interface + 1
-                        crossing = self._base._create_crossing(
-                            saved_states[step], step, mslp, next_idx,
-                            batch, feat_idx, location, 
-                            parent_config.config_name if parent_config else None,
-                            y_with_mslp
-                        )
-                        crossings.append(crossing)
-                        status = 'success'
-                        
-                        if self._base.visualize_mslp and location:
-                            datetime_str = None
-                            if batch and "datetime" in batch:
-                                dt = datetime.fromtimestamp(batch["datetime"][0].item())
-                                datetime_str = dt.strftime('%Y-%m-%d %H:%M UTC')
-                            
-                            mslp_channel_idx = 71
-                            mslp_pa = y_with_mslp[0, mslp_channel_idx, 0].cpu().numpy()
-                            mslp_hpa = mslp_pa / 100.0
-                            
-                            self._base._plot_mslp(
-                                mslp_hpa, 
-                                self._base.get_basin_mask(),
-                                datetime_str,
-                                location[0], location[1], mslp,
-                                show_marker=True,
-                                marker_label=f'λ{next_idx} CROSSING'
-                            )
-                            import matplotlib.pyplot as plt
-                            plt.pause(1.5)
-                        
-                        break
-                    
-                    if mode == 'flux':
-                        current_interface = interface_idx
-                
-                elif traj_status == 'reached_B':
-                    crossing = self._base._create_crossing(
-                        saved_states[step], step, mslp, -1,
-                        batch, feat_idx, location,
-                        parent_config.config_name if parent_config else None,
-                        y_with_mslp
-                    )
-                    crossings.append(crossing)
-                    status = 'reached_B'
-                    
-                    # LOG REACHED STATE B
-                    self._base.logger.log_early_stop(
-                        reason='reached_B',
-                        step=step,
-                        mslp=mslp,
-                        interface_idx=-1,
-                        location=location,
-                        mode=mode,
-                        parent_config=parent_config.config_name if parent_config else None
-                    )
-                    
-                    if self._base.visualize_mslp and location:
-                        datetime_str = None
-                        if batch and "datetime" in batch:
-                            dt = datetime.fromtimestamp(batch["datetime"][0].item())
-                            datetime_str = dt.strftime('%Y-%m-%d %H:%M UTC')
-                        
-                        mslp_channel_idx = 71
-                        mslp_pa = y_with_mslp[0, mslp_channel_idx, 0].cpu().numpy()
-                        mslp_hpa = mslp_pa / 100.0
-                        
-                        self._base._plot_mslp(
-                            mslp_hpa, 
-                            self._base.get_basin_mask(),
-                            datetime_str,
-                            location[0], location[1], mslp,
-                            show_marker=True,
-                            marker_label='STATE B REACHED!'
-                        )
-                        import matplotlib.pyplot as plt
-                        plt.pause(2.0)
-                    
-                    break
-                
-                elif traj_status == 'returned_A':
-                    # LOG RETURNED TO STATE A
-                    self._base.logger.log_early_stop(
-                        reason='returned_A',
-                        step=step,
-                        mslp=mslp,
-                        interface_idx=current_interface,
-                        location=location,
-                        mode=mode,
-                        parent_config=parent_config.config_name if parent_config else None
-                    )
-                    
-                    status = 'failure'
-                    break
-                
-                elif traj_status == 'returned_backward':
-                    # LOG BACKWARD CROSSING
-                    self._base.logger.log_early_stop(
-                        reason='returned_backward',
-                        step=step,
-                        mslp=mslp,
-                        interface_idx=interface_idx if interface_idx is not None else -1,
-                        location=location,
-                        mode=mode,
-                        parent_config=parent_config.config_name if parent_config else None
-                    )
-                    
-                    current_interface = interface_idx if interface_idx is not None else -1
-                
-                if batch.get("y_diag") is not None:
-                    varnum_diag = batch["y_diag"].shape[1]
-                    x = y_norm[:, :-varnum_diag, ...].detach()
-                else:
-                    x = y_norm.detach()
-                
-                if batch.get("stop_forecast", torch.tensor(False)).item():
-                    if status == 'ongoing':
-                        final_status = 'completed' if mode == 'flux' else 'failure'
-                        
-                        # LOG FORECAST COMPLETION
-                        self._base.logger.log_early_stop(
-                            reason=final_status,
-                            step=step,
-                            mslp=mslp,
-                            interface_idx=current_interface,
-                            location=location,
-                            mode=mode,
-                            parent_config=parent_config.config_name if parent_config else None
-                        )
-                        
-                        status = final_status
-                    break
-        
-        # Save crossings
-        for crossing in crossings:
-            self._base._save_crossing(crossing, mode)
-        
-        # LOG TRAJECTORY STATISTICS
-        if len(trajectory_mslp) > 0:
-            self._base.logger.log_trajectory_stats(
-                mode=mode,
-                duration_steps=len(trajectory_mslp),
-                max_mslp=max(trajectory_mslp),
-                min_mslp=min(trajectory_mslp),
-                interface_crossings=len(crossings)
-            )
-        
-        return {
-            'status': status,
-            'mslp_trajectory': trajectory_mslp,
-            'crossings': crossings,
-            'final_mslp': trajectory_mslp[-1] if trajectory_mslp else None
-        }
-
-
-if __name__ == "__main__":
-    import yaml
-    from credit.parser import credit_main_parser
-    from credit.datasets import setup_data_loading
-    from credit.models import load_model
-    from credit.transforms import load_transforms
-
-
-    filepath = "/glade/derecho/scratch/schreck/CREDIT_runs/ensemble/scheduler/"
-    device = "cuda"
-
-    with open(os.path.join(filepath, "model.yml"), "r") as f:
-        conf = yaml.safe_load(f)
-
-    conf = credit_main_parser(conf, parse_training=False, parse_predict=True, print_summary=False)
-    data_config = setup_data_loading(conf)
-
-    ensemble_size = 1
-    conf["trainer"]["ensemble_size"] = ensemble_size
-    conf["predict"]["ensemble_size"] = ensemble_size
-
-    model = load_model(conf, load_weights=True).to("cuda")
-    model = model.eval()
-
-    forecast_times = [['2022-08-28 00:00:00', '2022-09-10 00:00:00']]
-
-    dataset_params = {
-        'varname_upper_air': data_config["varname_upper_air"],
-        'varname_surface': data_config["varname_surface"],
-        'varname_dyn_forcing': data_config["varname_dyn_forcing"],
-        'varname_forcing': data_config["varname_forcing"],
-        'varname_static': data_config["varname_static"],
-        'varname_diagnostic': data_config["varname_diagnostic"],
-        'filenames': data_config["all_ERA_files"],
-        'filename_surface': data_config["surface_files"],
-        'filename_dyn_forcing': data_config["dyn_forcing_files"],
-        'filename_forcing': data_config["forcing_files"],
-        'filename_static': data_config["static_files"],
-        'filename_diagnostic': data_config["diagnostic_files"],
-        'lead_time_periods': 6,
-        'history_len': data_config["history_len"],
-        'skip_periods': data_config["skip_periods"],
-        'transform': load_transforms(conf),
-        'sst_forcing': data_config["sst_forcing"],
-        'batch_size': 1,
-        'rank': 0,
-        'world_size': 1,
-    }
-
-    initial_dataset = Predict_Dataset_Batcher(
-        **dataset_params,
-        fcst_datetime=forecast_times
-    )
-
-    initial_loader = BatchForecastLenDataLoader(initial_dataset)
-
-    ffs = HurricaneGenesisFFS(
-        model=model,
-        state_transformer=Normalize_ERA5_and_Forcing(conf),
-        config=conf,
-        initial_dataset=initial_dataset,
-        dataset_params=dataset_params,
-        device='cuda'
-    )
-
-    ffs.run_ffs(initial_loader, n_flux_trials=20, n_shoot_trials=10)
