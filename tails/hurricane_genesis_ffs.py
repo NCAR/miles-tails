@@ -5,7 +5,6 @@ from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import copy
-import os
 import random
 import string
 from pathlib import Path
@@ -43,6 +42,7 @@ class InterfaceConfig:
     parent_config: Optional[str] = None
     track_id: Optional[int] = None
     feature_location: Optional[Tuple[float, float]] = None
+    cps_params: Optional[Dict] = None  # ← ADD THIS LINE
 
 
 class HurricaneGenesisFFS:
@@ -107,7 +107,7 @@ class HurricaneGenesisFFS:
         # Basin definition
         self.basin = {
             'lat_min': 10.0,
-            'lat_max': 40.0,
+            'lat_max': 45.0,
             'lon_min': -100.0,
             'lon_max': -20.0
         }
@@ -154,6 +154,96 @@ class HurricaneGenesisFFS:
             self.ax = None
         print("✓ Visualization disabled")
     
+    def _extract_mslp_with_tobac(
+        self,
+        mslp_hpa: np.ndarray,
+        lats: np.ndarray,
+        lons_180: np.ndarray,
+        basin_mask: np.ndarray,
+        forecast_step: int = 0
+    ) -> Tuple[float, Optional[int], Optional[Tuple[float, float]]]:
+        """
+        Extract MSLP using tobac feature detection for flux mode.
+        Returns (min_mslp, feature_idx, (lat, lon))
+        """
+        try:
+            import tobac
+            import iris
+        except ImportError:
+            print("\n⚠ tobac not available, falling back to simple detection")
+            return None, None, None
+        
+        # Mask basin
+        mslp_basin = np.where(basin_mask, mslp_hpa, np.nan)
+        
+        # Sort coordinates for tobac
+        lons_tobac = lons_180.copy()
+        mslp_tobac = mslp_basin.copy()
+        
+        if not np.all(np.diff(lons_tobac) > 0):
+            sort_idx = np.argsort(lons_tobac)
+            lons_tobac = lons_tobac[sort_idx]
+            mslp_tobac = mslp_tobac[:, sort_idx]
+        
+        try:
+            # Create iris cube
+            lat_coord = iris.coords.DimCoord(lats, standard_name='latitude', units='degrees')
+            lon_coord = iris.coords.DimCoord(lons_tobac, standard_name='longitude', units='degrees')
+            time_coord = iris.coords.DimCoord([forecast_step], standard_name='time', units='hours since 2000-01-01 00:00:00')
+            
+            cube = iris.cube.Cube(
+                mslp_tobac[np.newaxis, :, :],
+                standard_name='air_pressure_at_mean_sea_level',
+                units='hPa',
+                dim_coords_and_dims=[(time_coord, 0), (lat_coord, 1), (lon_coord, 2)]
+            )
+            
+            # Define thresholds
+            basin_min = np.nanmin(mslp_tobac)
+            basin_max = np.nanmax(mslp_tobac)
+            thresholds = np.arange(max(basin_min - 5, 950), min(basin_max + 5, 1020), 2)
+            thresholds = sorted(thresholds, reverse=False)
+            
+            # Detect features
+            features = tobac.feature_detection_multithreshold(
+                field_in=cube,
+                dxy=111000,
+                threshold=thresholds,
+                target='minimum',
+                position_threshold='weighted_diff',
+                sigma_threshold=1.5,
+                n_min_threshold=3
+            )
+
+            print(features)
+            
+            if features is not None and len(features) > 0:
+                # Get strongest feature
+                strongest_idx = features['threshold_value'].idxmin()
+                strongest = features.loc[strongest_idx]
+                
+                # Get position in features list
+                feature_position = features.index.get_loc(strongest_idx)
+                
+                # Get lat/lon from feature
+                feature_lat = float(strongest['latitude'])
+                feature_lon = float(strongest['longitude'])
+                
+                # Find nearest grid point for ACTUAL MSLP value
+                lat_idx = np.argmin(np.abs(lats - feature_lat))
+                lon_idx = np.argmin(np.abs(lons_180 - feature_lon))
+                
+                # Return RAW MSLP value at detected location
+                min_mslp = float(mslp_hpa[lat_idx, lon_idx])
+                
+                return min_mslp, feature_position, (feature_lat, feature_lon)
+            else:
+                return None, None, None
+        
+        except Exception as e:
+            print(f"\n⚠ tobac error: {e}")
+            return None, None, None
+
     def extract_mslp(
         self,
         y_phys,
@@ -186,9 +276,10 @@ class HurricaneGenesisFFS:
             lat_grid, lon_grid = np.meshgrid(lats, lons, indexing="ij")
             dist = np.sqrt((lat_grid - lat0) ** 2 + (lon_grid - lon0) ** 2)
 
-            # FIXED: Apply basin mask BEFORE smoothing
-            mslp_basin = np.where(basin_mask, mslp_hpa, np.nan)
-            mslp_smooth = gaussian_filter(mslp_basin, sigma=1.5)
+            # Apply basin mask BEFORE smoothing
+            # mslp_basin = np.where(basin_mask, mslp_hpa, np.nan)
+            # mslp_smooth = gaussian_filter(mslp_basin, sigma=1.5)
+            mslp_smooth = gaussian_filter(mslp_hpa, sigma=1.5)
             
             # Increased radius to 12° for fast-moving storms
             local = np.where(dist < 12.0, mslp_smooth, np.nan)
@@ -200,7 +291,7 @@ class HurricaneGenesisFFS:
             lat = float(lats[i])
             lon = float(lons[j])
             
-            # Visualize if enabled - NO MARKER during normal tracking
+            # Visualize if enabled
             if self.visualize_mslp:
                 datetime_str = None
                 if batch and "datetime" in batch:
@@ -211,8 +302,7 @@ class HurricaneGenesisFFS:
 
             return min_mslp, 0, (lat, lon)
 
-        # ---- FLUX MODE: Multi-storm tracking ----
-        # Detect all local minima in basin (only organized systems < 1010 hPa)
+        # ---- FLUX MODE: Use old detection logic (NO TOBAC) ----
         minima = self._find_local_mslp_minima(
             mslp_hpa,
             lats,
@@ -224,52 +314,44 @@ class HurricaneGenesisFFS:
         )
 
         if len(minima) == 0:
-            # No storms detected - mark all tracked storms as lost
             for storm_id in self.tracked_storms:
                 self.tracked_storms[storm_id]['lost_count'] += 1
             return self._extract_mslp_fallback(y_phys, batch), None, None
         
-        # MERGE nearby minima - hurricanes don't form within 10° (~1100 km)
+        # Merge nearby minima
         merged_minima = []
         for min_mslp, min_lat, min_lon in minima:
             merged = False
             for i, (m_mslp, m_lat, m_lon) in enumerate(merged_minima):
                 dist = np.sqrt((min_lat - m_lat)**2 + (min_lon - m_lon)**2)
-                if dist < 12.0:  # Same storm if within 12°
-                    # Keep the stronger one
+                if dist < 12.0:
                     if min_mslp < m_mslp:
                         merged_minima[i] = (min_mslp, min_lat, min_lon)
                     merged = True
                     break
-            
             if not merged:
                 merged_minima.append((min_mslp, min_lat, min_lon))
         
         minima = merged_minima
         
-        # Match detected minima to tracked storms (use larger radius)
+        # Match to tracked storms
         matched_storms = set()
         matched_minima = set()
         
         for storm_id, storm_info in list(self.tracked_storms.items()):
             storm_lat, storm_lon = storm_info['location']
-            
-            # Find closest minimum to this tracked storm
             best_match = None
             best_dist = float('inf')
             
             for min_idx, (min_mslp, min_lat, min_lon) in enumerate(minima):
                 if min_idx in matched_minima:
                     continue
-                
                 dist = np.sqrt((min_lat - storm_lat)**2 + (min_lon - storm_lon)**2)
-                
-                if dist < 12.0 and dist < best_dist:  # Within 12° and closest
+                if dist < 12.0 and dist < best_dist:
                     best_match = min_idx
                     best_dist = dist
             
             if best_match is not None:
-                # Update tracked storm
                 min_mslp, min_lat, min_lon = minima[best_match]
                 self.tracked_storms[storm_id]['location'] = (min_lat, min_lon)
                 self.tracked_storms[storm_id]['mslp'] = min_mslp
@@ -277,34 +359,30 @@ class HurricaneGenesisFFS:
                 matched_storms.add(storm_id)
                 matched_minima.add(best_match)
             else:
-                # No match found - increment lost count
                 self.tracked_storms[storm_id]['lost_count'] += 1
         
-        # Add new storms for unmatched minima (only if below λ₀)
+        # Add new storms
         lambda_0 = self.interfaces[0]
         for min_idx, (min_mslp, min_lat, min_lon) in enumerate(minima):
-            if min_idx not in matched_minima:
-                # Only start tracking storms below λ₀ threshold
-                if min_mslp < lambda_0:
-                    storm_id = self.next_storm_id
-                    self.next_storm_id += 1
-                    self.tracked_storms[storm_id] = {
-                        'location': (min_lat, min_lon),
-                        'mslp': min_mslp,
-                        'saved': False,
-                        'lost_count': 0
-                    }
+            if min_idx not in matched_minima and min_mslp < lambda_0:
+                storm_id = self.next_storm_id
+                self.next_storm_id += 1
+                self.tracked_storms[storm_id] = {
+                    'location': (min_lat, min_lon),
+                    'mslp': min_mslp,
+                    'saved': False,
+                    'lost_count': 0
+                }
         
-        # Remove storms lost for 2+ timesteps
+        # Remove lost storms
         for storm_id in list(self.tracked_storms.keys()):
             if self.tracked_storms[storm_id]['lost_count'] >= 2:
                 del self.tracked_storms[storm_id]
         
-        # Return basin minimum (strongest storm)
+        # Return strongest storm
         if len(minima) > 0:
             min_mslp, lat, lon = min(minima, key=lambda x: x[0])
             
-            # Visualize if enabled - NO MARKER during normal tracking
             if self.visualize_mslp:
                 datetime_str = None
                 if batch and "datetime" in batch:
@@ -929,7 +1007,8 @@ class HurricaneGenesisFFS:
                 
                 y_pred = self.model(x, forecast_step=step - 1)
                 y_phys = self.state_transformer.inverse_transform(y_pred.cpu())
-                y_with_mslp = self.calculate_mslp_wrapper(y_phys, batch)
+                # y_with_mslp = self.calculate_mslp_wrapper(y_phys, batch)
+                y_with_mslp = self.calculate_mslp_wrapper(y_phys, batch, simple_mslp=(mode=='flux'))
                 
                 mslp, feat_idx, location = self.extract_mslp(
                     y_with_mslp, batch, step, previous_location, mode
@@ -1167,7 +1246,8 @@ class HurricaneGenesisFFS:
             'final_mslp': trajectory_mslp[-1] if trajectory_mslp else None
         }
     
-    def _create_crossing(self, state, step, mslp, interface_idx, batch, feat_idx, location, parent, y_phys_with_mslp):
+    def _create_crossing(self, state, step, mslp, interface_idx, batch, feat_idx, 
+                        location, parent, y_phys_with_mslp, cps_params=None):  # ← ADD cps_params parameter
         """Create InterfaceConfig."""
         if interface_idx == -1:
             config_name = f"stateB_config_{len(list(self.stateB_dir.glob('stateB_config_*.pkl')))+1:04d}"
@@ -1192,7 +1272,8 @@ class HurricaneGenesisFFS:
             config_name=config_name,
             parent_config=parent,
             track_id=None,
-            feature_location=location
+            feature_location=location,
+            cps_params=cps_params
         )
         
         # STORE DATA FOR PLOTTING - save exact MSLP field used for extraction
@@ -1240,3 +1321,1043 @@ class HurricaneGenesisFFS:
             print(f"  → SAVED: {crossing.config_name} ({crossing.mslp_value:.1f} hPa)")
         else:
             print(f"  ✗ INCOMPLETE SAVE: {crossing.config_name} (PNG:{png_saved}, PKL:{pkl_saved})")
+
+
+class HurricaneGenesisFFS_CPS:
+    """CPS-enhanced FFS with proper track history management."""
+    
+    def __init__(self, base_ffs_instance):
+        self._base = base_ffs_instance
+        self.cps_tracker = CyclonePhaseTracker(self._base.latlons, radius_km=500)
+        self.storm_track_history = {}
+        
+        print("✓ CPS tracker initialized (Hart 2003 formulation)")
+        print("✓ Using VTL/VTU only (B disabled due to motion uncertainty)")
+    
+    def __getattr__(self, name):
+        return getattr(self._base, name)
+    
+    def _compute_pressure_interp(self, y_phys, batch):
+        """Compute pressure interpolation for CPS."""
+        datetime_str = datetime.fromtimestamp(
+            batch["datetime"][0].item()
+        ).strftime('%Y-%m-%d %H:%M:%S')
+        
+        darray_upper, darray_single = make_xarray(
+            y_phys,
+            datetime_str,
+            self._base.latlons.latitude.values,
+            self._base.latlons.longitude.values,
+            self._base.config,
+        )
+        
+        ds_merged = xr.merge([
+            darray_upper.to_dataset(dim="vars"),
+            darray_single.to_dataset(dim="vars")
+        ])
+        
+        return full_state_pressure_interpolation(
+            ds_merged,
+            self._base.surface_geopotential,
+            **self._base.config["predict"]["interp_pressure"]
+        )
+
+    def _extend_forecast_for_active_storms(self, last_datetime, last_state):
+        """
+        Extend forecast if there are still active tracked storms.
+        Returns new loader or None if no extension needed.
+        """
+        # Check if any storms are still active (not dissipated, not saved)
+        active_storms = [
+            storm_id for storm_id, storm in self._base.tracked_storms.items()
+            if storm['mslp'] < self._base.state_A_threshold
+        ]
+        
+        if len(active_storms) == 0:
+            return None
+        
+        print(f"  → {len(active_storms)} active storm(s) at forecast end - extending...")
+        
+        from datetime import timedelta
+        from credit.datasets.era5_multistep_batcher import Predict_Dataset_Batcher
+        from credit.datasets.load_dataset_and_dataloader import BatchForecastLenDataLoader
+        
+        # Extend from last datetime + 6 hours for another 15 days
+        restart_time = last_datetime
+        forecast_times = [[
+            (restart_time + timedelta(hours=6)).strftime('%Y-%m-%d %H:%M:%S'),
+            (restart_time + timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
+        ]]
+        
+        extended_dataset = Predict_Dataset_Batcher(
+            **self._base.dataset_params,
+            fcst_datetime=forecast_times
+        )
+        extended_loader = BatchForecastLenDataLoader(extended_dataset)
+        
+        return extended_loader
+    
+    def _get_previous_position(self, storm_id):
+        """Get previous position for motion calculation."""
+        if storm_id not in self.storm_track_history:
+            return None, None
+        
+        hist = self.storm_track_history[storm_id]
+        if len(hist['lons']) < 1:
+            return None, None
+        
+        return hist['lons'][-1], hist['lats'][-1]
+    
+    def _update_track_history(self, storm_id, lon, lat):
+        """Update track history for a storm."""
+        if storm_id not in self.storm_track_history:
+            self.storm_track_history[storm_id] = {'lons': [], 'lats': []}
+        
+        self.storm_track_history[storm_id]['lons'].append(lon)
+        self.storm_track_history[storm_id]['lats'].append(lat)
+    
+    def _check_cps(self, pressure_interp, location, mslp, storm_id, stage='genesis'):
+        """Check if storm is extratropical using CPS."""
+        lat, lon = location
+        
+        # Get previous position BEFORE updating
+        prev_lon, prev_lat = self._get_previous_position(storm_id)
+        
+        # Update track history
+        self._update_track_history(storm_id, lon, lat)
+        
+        # Compute CPS
+        cps = self.cps_tracker.compute_CPS(
+            pressure_interp, 
+            lon, lat, mslp,
+            prev_lon=prev_lon,
+            prev_lat=prev_lat,
+            stage=stage
+        )
+        
+        return not cps['is_tropical'], cps
+
+    def rollout(self, loader, mode='flux', initial_state=None, start_interface=-1, parent_config=None):
+        """Run trajectory rollout with CPS checks only at decision points."""
+        if mode == 'flux':
+            self._base.tracked_storms = {}
+            self._base.next_storm_id = 0
+            self.storm_track_history = {}
+        
+        previous_location = None
+        if parent_config and parent_config.feature_location:
+            previous_location = parent_config.feature_location
+        
+        trajectory_mslp = []
+        crossings = []
+        current_interface = start_interface
+        status = 'ongoing'
+        saved_states = {}
+        failure_reason = None
+        failure_cps = None
+        
+        with torch.no_grad():
+            for batch in loader:
+                step = batch["forecast_step"].item()
+                
+                if step == 1:
+                    if initial_state is not None:
+                        x = initial_state.to(self._base.device).float()
+                    else:
+                        if "x_surf" in batch:
+                            from credit.data import concat_and_reshape
+                            x = concat_and_reshape(batch["x"], batch["x_surf"]).to(self._base.device).float()
+                        else:
+                            from credit.data import reshape_only
+                            x = reshape_only(batch["x"]).to(self._base.device).float()
+                
+                if "x_forcing_static" in batch:
+                    x_forcing = batch["x_forcing_static"].to(self._base.device).permute(0, 2, 1, 3, 4).float()
+                    x = torch.cat((x, x_forcing), dim=1)
+                
+                y_pred = self._base.model(x, forecast_step=step - 1)
+                y_phys = self._base.state_transformer.inverse_transform(y_pred.cpu())
+                
+                # ALWAYS use simple MSLP (fast!)
+                y_with_mslp = self._base.calculate_mslp_wrapper(y_phys, batch, simple_mslp=True)
+                pressure_interp = None  # Lazy computation - only when needed
+                
+                mslp, feat_idx, location = self._base.extract_mslp(
+                    y_with_mslp, batch, step, previous_location, mode
+                )
+                
+                trajectory_mslp.append(mslp)
+                
+                # === SHOOT MODE: GEOGRAPHIC BOUNDS CHECK ===
+                if mode == 'shoot' and location:
+                    storm_lat, storm_lon = location
+                    
+                    # Check if outside normal bounds - triggers CPS verification
+                    outside_normal_bounds = False
+                    
+                    if storm_lat > 50.0:
+                        print(f"  → Outside normal bounds: lat={storm_lat:.1f}°N > 50°N")
+                        outside_normal_bounds = True
+                    
+                    elif storm_lon > -10.0:
+                        print(f"  → Outside normal bounds: lon={abs(storm_lon):.1f}°W (too far east)")
+                        outside_normal_bounds = True
+                    
+                    elif storm_lat > 30.0:
+                        # Check land mask
+                        lats = self._base.latlons.latitude.values
+                        lons = np.where(
+                            self._base.latlons.longitude.values > 180,
+                            self._base.latlons.longitude.values - 360,
+                            self._base.latlons.longitude.values
+                        )
+                        lat_idx = np.argmin(np.abs(lats - storm_lat))
+                        lon_idx = np.argmin(np.abs(lons - storm_lon))
+                        lsm_value = self._base.land_sea_mask[lat_idx, lon_idx]
+                        
+                        if lsm_value > 0.5:
+                            print(f"  → Over land at ({storm_lat:.1f}°N, {abs(storm_lon):.1f}°W)")
+                            outside_normal_bounds = True
+                    
+                    # IF OUTSIDE BOUNDS: Verify tropical structure with CPS
+                    if outside_normal_bounds:
+                        try:
+                            if pressure_interp is None:
+                                print(f"  → Computing pressure interp for CPS verification...")
+                                pressure_interp = self._compute_pressure_interp(y_phys, batch)
+                            
+                            is_ET, cps = self._check_cps(
+                                pressure_interp, 
+                                location, 
+                                mslp, 
+                                storm_id=0, 
+                                stage='mature'
+                            )
+                            
+                            if is_ET:
+                                print(f"  → FAILURE: Extratropical at boundary")
+                                print(f"     Phase: {cps['phase']}, -VT^L={cps['VTL']:.1f}m, -VT^U={cps['VTU']:.1f}m")
+                                status = 'extratropical'
+                                failure_reason = 'extratropical_at_boundary'
+                                failure_cps = cps
+                                break
+                            else:
+                                print(f"  → Still TROPICAL: -VT^L={cps['VTL']:.1f}m, -VT^U={cps['VTU']:.1f}m")
+                                print(f"     Continuing trajectory...")
+                        
+                        except Exception as e:
+                            print(f"  ⚠ CPS check failed: {e}")
+                            status = 'failure'
+                            failure_reason = 'cps_check_failed'
+                            break
+                    
+                    previous_location = location
+                
+                y_norm = self._base.state_transformer.transform_array(y_phys).to(self._base.device)
+                
+                if batch.get("y_diag") is not None:
+                    varnum_diag = batch["y_diag"].shape[1]
+                    saved_states[step] = y_norm[:, :-varnum_diag, ...].cpu().clone()
+                else:
+                    saved_states[step] = y_norm.cpu().clone()
+                
+                traj_status, interface_idx = self._base.check_trajectory_status(mslp, current_interface, mode)
+                
+                # === FLUX MODE: CPS CHECK AT λ₀ CROSSING ===
+                if mode == 'flux':
+                    lambda_0 = self._base.interfaces[0]
+                    
+                    for storm_id in list(self._base.tracked_storms.keys()):
+                        storm = self._base.tracked_storms[storm_id]
+                        
+                        if not storm['saved'] and storm['mslp'] < lambda_0:
+                            storm_lat, storm_lon = storm['location']
+                            
+                            # Verify local minimum
+                            lats = self._base.latlons.latitude.values
+                            lons = np.where(
+                                self._base.latlons.longitude.values > 180,
+                                self._base.latlons.longitude.values - 360,
+                                self._base.latlons.longitude.values
+                            )
+                            lat_idx = np.argmin(np.abs(lats - storm_lat))
+                            lon_idx = np.argmin(np.abs(lons - storm_lon))
+                            
+                            mslp_channel_idx = 71
+                            mslp_pa = y_with_mslp[0, mslp_channel_idx, 0].cpu().numpy()
+                            mslp_hpa = mslp_pa / 100.0
+                            
+                            i_min = max(0, lat_idx - 1)
+                            i_max = min(mslp_hpa.shape[0], lat_idx + 2)
+                            j_min = max(0, lon_idx - 1)
+                            j_max = min(mslp_hpa.shape[1], lon_idx + 2)
+                            
+                            nbhd = mslp_hpa[i_min:i_max, j_min:j_max]
+                            center_val = mslp_hpa[lat_idx, lon_idx]
+                            
+                            if not np.all(center_val <= nbhd):
+                                print(f"  → Storm {storm_id} location has no local minimum - REJECTING")
+                                storm['saved'] = True
+                                continue
+                            
+                            # CPS CHECK AT λ₀ CROSSING
+                            try:
+                                if pressure_interp is None:
+                                    print(f"  → Computing pressure interp for λ₀ crossing...")
+                                    pressure_interp = self._compute_pressure_interp(y_phys, batch)
+                                
+                                is_ET, cps = self._check_cps(
+                                    pressure_interp, 
+                                    storm['location'],
+                                    storm['mslp'],
+                                    storm_id,
+                                    stage='genesis'
+                                )
+                                
+                                # LOG
+                                cps_log_path = self._base.flux_dir / 'cps_values.txt'
+                                with open(cps_log_path, 'a') as f:
+                                    timestamp = datetime.fromtimestamp(batch["datetime"][0].item()).strftime('%Y-%m-%d %H:%M:%S')
+                                    f.write(f"\n{'='*60}\n")
+                                    f.write(f"Storm {storm_id} λ₀ crossing at step {step}\n")
+                                    f.write(f"Time: {timestamp}\n")
+                                    f.write(f"Location: ({storm_lat:.1f}°N, {abs(storm_lon):.1f}°W)\n")
+                                    f.write(f"MSLP: {storm['mslp']:.1f} hPa\n")
+                                    f.write(f"B: {cps['B']:.1f} m\n")
+                                    f.write(f"-VT^L: {cps['VTL']:.1f} m\n")
+                                    f.write(f"-VT^U: {cps['VTU']:.1f} m\n")
+                                    f.write(f"Phase: {cps['phase']}\n")
+                                    f.write(f"Decision: {'REJECT' if is_ET else 'ACCEPT'}\n")
+                                
+                                if is_ET:
+                                    print(f"  → Storm {storm_id} {cps['phase']} at λ₀: NOT SAVED")
+                                    storm['saved'] = True
+                                    continue
+                                
+                                print(f"  → Storm {storm_id} TROPICAL at λ₀: SAVED")
+                            
+                            except Exception as e:
+                                print(f"  ⚠ CPS check failed for storm {storm_id}: {e}")
+                                storm['saved'] = True
+                                continue
+                            
+                            # VALID TROPICAL GENESIS - SAVE WITH CPS DATA
+                            crossing = self._base._create_crossing(
+                                saved_states[step], step, storm['mslp'], 0,
+                                batch, None, storm['location'], None, y_with_mslp,
+                                cps_params=cps
+                            )
+                            crossings.append(crossing)
+                            storm['saved'] = True
+                            
+                            if self._base.visualize_mslp:
+                                datetime_str = None
+                                if batch and "datetime" in batch:
+                                    dt = datetime.fromtimestamp(batch["datetime"][0].item())
+                                    datetime_str = dt.strftime('%Y-%m-%d %H:%M UTC')
+                                
+                                mslp_channel_idx = 71
+                                mslp_pa = y_with_mslp[0, mslp_channel_idx, 0].cpu().numpy()
+                                mslp_hpa = mslp_pa / 100.0
+                                
+                                self._base._plot_mslp(
+                                    mslp_hpa, 
+                                    self._base.get_basin_mask(),
+                                    datetime_str,
+                                    storm_lat, storm_lon, storm['mslp'],
+                                    show_marker=True,
+                                    marker_label=f'λ₀ CROSSING (Storm {storm_id})'
+                                )
+                                import matplotlib.pyplot as plt
+                                plt.pause(1.0)
+                        
+                        if storm['mslp'] > self._base.state_A_threshold:
+                            print(f"  → Storm {storm_id} dissipated: {storm['mslp']:.1f} hPa")
+                            del self._base.tracked_storms[storm_id]
+                
+                # === SHOOT MODE: CPS CHECK AT INTERFACE CROSSING ===
+                if traj_status == 'crossed_forward':
+                    if mode == 'shoot':
+                        next_idx = current_interface + 1
+                        
+                        # FULL CPS CHECK AT CROSSING
+                        try:
+                            if pressure_interp is None:
+                                print(f"  → Computing pressure interp for λ{next_idx} crossing...")
+                                pressure_interp = self._compute_pressure_interp(y_phys, batch)
+                            
+                            is_ET, cps = self._check_cps(
+                                pressure_interp, 
+                                location, 
+                                mslp, 
+                                storm_id=0, 
+                                stage='mature'
+                            )
+                            
+                            # LOG
+                            cps_log_path = self._base.ic_base_dir / str(next_idx) / 'cps_values.txt'
+                            with open(cps_log_path, 'a+') as f:
+                                timestamp = datetime.fromtimestamp(batch["datetime"][0].item()).strftime('%Y-%m-%d %H:%M:%S')
+                                f.write(f"\n{'='*60}\n")
+                                f.write(f"Interface crossing λ{current_interface}→λ{next_idx} at step {step}\n")
+                                f.write(f"Time: {timestamp}\n")
+                                f.write(f"Location: ({location[0]:.1f}°N, {abs(location[1]):.1f}°W)\n")
+                                f.write(f"MSLP: {mslp:.1f} hPa\n")
+                                f.write(f"B: {cps['B']:.1f} m\n")
+                                f.write(f"-VT^L: {cps['VTL']:.1f} m\n")
+                                f.write(f"-VT^U: {cps['VTU']:.1f} m\n")
+                                f.write(f"Phase: {cps['phase']}\n")
+                                f.write(f"Decision: {'REJECT' if is_ET else 'ACCEPT'}\n")
+                            
+                            if is_ET:
+                                print(f"  → FAILURE: Extratropical at crossing")
+                                print(f"     Phase: {cps['phase']}, -VT^L={cps['VTL']:.1f}m, -VT^U={cps['VTU']:.1f}m")
+                                status = 'extratropical'
+                                failure_reason = 'extratropical_at_crossing'
+                                failure_cps = cps
+                                break
+                            
+                            print(f"  → SUCCESS: Tropical at λ{next_idx} crossing")
+                            
+                            # SAVE WITH CPS DATA
+                            crossing = self._base._create_crossing(
+                                saved_states[step], step, mslp, next_idx,
+                                batch, feat_idx, location, 
+                                parent_config.config_name if parent_config else None,
+                                y_with_mslp,
+                                cps_params=cps
+                            )
+                            crossings.append(crossing)
+                            status = 'success'
+                            
+                            if self._base.visualize_mslp and location:
+                                datetime_str = None
+                                if batch and "datetime" in batch:
+                                    dt = datetime.fromtimestamp(batch["datetime"][0].item())
+                                    datetime_str = dt.strftime('%Y-%m-%d %H:%M UTC')
+                                
+                                mslp_channel_idx = 71
+                                mslp_pa = y_with_mslp[0, mslp_channel_idx, 0].cpu().numpy()
+                                mslp_hpa = mslp_pa / 100.0
+                                
+                                self._base._plot_mslp(
+                                    mslp_hpa, 
+                                    self._base.get_basin_mask(),
+                                    datetime_str,
+                                    location[0], location[1], mslp,
+                                    show_marker=True,
+                                    marker_label=f'λ{next_idx} CROSSING'
+                                )
+                                import matplotlib.pyplot as plt
+                                plt.pause(1.5)
+                            
+                            break
+                        
+                        except Exception as e:
+                            print(f"  ⚠ CPS check failed at crossing: {e}")
+                            status = 'failure'
+                            failure_reason = 'cps_check_failed'
+                            break
+                    
+                    if mode == 'flux':
+                        current_interface = interface_idx
+                
+                elif traj_status == 'reached_B':
+                    crossing = self._base._create_crossing(
+                        saved_states[step], step, mslp, -1,
+                        batch, feat_idx, location,
+                        parent_config.config_name if parent_config else None,
+                        y_with_mslp
+                    )
+                    crossings.append(crossing)
+                    status = 'reached_B'
+                    
+                    if self._base.visualize_mslp and location:
+                        datetime_str = None
+                        if batch and "datetime" in batch:
+                            dt = datetime.fromtimestamp(batch["datetime"][0].item())
+                            datetime_str = dt.strftime('%Y-%m-%d %H:%M UTC')
+                        
+                        mslp_channel_idx = 71
+                        mslp_pa = y_with_mslp[0, mslp_channel_idx, 0].cpu().numpy()
+                        mslp_hpa = mslp_pa / 100.0
+                        
+                        self._base._plot_mslp(
+                            mslp_hpa, 
+                            self._base.get_basin_mask(),
+                            datetime_str,
+                            location[0], location[1], mslp,
+                            show_marker=True,
+                            marker_label='STATE B REACHED!'
+                        )
+                        import matplotlib.pyplot as plt
+                        plt.pause(2.0)
+                    
+                    break
+                
+                elif traj_status == 'returned_A':
+                    status = 'failure'
+                    failure_reason = 'returned_A'
+                    break
+                
+                elif traj_status == 'returned_backward':
+                    current_interface = interface_idx if interface_idx is not None else -1
+                
+                if batch.get("y_diag") is not None:
+                    varnum_diag = batch["y_diag"].shape[1]
+                    x = y_norm[:, :-varnum_diag, ...].detach()
+                else:
+                    x = y_norm.detach()
+
+                if batch.get("stop_forecast", torch.tensor(False)).item():
+                    # FLUX MODE: Check for active storms that need extended forecast
+                    if mode == 'flux':
+                        active_storms = [
+                            storm_id for storm_id, storm in self._base.tracked_storms.items()
+                            if storm['mslp'] < self._base.state_A_threshold
+                        ]
+                        
+                        if len(active_storms) > 0:
+                            # Get last datetime and state for extension
+                            last_datetime = datetime.fromtimestamp(batch["datetime"][0].item())
+                            last_state = x  # Current state tensor
+                            
+                            extended_loader = self._extend_forecast_for_active_storms(
+                                last_datetime, 
+                                last_state
+                            )
+                            
+                            if extended_loader is not None:
+                                print(f"  → Extending forecast from {last_datetime.strftime('%Y-%m-%d %H:%M')}")
+                                
+                                # Continue rollout with extended loader
+                                for ext_batch in extended_loader:
+                                    ext_step = ext_batch["forecast_step"].item()
+                                    
+                                    if "x_forcing_static" in ext_batch:
+                                        x_forcing = ext_batch["x_forcing_static"].to(self._base.device).permute(0, 2, 1, 3, 4).float()
+                                        x_with_forcing = torch.cat((x, x_forcing), dim=1)
+                                    else:
+                                        x_with_forcing = x
+                                    
+                                    y_pred = self._base.model(x_with_forcing, forecast_step=ext_step - 1)
+                                    y_phys = self._base.state_transformer.inverse_transform(y_pred.cpu())
+                                    y_with_mslp = self._base.calculate_mslp_wrapper(y_phys, ext_batch, simple_mslp=True)
+                                    
+                                    mslp, _, location = self._base.extract_mslp(
+                                        y_with_mslp, ext_batch, ext_step, None, mode
+                                    )
+                                    
+                                    trajectory_mslp.append(mslp)
+                                    
+                                    y_norm = self._base.state_transformer.transform_array(y_phys).to(self._base.device)
+                                    
+                                    # Check for state B crossings
+                                    if mslp < self._base.state_B_threshold:
+                                        for storm_id in list(self._base.tracked_storms.keys()):
+                                            storm = self._base.tracked_storms[storm_id]
+                                            if storm['mslp'] < self._base.state_B_threshold:
+                                                print(f"  → Storm {storm_id} reached STATE B during extension!")
+                                                # This is a direct B formation (crossed λ₀ then reached B)
+                                                # Don't save as crossing, but mark for direct_B_count
+                                                del self._base.tracked_storms[storm_id]
+                                    
+                                    # Check for dissipation
+                                    for storm_id in list(self._base.tracked_storms.keys()):
+                                        storm = self._base.tracked_storms[storm_id]
+                                        if storm['mslp'] > self._base.state_A_threshold:
+                                            print(f"  → Storm {storm_id} dissipated during extension: {storm['mslp']:.1f} hPa")
+                                            del self._base.tracked_storms[storm_id]
+                                    
+                                    # Check if all storms resolved
+                                    if len(self._base.tracked_storms) == 0:
+                                        print(f"  → All storms resolved - ending extension")
+                                        break
+                                    
+                                    # Update x for next step
+                                    if ext_batch.get("y_diag") is not None:
+                                        varnum_diag = ext_batch["y_diag"].shape[1]
+                                        x = y_norm[:, :-varnum_diag, ...].detach()
+                                    else:
+                                        x = y_norm.detach()
+                                    
+                                    if ext_batch.get("stop_forecast", torch.tensor(False)).item():
+                                        print(f"  → Extended forecast ended")
+                                        break
+                    
+                    if status == 'ongoing':
+                        status = 'completed' if mode == 'flux' else 'failure'
+                    break
+
+    
+        for crossing in crossings:
+            self._base._save_crossing(crossing, mode)
+        
+        return {
+            'status': status,
+            'mslp_trajectory': trajectory_mslp,
+            'crossings': crossings,
+            'final_mslp': trajectory_mslp[-1] if trajectory_mslp else None,
+            'failure_reason': failure_reason,
+            'failure_cps': failure_cps
+        }
+    
+    # def rollout(self, loader, mode='flux', initial_state=None, start_interface=-1, parent_config=None):
+    #     """Run trajectory rollout with CPS-based filtering."""
+    #     if mode == 'flux':
+    #         self._base.tracked_storms = {}
+    #         self._base.next_storm_id = 0
+    #         self.storm_track_history = {}
+        
+    #     previous_location = None
+    #     if parent_config and parent_config.feature_location:
+    #         previous_location = parent_config.feature_location
+        
+    #     trajectory_mslp = []
+    #     crossings = []
+    #     current_interface = start_interface
+    #     status = 'ongoing'
+    #     saved_states = {}
+        
+    #     with torch.no_grad():
+    #         for batch in loader:
+    #             step = batch["forecast_step"].item()
+                
+    #             if step == 1:
+    #                 if initial_state is not None:
+    #                     x = initial_state.to(self._base.device).float()
+    #                 else:
+    #                     if "x_surf" in batch:
+    #                         from credit.data import concat_and_reshape
+    #                         x = concat_and_reshape(batch["x"], batch["x_surf"]).to(self._base.device).float()
+    #                     else:
+    #                         from credit.data import reshape_only
+    #                         x = reshape_only(batch["x"]).to(self._base.device).float()
+                
+    #             if "x_forcing_static" in batch:
+    #                 x_forcing = batch["x_forcing_static"].to(self._base.device).permute(0, 2, 1, 3, 4).float()
+    #                 x = torch.cat((x, x_forcing), dim=1)
+                
+    #             y_pred = self._base.model(x, forecast_step=step - 1)
+    #             y_phys = self._base.state_transformer.inverse_transform(y_pred.cpu())
+                
+    #             y_with_mslp = self._base.calculate_mslp_wrapper(y_phys, batch, simple_mslp=True)
+    #             pressure_interp = None
+                
+    #             mslp, feat_idx, location = self._base.extract_mslp(
+    #                 y_with_mslp, batch, step, previous_location, mode
+    #             )
+                
+    #             trajectory_mslp.append(mslp)
+                
+    #             # CPS CHECK - SHOOT MODE
+    #             if mode == 'shoot' and location is not None:
+    #                 lat, lon = location
+    #                 try:
+    #                     if pressure_interp is None:
+    #                         pressure_interp = self._compute_pressure_interp(y_phys, batch)
+                        
+    #                     is_ET, cps = self._check_cps(pressure_interp, location, mslp, storm_id=0, stage='mature')
+
+    #                     cps_log_path = self._base.ic_base_dir / str(start_interface + 1) / 'cps_values.txt'
+    #                     with open(cps_log_path, 'a+') as f:
+    #                         timestamp = datetime.fromtimestamp(batch["datetime"][0].item()).strftime('%Y-%m-%d %H:%M:%S')
+    #                         f.write(f"\n{'='*60}\n")
+    #                         f.write(f"Shoot mode at step {step}\n")
+    #                         f.write(f"Time: {timestamp}\n")
+    #                         f.write(f"Location: ({lat:.1f}°N, {abs(lon):.1f}°W)\n")
+    #                         f.write(f"MSLP: {mslp:.1f} hPa\n")
+    #                         f.write(f"Motion: {cps['motion_dir']:.1f}°\n")
+    #                         f.write(f"B: {cps['B']:.1f} m (threshold: {cps['threshold_B']:.1f} m)\n")
+    #                         f.write(f"-VT^L: {cps['VTL']:.1f} m\n")
+    #                         f.write(f"-VT^U: {cps['VTU']:.1f} m\n")
+    #                         f.write(f"Phase: {cps['phase']}\n")
+    #                         f.write(f"Decision: {'REJECT (extratropical)' if is_ET else 'ACCEPT (tropical)'}\n")
+                        
+    #                     if is_ET:
+    #                         print(f"  → EXTRATROPICAL: {cps['phase']} (heading {cps['motion_dir']:.0f}°)")
+    #                         print(f"     -VT^L={cps['VTL']:.1f}m, -VT^U={cps['VTU']:.1f}m")
+    #                         print(f"     Location: ({lat:.1f}°N, {abs(lon):.1f}°W), MSLP={mslp:.1f} hPa")
+    #                         status = 'extratropical'
+    #                         break
+                    
+    #                 except Exception as e:
+    #                     print(f"  ⚠ CPS check failed: {e}")
+    #                     print(f"  → REJECTING - cannot verify tropical structure")
+    #                     status = 'extratropical'
+    #                     break
+                    
+    #                 previous_location = location
+                
+    #             y_norm = self._base.state_transformer.transform_array(y_phys).to(self._base.device)
+                
+    #             if batch.get("y_diag") is not None:
+    #                 varnum_diag = batch["y_diag"].shape[1]
+    #                 saved_states[step] = y_norm[:, :-varnum_diag, ...].cpu().clone()
+    #             else:
+    #                 saved_states[step] = y_norm.cpu().clone()
+                
+    #             traj_status, interface_idx = self._base.check_trajectory_status(mslp, current_interface, mode)
+                
+    #             # CPS CHECK - FLUX MODE
+    #             if mode == 'flux':
+    #                 lambda_0 = self._base.interfaces[0]
+                    
+    #                 for storm_id in list(self._base.tracked_storms.keys()):
+    #                     storm = self._base.tracked_storms[storm_id]
+                        
+    #                     if not storm['saved'] and storm['mslp'] < lambda_0:
+    #                         storm_lat, storm_lon = storm['location']
+                            
+    #                         # Verify local minimum
+    #                         lats = self._base.latlons.latitude.values
+    #                         lons = np.where(
+    #                             self._base.latlons.longitude.values > 180,
+    #                             self._base.latlons.longitude.values - 360,
+    #                             self._base.latlons.longitude.values
+    #                         )
+    #                         lat_idx = np.argmin(np.abs(lats - storm_lat))
+    #                         lon_idx = np.argmin(np.abs(lons - storm_lon))
+                            
+    #                         mslp_channel_idx = 71
+    #                         mslp_pa = y_with_mslp[0, mslp_channel_idx, 0].cpu().numpy()
+    #                         mslp_hpa = mslp_pa / 100.0
+                            
+    #                         i_min = max(0, lat_idx - 1)
+    #                         i_max = min(mslp_hpa.shape[0], lat_idx + 2)
+    #                         j_min = max(0, lon_idx - 1)
+    #                         j_max = min(mslp_hpa.shape[1], lon_idx + 2)
+                            
+    #                         nbhd = mslp_hpa[i_min:i_max, j_min:j_max]
+    #                         center_val = mslp_hpa[lat_idx, lon_idx]
+                            
+    #                         if not np.all(center_val <= nbhd):
+    #                             print(f"  → Storm {storm_id} location has no local minimum - REJECTING")
+    #                             storm['saved'] = True
+    #                             continue
+                            
+    #                         try:
+    #                             if pressure_interp is None:
+    #                                 print(f"  → Computing pressure interp for CPS check...")
+    #                                 pressure_interp = self._compute_pressure_interp(y_phys, batch)
+                                
+    #                             is_ET, cps = self._check_cps(
+    #                                 pressure_interp, 
+    #                                 storm['location'],
+    #                                 storm['mslp'],
+    #                                 storm_id,
+    #                                 stage='genesis'
+    #                             )
+    
+    #                             # LOG
+    #                             cps_log_path = self._base.flux_dir / 'cps_values.txt'
+    #                             with open(cps_log_path, 'a') as f:
+    #                                 timestamp = datetime.fromtimestamp(batch["datetime"][0].item()).strftime('%Y-%m-%d %H:%M:%S')
+    #                                 f.write(f"\n{'='*60}\n")
+    #                                 f.write(f"Storm {storm_id} at step {step}\n")
+    #                                 f.write(f"Time: {timestamp}\n")
+    #                                 f.write(f"Location: ({storm_lat:.1f}°N, {abs(storm_lon):.1f}°W)\n")
+    #                                 f.write(f"MSLP: {storm['mslp']:.1f} hPa\n")
+    #                                 f.write(f"Motion: {cps['motion_dir']:.1f}°\n")
+    #                                 f.write(f"B: {cps['B']:.1f} m\n")
+    #                                 f.write(f"-VT^L: {cps['VTL']:.1f} m\n")
+    #                                 f.write(f"-VT^U: {cps['VTU']:.1f} m\n")
+    #                                 f.write(f"Phase: {cps['phase']}\n")
+    #                                 f.write(f"Decision: {'REJECT (extratropical)' if is_ET else 'ACCEPT (tropical)'}\n")
+                                
+    #                             if is_ET:
+    #                                 print(f"  → Storm {storm_id} {cps['phase']}: -VT^L={cps['VTL']:.1f}m, -VT^U={cps['VTU']:.1f}m")
+    #                                 print(f"     NOT SAVED - extratropical system")
+    #                                 storm['saved'] = True
+    #                                 continue
+                                
+    #                             print(f"  → Storm {storm_id} TROPICAL: -VT^L={cps['VTL']:.1f}m, -VT^U={cps['VTU']:.1f}m")
+                            
+    #                         except Exception as e:
+    #                             print(f"  ⚠ CPS check failed for storm {storm_id}: {e}")
+    #                             print(f"  → REJECTING")
+    #                             storm['saved'] = True
+    #                             continue
+                            
+    #                         crossing = self._base._create_crossing(
+    #                             saved_states[step], step, storm['mslp'], 0,
+    #                             batch, None, storm['location'], None, y_with_mslp
+    #                         )
+    #                         crossings.append(crossing)
+    #                         storm['saved'] = True
+    #                         print(f"  → Storm {storm_id} crossed λ₀: {storm['mslp']:.1f} hPa")
+                            
+    #                         if self._base.visualize_mslp:
+    #                             datetime_str = None
+    #                             if batch and "datetime" in batch:
+    #                                 dt = datetime.fromtimestamp(batch["datetime"][0].item())
+    #                                 datetime_str = dt.strftime('%Y-%m-%d %H:%M UTC')
+                                
+    #                             mslp_channel_idx = 71
+    #                             mslp_pa = y_with_mslp[0, mslp_channel_idx, 0].cpu().numpy()
+    #                             mslp_hpa = mslp_pa / 100.0
+                                
+    #                             self._base._plot_mslp(
+    #                                 mslp_hpa, 
+    #                                 self._base.get_basin_mask(),
+    #                                 datetime_str,
+    #                                 storm_lat, storm_lon, storm['mslp'],
+    #                                 show_marker=True,
+    #                                 marker_label=f'λ₀ CROSSING (Storm {storm_id})'
+    #                             )
+    #                             import matplotlib.pyplot as plt
+    #                             plt.pause(1.0)
+                        
+    #                     if storm['mslp'] > self._base.state_A_threshold:
+    #                         print(f"  → Storm {storm_id} dissipated: {storm['mslp']:.1f} hPa")
+    #                         del self._base.tracked_storms[storm_id]
+                
+    #             if traj_status == 'crossed_forward':
+    #                 if mode == 'shoot':
+    #                     next_idx = current_interface + 1
+    #                     crossing = self._base._create_crossing(
+    #                         saved_states[step], step, mslp, next_idx,
+    #                         batch, feat_idx, location, 
+    #                         parent_config.config_name if parent_config else None,
+    #                         y_with_mslp
+    #                     )
+    #                     crossings.append(crossing)
+    #                     status = 'success'
+                        
+    #                     if self._base.visualize_mslp and location:
+    #                         datetime_str = None
+    #                         if batch and "datetime" in batch:
+    #                             dt = datetime.fromtimestamp(batch["datetime"][0].item())
+    #                             datetime_str = dt.strftime('%Y-%m-%d %H:%M UTC')
+                            
+    #                         mslp_channel_idx = 71
+    #                         mslp_pa = y_with_mslp[0, mslp_channel_idx, 0].cpu().numpy()
+    #                         mslp_hpa = mslp_pa / 100.0
+                            
+    #                         self._base._plot_mslp(
+    #                             mslp_hpa, 
+    #                             self._base.get_basin_mask(),
+    #                             datetime_str,
+    #                             location[0], location[1], mslp,
+    #                             show_marker=True,
+    #                             marker_label=f'λ{next_idx} CROSSING'
+    #                         )
+    #                         import matplotlib.pyplot as plt
+    #                         plt.pause(1.5)
+                        
+    #                     break
+                    
+    #                 if mode == 'flux':
+    #                     current_interface = interface_idx
+                
+    #             elif traj_status == 'reached_B':
+    #                 crossing = self._base._create_crossing(
+    #                     saved_states[step], step, mslp, -1,
+    #                     batch, feat_idx, location,
+    #                     parent_config.config_name if parent_config else None,
+    #                     y_with_mslp
+    #                 )
+    #                 crossings.append(crossing)
+    #                 status = 'reached_B'
+                    
+    #                 if self._base.visualize_mslp and location:
+    #                     datetime_str = None
+    #                     if batch and "datetime" in batch:
+    #                         dt = datetime.fromtimestamp(batch["datetime"][0].item())
+    #                         datetime_str = dt.strftime('%Y-%m-%d %H:%M UTC')
+                        
+    #                     mslp_channel_idx = 71
+    #                     mslp_pa = y_with_mslp[0, mslp_channel_idx, 0].cpu().numpy()
+    #                     mslp_hpa = mslp_pa / 100.0
+                        
+    #                     self._base._plot_mslp(
+    #                         mslp_hpa, 
+    #                         self._base.get_basin_mask(),
+    #                         datetime_str,
+    #                         location[0], location[1], mslp,
+    #                         show_marker=True,
+    #                         marker_label='STATE B REACHED!'
+    #                     )
+    #                     import matplotlib.pyplot as plt
+    #                     plt.pause(2.0)
+                    
+    #                 break
+                
+    #             elif traj_status == 'returned_A':
+    #                 status = 'failure'
+    #                 break
+                
+    #             elif traj_status == 'returned_backward':
+    #                 current_interface = interface_idx if interface_idx is not None else -1
+                
+    #             if batch.get("y_diag") is not None:
+    #                 varnum_diag = batch["y_diag"].shape[1]
+    #                 x = y_norm[:, :-varnum_diag, ...].detach()
+    #             else:
+    #                 x = y_norm.detach()
+                
+    #             if batch.get("stop_forecast", torch.tensor(False)).item():
+    #                 if status == 'ongoing':
+    #                     status = 'completed' if mode == 'flux' else 'failure'
+    #                 break
+        
+    #     for crossing in crossings:
+    #         self._base._save_crossing(crossing, mode)
+        
+    #     return {
+    #         'status': status,
+    #         'mslp_trajectory': trajectory_mslp,
+    #         'crossings': crossings,
+    #         'final_mslp': trajectory_mslp[-1] if trajectory_mslp else None
+    #     }
+
+    def run_ffs(self, initial_loader, n_flux_trials=20, n_shoot_trials=10):
+        """Override run_ffs to use CPS rollout."""
+        print(f"\n{'='*70}")
+        print(f"Running FFS with CPS-enhanced flux generation")
+        print(f"Interfaces: {self._base.interfaces}")
+        print(f"Flux trials: {n_flux_trials}, Shoot trials: {n_shoot_trials}")
+        print(f"{'='*70}\n")
+        
+        self.generate_flux(initial_loader, n_flux_trials)
+        
+        for i in range(len(self._base.interfaces) - 1):
+            original = self._base.shoot_trajectory
+            self._base.shoot_trajectory = lambda c, idx: self.shoot_trajectory(c, idx)
+            self._base.shoot_from_interface(i, n_shoot_trials)
+            self._base.shoot_trajectory = original
+        
+        from tails.ffs_logger import FFSLogger
+        summary_logger = FFSLogger(
+            self._base.logs_dir, 
+            rank=self._base.rank, 
+            world_size=self._base.world_size, 
+            worker_id=self._base.worker_id, 
+            ic_dirname=None
+        )
+        
+        ffs_prob = self._base.flux_estimate * np.prod(self._base.transition_probs)
+        
+        print(f"\n{'='*70}")
+        print("FINAL RESULTS")
+        print(f"{'='*70}")
+        print(f"Flux: {self._base.flux_estimate:.6f}/day")
+        for i, p in enumerate(self._base.transition_probs):
+            print(f"P(λ_{i}→λ_{i+1}): {p:.4f}")
+        print(f"\nP_FFS: {ffs_prob:.2e}/day")
+        print(f"P_direct: {self._base.direct_B_rate:.2e}/day")
+        print(f"{'='*70}\n")
+        
+        summary_logger.log_final_results(
+            self._base.flux_estimate,
+            self._base.transition_probs,
+            ffs_prob,
+            self._base.direct_B_count,
+            self._base.direct_B_rate
+        )
+        
+        summary_logger.close()
+        return ffs_prob
+    
+    def generate_flux(self, initial_loader, n_trials):
+        """Override generate_flux to use CPS rollout."""
+        import copy
+        from tails.ffs_logger import FFSLogger
+        
+        logger = FFSLogger(
+            self._base.logs_dir / 'flux', 
+            rank=self._base.rank, 
+            world_size=self._base.world_size, 
+            worker_id=self._base.worker_id, 
+            ic_dirname=None
+        )
+        
+        print(f"PHASE 0: FLUX GENERATION (λ₀={self._base.interfaces[0]} hPa)")
+        print("✓ Using CPS-based extratropical filtering\n")
+        
+        traj_count = 0
+        worker_crossings = 0
+        total_days = 0
+        direct_B = 0
+        
+        while True:
+            global_count = len(list(self._base.flux_dir.glob('lambda0_config_*.pkl')))
+            
+            if global_count >= n_trials:
+                print(f"✓ Target reached ({global_count}/{n_trials})")
+                break
+            
+            traj_count += 1
+            print(f"Traj {traj_count} (global={global_count}/{n_trials}): ", end='')
+            
+            loader = copy.deepcopy(initial_loader)
+            result = self.rollout(loader, mode='flux')
+            
+            n_crossings = len(result['crossings'])
+            worker_crossings += n_crossings
+            
+            if result['status'] == 'reached_B' and n_crossings == 0:
+                direct_B += 1
+            
+            config_names = [c.config_name for c in result['crossings']]
+            logger.log_flux_trajectory(traj_count, result, config_names)
+            
+            if n_crossings > 0:
+                print(f"({n_crossings} crossings)")
+            else:
+                print("(no crossings)")
+            
+            total_days += len(result['mslp_trajectory']) * 6 / 24
+        
+        self._base.flux_estimate = worker_crossings / total_days if total_days > 0 else 0
+        self._base.direct_B_count = direct_B
+        self._base.direct_B_rate = direct_B / total_days if total_days > 0 else 0
+        
+        final_pkl_count = len(list(self._base.flux_dir.glob('lambda0_config_*.pkl')))
+        final_png_count = len(list(self._base.flux_dir.glob('lambda0_config_*.png')))
+        
+        if final_pkl_count != final_png_count:
+            print(f"  ⚠ WARNING: {final_pkl_count} PKL but {final_png_count} PNG files")
+        
+        print("\n✓ Flux generation complete")
+        print(f"Worker λ₀ crossings: {worker_crossings}")
+        print(f"Global configs saved: {final_pkl_count}")
+        print(f"Φ₀ = {self._base.flux_estimate:.6f}/day")
+        print(f"Direct B: {self._base.direct_B_rate:.2e}/day\n")
+        
+        logger.close()
+
+    def shoot_trajectory(self, config, interface_idx):
+        """Override to use CPS rollout with track initialization."""
+        from datetime import timedelta
+        from credit.datasets.era5_multistep_batcher import Predict_Dataset_Batcher
+        from credit.datasets.load_dataset_and_dataloader import BatchForecastLenDataLoader
+        
+        # CRITICAL: Initialize track history from parent config
+        if config.feature_location:
+            storm_id = 0
+            self.storm_track_history[storm_id] = {
+                'lons': [config.feature_location[1]],  # (lat, lon) -> lon
+                'lats': [config.feature_location[0]]   # lat
+            }
+            print(f"  → Initialized shoot track at ({config.feature_location[0]:.1f}°N, {abs(config.feature_location[1]):.1f}°W)")
+        
+        restart_time = config.restart_datetime
+        forecast_times = [[
+            (restart_time + timedelta(hours=6)).strftime('%Y-%m-%d %H:%M:%S'),
+            (restart_time + timedelta(days=10)).strftime('%Y-%m-%d %H:%M:%S')
+        ]]
+        
+        restart_dataset = Predict_Dataset_Batcher(
+            **self._base.dataset_params,
+            fcst_datetime=forecast_times
+        )
+        restart_loader = BatchForecastLenDataLoader(restart_dataset)
+        
+        return self.rollout(
+            restart_loader,
+            mode='shoot',
+            initial_state=config.input_state,
+            start_interface=interface_idx,
+            parent_config=config
+        )
