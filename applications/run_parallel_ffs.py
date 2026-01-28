@@ -39,8 +39,7 @@ import pickle
 from datetime import datetime
 import time
 from credit.distributed import get_rank_info
-from credit.rare_events.hurricane_genesis_ffs import HurricaneGenesisFFS_Tracked as HurricaneGenesisFFS
-from credit.rare_events.hurricane_genesis_ffs_cps import HurricaneGenesisFFS_CPS
+from tails.hurricane_genesis_ffs import HurricaneGenesisFFS, HurricaneGenesisFFS_CPS
 
 
 def format_ic_dirname(ic_time_str: str) -> str:

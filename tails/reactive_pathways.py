@@ -241,8 +241,16 @@ def visualize_reactive_trajectory(trajectory, ic_dir, output_path, traj_id):
     n_steps = len(pathway)
     
     # Configure figure dimensions
-    fig_width = min(6 * n_steps, 36)  # Cap at 36 inches for readability
-    fig, axes = plt.subplots(1, n_steps, figsize=(fig_width, 6))
+    import math
+
+    n_rows = 2
+    n_cols = math.ceil(n_steps / n_rows)
+
+    fig_width = min(6 * n_cols, 36)
+    fig_height = 6 * n_rows
+
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(fig_width, fig_height))
+    axes = axes.flatten()
     
     if n_steps == 1:
         axes = [axes]
@@ -299,7 +307,7 @@ def visualize_reactive_trajectory(trajectory, ic_dir, output_path, traj_id):
                 fontsize=14, fontweight='bold', y=0.98)
     
     plt.tight_layout(rect=[0, 0, 1, 0.96])
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
 
 
