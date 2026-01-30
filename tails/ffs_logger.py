@@ -110,6 +110,14 @@ class FFSLogger:
             'pathway': self._extract_pathway(result),
             'mslp_trajectory': result['mslp_trajectory']
         }
+        
+        # Add CPS failure information if present
+        if 'failure_reason' in result and result['failure_reason']:
+            entry['failure_reason'] = result['failure_reason']
+        
+        if 'failure_cps' in result and result['failure_cps']:
+            entry['failure_cps'] = result['failure_cps']
+        
         self._write_entry(entry)
     
     def log_instant_success(self, interface_idx: int, parent_config: str, 
