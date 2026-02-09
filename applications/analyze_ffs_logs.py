@@ -465,8 +465,8 @@ def main():
         
         stateB_configs = find_stateB_configs(entries, state_B)
         logger.info(f"Found {len(stateB_configs)} configs that reached state B:")
-        for config_info in stateB_configs:
-            logger.info(f"  {config_info['config']} (MSLP={config_info['mslp']:.1f} hPa)")
+        # for config_info in stateB_configs:
+        #     logger.info(f"  {config_info['config']} (MSLP={config_info['mslp']:.1f} hPa)")
         
         if args.trace_all and stateB_configs:
             logger.info("="*80)
@@ -546,7 +546,7 @@ def main():
         logger.info("SHOOTING STATISTICS")
         logger.info("="*80)
 
-        expected_interfaces = list(range(0, len(interfaces)-1))
+        expected_interfaces = list(range(1, len(interfaces)))
         actual_interfaces = sorted(stats['interface_stats'].keys())
 
         valid_interfaces = [idx for idx in actual_interfaces if idx in expected_interfaces]

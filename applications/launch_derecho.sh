@@ -1,12 +1,12 @@
 #!/bin/bash
 #PBS -A NAML0001
 #PBS -N hurricane_ffs
-#PBS -l walltime=12:00:00
+#PBS -l walltime=04:00:00
 #PBS -l select=1:ncpus=64:ngpus=4
 #PBS -q main
 #PBS -j oe
 #PBS -k eod
-#PBS -r n
+##PBS -r n
 
 # ============================================================================
 # Environment Setup
@@ -17,6 +17,7 @@ module load ncarenv/24.12 gcc/12.4.0 ncarcompilers cray-mpich/8.1.29 \
 conda activate /glade/work/schreck/conda-envs/torch28-nccl221
 
 export PYTHONPATH=/glade/work/schreck/repos/miles-credit:${PYTHONPATH}
+export PYTHONPATH=/glade/work/schreck/repos/miles-tails:${PYTHONPATH}
 export LSCRATCH=/glade/derecho/scratch/schreck/
 export LOGLEVEL=INFO
 
@@ -46,17 +47,17 @@ export FI_CXI_DEFAULT_CQ_SIZE=131072
 # ============================================================================
 # Job Configuration
 # ============================================================================
-SCRIPT_DIR=/glade/work/schreck/repos/miles-credit/applications
-FFS_SCRIPT=${SCRIPT_DIR}/run_hurricane_ffs.py
+SCRIPT_DIR=/glade/work/schreck/repos/miles-tails/applications
+FFS_SCRIPT=${SCRIPT_DIR}/run_parallel_ffs.py
 MODEL_CONFIG=model.yml
-FFS_CONFIG=ffs_derecho.yml
+FFS_CONFIG=ffs.yml
 
 # Set IC index (override with PBS_ARRAY_INDEX if using job arrays)
 IC_INDEX=${PBS_ARRAY_INDEX:-0}
 
 # ===== CONFIGURE PHASE HERE =====
 PHASE=shoot      # Options: flux, shoot
-INTERFACE=2      # Only used for shoot phase
+INTERFACE=4      # Only used for shoot phase -- start at 0 to shoot from lambda_0 to lambda_1, ... N-1 interfaces
 NUM_WORKERS=2
 
 echo "============================================================================"
