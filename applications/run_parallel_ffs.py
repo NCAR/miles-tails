@@ -34,8 +34,7 @@ import pickle
 from datetime import datetime
 import time
 from credit.distributed import get_rank_info
-# from tails.hurricane_genesis_ffs import HurricaneGenesisFFS
-from tails.genesis import HurricaneGenesisFFS
+from tails.hurricane_genesis_ffs import HurricaneGenesisFFS
 
 
 def format_ic_dirname(ic_time_str: str) -> str:
@@ -136,13 +135,21 @@ def flux_generation_worker(worker_id: int,
     }
 
     # Create dataset
-    forecast_times = [[ic_start, ic_end]]
+    from datetime import datetime, timedelta
+    ic_start_dt = datetime.strptime(ic_start, '%Y-%m-%d %H:%M:%S')
+    ic_end_extended = (ic_start_dt + timedelta(days=45)).strftime('%Y-%m-%d %H:%M:%S')
+    forecast_times = [[ic_start, ic_end_extended]]
+
+    logging.info(f"[Worker {worker_id}] Flux generation: {ic_start} → {ic_end_extended} (45 days)")
+    logging.info(f"[Worker {worker_id}] New storm tracking stops after 15 days")
+    logging.info(f"[Worker {worker_id}] Existing storms tracked until dissipation or B-state (up to day 45 from IC)")
+    logging.info(f"[Worker {worker_id}] This ensures proper flux statistics: genesis events counted in first 15 days, storms allowed to resolve")
+
     dataset = Predict_Dataset_Batcher(**dataset_params, fcst_datetime=forecast_times)
     loader = BatchForecastLenDataLoader(dataset)
 
     # Setup output directory
     ic_dirname = format_ic_dirname(ic_start)
-    output_dir = Path(ffs_config['output_dir']) / ic_dirname
     
     # Initialize FFS with CPS enabled
     use_cps = ffs_config.get('use_cps', False)
@@ -152,7 +159,7 @@ def flux_generation_worker(worker_id: int,
         config=conf,
         initial_dataset=dataset,
         dataset_params=dataset_params,
-        output_dir=str(output_dir),
+        output_dir=str(Path(ffs_config['output_dir'])),
         state_A=ffs_config['state_A'],
         state_B=ffs_config['state_B'],
         interfaces=ffs_config['interfaces'],
