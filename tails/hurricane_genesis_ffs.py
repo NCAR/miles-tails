@@ -863,10 +863,14 @@ class HurricaneGenesisFFS:
                     outside_normal_bounds = False
                     hard_reject = False
 
-                    if storm_lat > 50.0:
+                    if storm_lat > 60.0:
+                        # North of 60°N — certainly extratropical, CPS unreliable here
+                        hard_reject = True
+                    elif storm_lat > 50.0:
                         outside_normal_bounds = True
                     elif storm_lon > -10.0:
-                        outside_normal_bounds = True
+                        # East of 10°W — into European/African longitudes, no Atlantic hurricane survives here
+                        hard_reject = True
                     elif storm_lat > 45.0 and storm_lon > -35.0:
                         # Northeast Atlantic near Europe — too far poleward/east
                         # for a real hurricane; CPS cannot override this
