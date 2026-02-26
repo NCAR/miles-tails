@@ -861,11 +861,17 @@ class HurricaneGenesisFFS:
                 if mode == 'shoot' and location:
                     storm_lat, storm_lon = location
                     outside_normal_bounds = False
-                    
+                    hard_reject = False
+
                     if storm_lat > 50.0:
                         outside_normal_bounds = True
                     elif storm_lon > -10.0:
                         outside_normal_bounds = True
+                    elif storm_lat > 45.0 and storm_lon > -35.0:
+                        # Northeast Atlantic near Europe — too far poleward/east
+                        # for a real hurricane; CPS cannot override this
+                        print(f"  → FAILURE: Storm in NE Atlantic near Europe ({storm_lat:.1f}°N, {abs(storm_lon):.1f}°W)")
+                        hard_reject = True
                     elif storm_lat > 30.0:
                         lats = self.latlons.latitude.values
                         lons = np.where(
@@ -877,7 +883,10 @@ class HurricaneGenesisFFS:
                         lon_idx = np.argmin(np.abs(lons - storm_lon))
                         lsm_value = self.land_sea_mask[lat_idx, lon_idx]
                         if lsm_value > 0.5:
-                            outside_normal_bounds = True
+                            # Hard reject — a warm-core vortex over the US interior
+                            # is not a hurricane, CPS cannot save it
+                            print(f"  → FAILURE: Storm over land north of 30°N ({storm_lat:.1f}°N, {abs(storm_lon):.1f}°W)")
+                            hard_reject = True
 
                     elif storm_lat < 12.0:
                         # Reject trajectories that drift south of 12°N over land
@@ -914,7 +923,11 @@ class HurricaneGenesisFFS:
                             print(f"  → FAILURE: Storm crossing Mexico/Central America into Pacific ({storm_lat:.1f}°N, {abs(storm_lon):.1f}°W)")
                             outside_normal_bounds = True
 
-                    if outside_normal_bounds:
+                    if hard_reject:
+                        status = 'failure'
+                        failure_reason = 'outside_geographic_bounds'
+                        break
+                    elif outside_normal_bounds:
                         if self.use_cps:
                             try:
                                 if pressure_interp is None:
