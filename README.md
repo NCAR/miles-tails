@@ -84,7 +84,7 @@ ffs = HurricaneGenesisFFS(
     interfaces=[1000, 988, 980, 975, 970],  # Progressive intensification
     state_A=1008,           # No organized system (hPa)
     state_B=965,            # Hurricane strength (hPa)
-    output_dir='./ffs_results',
+    output_dir='./results',
     rank=0,
     world_size=1,
     worker_id=0,
@@ -108,13 +108,15 @@ ffs.disable_visualization()
 print(f"Hurricane genesis rate: {ffs.flux_estimate * np.prod(ffs.transition_probs):.2e} per day")
 ```
 
-## Parallel Execution on HPC Systems
+---
 
-For production runs processing multiple initial conditions across many interfaces, use the parallel execution script with job schedulers.
+## Running FFS on HPC Systems
+
+All production runs use `applications/run_parallel_ffs.py` with two config files.
 
 ### Configuration Files
 
-**ffs.yml** - FFS algorithm parameters:
+**`ffs.yml`** — FFS algorithm parameters:
 ```yaml
 forecast_times:
   - ['2022-08-21 00:00:00', '2022-09-10 00:00:00']
@@ -122,7 +124,7 @@ forecast_times:
   # ... more initial conditions
 
 single_ic_mode: true      # All GPUs work on one IC at a time
-ic_index: 0               # Which IC to process (can be overridden by job array)
+ic_index: 0               # Which IC to process (overridden by job array)
 
 state_A: 1008
 state_B: 965
@@ -136,9 +138,75 @@ n_workers: 2              # Workers per GPU
 output_dir: './results'
 ```
 
-**model.yml** - AI weather model configuration (CREDIT framework)
+**`model.yml`** — AI weather model configuration (CREDIT framework)
 
-### Job Submission Script
+---
+
+### Step 1 — Flux Generation
+
+Runs long trajectories from state A to estimate the crossing rate Φ₀ at the first interface λ₀.
+
+```bash
+# Single IC, single GPU
+python applications/run_parallel_ffs.py \
+    --model_config model.yml \
+    --ffs_config ffs.yml \
+    --phase flux \
+    --ic_index 0
+
+# Multi-GPU (4 GPUs, 2 workers each)
+for gpu in {0..3}; do
+    CUDA_VISIBLE_DEVICES=${gpu} \
+    torchrun --nproc_per_node=1 --master-port=$((RANDOM % 10000 + 20000)) \
+        applications/run_parallel_ffs.py \
+        --model_config model.yml \
+        --ffs_config ffs.yml \
+        --phase flux \
+        --num_workers 2 \
+        --ic_index 0 &
+done
+wait
+```
+
+Output appears in `results/2022-08-21T00Z/flux/` (configs + PNGs) and `results/2022-08-21T00Z/logs/flux/` (JSONL logs).
+
+---
+
+### Step 2 — Shooting Phases
+
+Run sequentially, one interface at a time. Each phase reads configs from the previous interface and shoots toward the next.
+
+```bash
+# λ₀ → λ₁  (interface=0)
+python applications/run_parallel_ffs.py \
+    --model_config model.yml \
+    --ffs_config ffs.yml \
+    --phase shoot \
+    --interface 0 \
+    --ic_index 0
+
+# λ₁ → λ₂  (interface=1)
+python applications/run_parallel_ffs.py \
+    --model_config model.yml \
+    --ffs_config ffs.yml \
+    --phase shoot \
+    --interface 1 \
+    --ic_index 0
+
+# λ₂ → λ₃, λ₃ → λ₄  (interfaces=2,3)
+# ... repeat with --interface 2, --interface 3
+```
+
+| `--interface` | Reads from | Shoots to |
+|:---:|---|---|
+| 0 | `flux/` (λ₀ configs) | `1/` (λ₁ configs) |
+| 1 | `1/` (λ₁ configs) | `2/` (λ₂ configs) |
+| 2 | `2/` | `3/` |
+| 3 | `3/` | `4/` |
+
+---
+
+### Job Submission Script (PBS/Derecho)
 
 ```bash
 #!/bin/bash
@@ -148,97 +216,184 @@ output_dir: './results'
 #PBS -l select=1:ncpus=64:ngpus=4
 #PBS -q main
 
-# ===== JOB CONFIGURATION =====
-SCRIPT_DIR=/path/to/miles-tails/applications
-FFS_SCRIPT=${SCRIPT_DIR}/run_parallel_ffs.py
+SCRIPT_DIR=/glade/work/schreck/repos/miles-tails/applications
 MODEL_CONFIG=model.yml
 FFS_CONFIG=ffs.yml
 
-IC_INDEX=${PBS_ARRAY_INDEX:-0}  # Use job array index if available
-
-# ===== CONFIGURE PHASE HERE =====
+IC_INDEX=${PBS_ARRAY_INDEX:-0}
 PHASE=flux           # Options: flux, shoot
 INTERFACE=0          # Only used for shoot phase
-                     # 0 = shoot from λ₀ to λ₁
-                     # 1 = shoot from λ₁ to λ₂
-                     # etc.
 NUM_WORKERS=2        # Workers per GPU
 
-# Launch 4 parallel processes (1 per GPU)
-if [ "${PHASE}" = "flux" ]; then
-    for gpu in {0..3}; do
-        CUDA_VISIBLE_DEVICES=${gpu} \
-        torchrun --nproc_per_node=1 --master-port=$((RANDOM % 10000 + 20000)) \
-            ${FFS_SCRIPT} \
-            --model_config ${MODEL_CONFIG} \
-            --ffs_config ${FFS_CONFIG} \
-            --phase flux \
-            --num_workers ${NUM_WORKERS} \
-            --ic_index ${IC_INDEX} &
-    done
-else
-    for gpu in {0..3}; do
-        CUDA_VISIBLE_DEVICES=${gpu} \
-        torchrun --nproc_per_node=1 --master-port=$((RANDOM % 10000 + 20000)) \
-            ${FFS_SCRIPT} \
-            --model_config ${MODEL_CONFIG} \
-            --ffs_config ${FFS_CONFIG} \
-            --phase shoot \
-            --interface ${INTERFACE} \
-            --num_workers ${NUM_WORKERS} \
-            --ic_index ${IC_INDEX} &
-    done
-fi
+for gpu in {0..3}; do
+    CUDA_VISIBLE_DEVICES=${gpu} \
+    torchrun --nproc_per_node=1 --master-port=$((RANDOM % 10000 + 20000)) \
+        ${SCRIPT_DIR}/run_parallel_ffs.py \
+        --model_config ${MODEL_CONFIG} \
+        --ffs_config ${FFS_CONFIG} \
+        --phase ${PHASE} \
+        --interface ${INTERFACE} \
+        --num_workers ${NUM_WORKERS} \
+        --ic_index ${IC_INDEX} &
+done
 wait
 ```
 
-### Execution Workflow
-
-**1. Flux Generation**
+**Job arrays** — process all ICs automatically:
 ```bash
-# Edit job script: PHASE=flux
-qsub job_script.sh
+#PBS -J 0-49   # Process ICs 0–49, one per job
+# PBS_ARRAY_INDEX is automatically passed as ic_index
 ```
 
-Generates λ₀ crossings. Monitor progress in `results/IC_YYYY-MM-DDTHH/flux/`
+---
 
-**2. Sequential Shooting Phases**
+## Analysis Pipeline
+
+Run these scripts in order after FFS is complete. All scripts are in `applications/` and should be run from the repo root.
+
+### 1. Analyze FFS Logs
+
+Parses JSONL logs across all IC directories, computes per-interface transition probabilities, and saves a summary CSV used by all downstream scripts.
+
 ```bash
-# Shoot from λ₀ → λ₁
-# Edit job script: PHASE=shoot, INTERFACE=0
-qsub job_script.sh
+# Trace all pathways to state B and generate ffs_statistics_all_ics.csv
+python applications/analyze_ffs_logs.py ffs.yml --trace_all
 
-# After completion, shoot from λ₁ → λ₂
-# Edit job script: PHASE=shoot, INTERFACE=1
-qsub job_script.sh
-
-# Continue for remaining interfaces...
-# INTERFACE=2 for λ₂ → λ₃
-# INTERFACE=3 for λ₃ → λ₄
+# Trace pathways to a specific interface only (e.g. λ₁)
+python applications/analyze_ffs_logs.py ffs.yml --target_interface 1
 ```
 
-**3. Analysis**
+Output: `results/ffs_statistics_all_ics.csv` — one row per IC with flux, transition probabilities, and rates.
+
+---
+
+### 2. IFS Brute-Force Rates
+
+Computes hurricane genesis rates directly from IFS ensemble forecasts using the same multi-storm tracking methodology as FFS. Used as a reference benchmark.
+
 ```bash
-python analyze_ffs_logs.py ffs.yml --trace_all
+python applications/ifs_brute_force_rates.py \
+    --ffs_config ffs.yml \
+    --ifs_path /glade/derecho/scratch/schreck/IFS.zarr \
+    --n_jobs 8
 ```
 
-### Processing Multiple Initial Conditions
+Output: `results/IFS/ifs_rates_FFS.csv`
 
-**Option 1: Job Arrays** (one IC per job)
+---
+
+### 3. Identify Reactive Pathways
+
+Traces the complete genealogy from every state-B config back to its λ₀ seed, clusters correlated trajectories by their earliest branch point, and selects one independent representative per cluster. Saves a JSON and PNG for each reactive trajectory.
+
 ```bash
-#PBS -J 0-49  # Process ICs 0-49
+python applications/reactive_pathways.py ffs.yml
 
-# Script automatically uses PBS_ARRAY_INDEX as ic_index
+# Options
+python applications/reactive_pathways.py ffs.yml \
+    --min-branch-degree 2 \         # Min descendants to be a branch point (default: 2)
+    --selection shortest            # Representative selection: shortest | deepest_mslp | first
 ```
 
-**Option 2: Single IC Mode** (all GPUs on one IC)
-```yaml
-# ffs.yml
-single_ic_mode: true
-ic_index: 5  # Process IC #5
+Output per IC: `results/2022-08-21T00Z/reactive_trajectories/reactive_trajectories.json`
+
+---
+
+### 4. Plot Reactive Trajectories
+
+Spaghetti track map of all reactive trajectories (left panel) and a 2D cluster-weighted crossing-density heatmap with transition flow arrows (right panel). One figure per IC.
+
+```bash
+python applications/plot_reactive_trajectories.py \
+    --ffs_config ffs.yml \
+    --ffs_csv    results/ffs_statistics_all_ics.csv \
+    --output_dir results \
+    --plot_dir   results/plots \
+    --workers    8
 ```
 
-Submit separate jobs for each IC by changing `ic_index` in ffs.yml.
+Output: `results/plots/reactive_trajectories/reactive_trajectories_YYYY-MM-DD.png`
+
+---
+
+### 5. Plot FFS Tree
+
+Draws the complete forward branching tree from a single λ₀ seed — all shooting attempts at every interface — on a zoomed Atlantic map. Useful as an explainer figure for papers and presentations.
+
+```bash
+# Auto-select the IC and λ₀ with the most state-B descendants
+python applications/plot_ffs_tree.py \
+    --ffs_config ffs.yml \
+    --ffs_csv    results/ffs_statistics_all_ics.csv \
+    --output_dir results \
+    --plot_dir   results/plots
+
+# Single IC — auto-select best λ₀
+python applications/plot_ffs_tree.py \
+    --ffs_config ffs.yml \
+    --ic_dir     results/2022-08-21T00Z \
+    --plot_dir   results/plots
+
+# Rank all λ₀ roots by B-descendant count (inspect before plotting)
+python applications/plot_ffs_tree.py \
+    --ffs_config ffs.yml \
+    --ic_dir     results/2022-08-21T00Z \
+    --rank
+
+# Manually specify a λ₀ root
+python applications/plot_ffs_tree.py \
+    --ffs_config ffs.yml \
+    --ic_dir     results/2022-08-21T00Z \
+    --root       lambda0_config_1049_EN \
+    --plot_dir   results/plots
+```
+
+Output: `results/plots/ffs_tree_YYYY-MM-DD_lambda0_config_XXXX_YY.png`
+
+---
+
+### 6. Plot Commitment Curve
+
+Plots the committor function p_B(λᵢ) — the probability of reaching state B given that interface λᵢ has been crossed — for both FFS (product of forward transition probabilities) and IFS (brute-force count ratios).
+
+```bash
+python applications/plot_commitment_curve.py \
+    --ffs_config ffs.yml \
+    --ffs_csv    results/ffs_statistics_all_ics.csv \
+    --ifs_csv    results/IFS/ifs_rates_FFS.csv \
+    --plot_dir   results/plots
+```
+
+Output: `results/plots/commitment_curve.png`
+
+---
+
+## Full Pipeline Summary
+
+```bash
+# 1. Run FFS (flux + 4 shooting phases per IC)
+python applications/run_parallel_ffs.py --model_config model.yml --ffs_config ffs.yml --phase flux
+python applications/run_parallel_ffs.py --model_config model.yml --ffs_config ffs.yml --phase shoot --interface 0
+python applications/run_parallel_ffs.py --model_config model.yml --ffs_config ffs.yml --phase shoot --interface 1
+python applications/run_parallel_ffs.py --model_config model.yml --ffs_config ffs.yml --phase shoot --interface 2
+python applications/run_parallel_ffs.py --model_config model.yml --ffs_config ffs.yml --phase shoot --interface 3
+
+# 2. Analyze logs → statistics CSV
+python applications/analyze_ffs_logs.py ffs.yml --trace_all
+
+# 3. IFS reference rates
+python applications/ifs_brute_force_rates.py --ffs_config ffs.yml --ifs_path /path/to/IFS.zarr --n_jobs 8
+
+# 4. Reactive pathways
+python applications/reactive_pathways.py ffs.yml
+
+# 5. Plots
+python applications/plot_reactive_trajectories.py --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots
+python applications/plot_ffs_tree.py              --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots
+python applications/plot_commitment_curve.py       --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --ifs_csv results/IFS/ifs_rates_FFS.csv --plot_dir results/plots
+```
+
+---
 
 ## Algorithm Overview
 
@@ -270,20 +425,27 @@ Storms are rejected if:
 
 This ensures only tropical cyclones are counted.
 
+---
+
 ## Directory Structure
 
 ```
 miles-tails/
 ├── tails/
-│   ├── __init__.py
-│   ├── hurricane_genesis_ffs.py  # Main FFS implementation
-│   ├── ffs_logger.py              # FFS logging utilities
-│   └── cyclone_phase_tracker.py  # CPS classification (optional)
+│   ├── hurricane_genesis_ffs.py      # Core FFS engine
+│   ├── ffs_logger.py                 # JSONL logging
+│   └── cyclone_phase_tracker.py      # CPS classification (optional)
 ├── applications/
-│   ├── run_parallel_ffs.py        # Multi-IC parallel execution
-│   └── analyze_ffs_logs.py        # Results analysis
-├── tests/
-├── docs/
+│   ├── run_parallel_ffs.py           # Multi-GPU parallel FFS execution
+│   ├── analyze_ffs_logs.py           # Parse logs → statistics CSV
+│   ├── reactive_pathways.py          # Identify independent reactive trajectories
+│   ├── ifs_brute_force_rates.py      # IFS ensemble reference rates
+│   ├── plot_reactive_trajectories.py # Spaghetti tracks + density heatmap
+│   ├── plot_ffs_tree.py              # Single-seed branching tree figure
+│   └── plot_commitment_curve.py      # Committor p_B(λᵢ) vs interface
+├── config/
+│   ├── ffs.yml                       # FFS algorithm configuration
+│   └── sdl_wxformer.yml              # Model configuration
 └── README.md
 ```
 
@@ -291,16 +453,30 @@ miles-tails/
 
 ```
 results/
-└── 2022-08-28T00Z/               # One directory per initial condition
+├── ffs_statistics_all_ics.csv        # Combined statistics across all ICs
+├── IFS/
+│   └── ifs_rates_FFS.csv             # IFS brute-force reference rates
+├── plots/
+│   ├── reactive_trajectories/
+│   │   └── reactive_trajectories_YYYY-MM-DD.png
+│   ├── ffs_tree_YYYY-MM-DD_lambda0_config_XXXX_YY.png
+│   └── commitment_curve.png
+└── 2022-08-21T00Z/                   # One directory per initial condition
     ├── logs/
-    │   ├── flux/                  # Flux generation logs
-    │   ├── 1/                     # Shooting logs (λ₀→λ₁)
-    │   └── 2/                     # Shooting logs (λ₁→λ₂)
-    ├── flux/                      # λ₀ crossings (configs + PNGs)
-    ├── 1/                         # λ₁ crossings
-    ├── 2/                         # λ₂ crossings
-    └── stateB/                    # Hurricane formations
+    │   ├── flux/                     # Flux generation JSONL logs
+    │   ├── 1/                        # Shooting logs λ₀→λ₁
+    │   ├── 2/                        # Shooting logs λ₁→λ₂
+    │   └── .../
+    ├── flux/                         # λ₀ crossing configs + PNGs
+    ├── 1/                            # λ₁ configs
+    ├── 2/                            # λ₂ configs
+    ├── stateB/                       # Hurricane formation configs
+    └── reactive_trajectories/
+        ├── reactive_trajectories.json
+        └── reactive_trajectory_NNN.png
 ```
+
+---
 
 ## Citation
 

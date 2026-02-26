@@ -428,7 +428,7 @@ def save_statistics_to_csv(ic_time, time_label, flux_stats, stats, transition_pr
     # Add per-interface shooting stats
     for interface_idx in sorted(stats['interface_stats'].keys()):
         interface_stats = stats['interface_stats'][interface_idx]
-        lambda_label = interface_idx - 1
+        lambda_label = interface_idx
 
         summary[f'lambda{lambda_label}_attempts'] = interface_stats['attempts']
         summary[f'lambda{lambda_label}_successes'] = interface_stats['successes']
@@ -755,7 +755,7 @@ def main():
             logger.info(f"\n  Minimum ensemble members per event (10-day forecasts): >{min_ensemble_per_event:.0f}")
             logger.info(f"  Minimum total ensemble members for {n_stateB_arrivals} events: >{min_total_ensemble:.0f}")
             
-            min_speedup = min_bf_total / total_ffs_sim_days
+            min_speedup = min_bf_total / total_ffs_sim_days if total_ffs_sim_days > 0 else np.nan
             logger.info(f"\n✓ MINIMUM FFS SPEEDUP: >{min_speedup:.1f}x")
 
         logger.log_final_results(
