@@ -897,6 +897,23 @@ class HurricaneGenesisFFS:
                             print(f"  → FAILURE: Storm drifted south of 12°N over land ({storm_lat:.1f}°N, {abs(storm_lon):.1f}°W)")
                             outside_normal_bounds = True
 
+                    elif storm_lon < -90.0:
+                        # Reject trajectories crossing Mexico/Central America into the Pacific.
+                        # The storm may physically cross, but we don't track Atlantic storms
+                        # in the eastern Pacific basin, so kill it here.
+                        lats = self.latlons.latitude.values
+                        lons = np.where(
+                            self.latlons.longitude.values > 180,
+                            self.latlons.longitude.values - 360,
+                            self.latlons.longitude.values
+                        )
+                        lat_idx = np.argmin(np.abs(lats - storm_lat))
+                        lon_idx = np.argmin(np.abs(lons - storm_lon))
+                        lsm_value = self.land_sea_mask[lat_idx, lon_idx]
+                        if lsm_value > 0.5:
+                            print(f"  → FAILURE: Storm crossing Mexico/Central America into Pacific ({storm_lat:.1f}°N, {abs(storm_lon):.1f}°W)")
+                            outside_normal_bounds = True
+
                     if outside_normal_bounds:
                         if self.use_cps:
                             try:
