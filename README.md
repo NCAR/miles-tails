@@ -292,7 +292,9 @@ python applications/reactive_pathways.py ffs.yml
 # Options
 python applications/reactive_pathways.py ffs.yml \
     --min-branch-degree 2 \         # Min descendants to be a branch point (default: 2)
-    --selection shortest            # Representative selection: shortest | deepest_mslp | first
+    --selection shortest \          # Representative selection: shortest | deepest_mslp | first
+    --workers 8 \                   # Parallel workers for figure generation (default: min(8, ncpu))
+    --no_plot                       # Skip figure output (JSON only — much faster)
 ```
 
 Output per IC: `results/2022-08-21T00Z/reactive_trajectories/reactive_trajectories.json`
@@ -309,7 +311,8 @@ python applications/plot_reactive_trajectories.py \
     --ffs_csv    results/ffs_statistics_all_ics.csv \
     --output_dir results \
     --plot_dir   results/plots \
-    --workers    8
+    --workers    8 \                # Parallel workers for load+plot (default: min(8, ncpu))
+    --no_plot                       # Load tracks only, skip figure output
 ```
 
 Output: `results/plots/reactive_trajectories/reactive_trajectories_YYYY-MM-DD.png`
@@ -321,12 +324,13 @@ Output: `results/plots/reactive_trajectories/reactive_trajectories_YYYY-MM-DD.pn
 Draws the complete forward branching tree from a single λ₀ seed — all shooting attempts at every interface — on a zoomed Atlantic map. Useful as an explainer figure for papers and presentations.
 
 ```bash
-# Auto-select the IC and λ₀ with the most state-B descendants
+# Auto-select the IC and λ₀ with the most state-B descendants (parallel scan)
 python applications/plot_ffs_tree.py \
     --ffs_config ffs.yml \
     --ffs_csv    results/ffs_statistics_all_ics.csv \
     --output_dir results \
-    --plot_dir   results/plots
+    --plot_dir   results/plots \
+    --workers    8              # Parallel workers for multi-IC log scanning (default: min(8, ncpu))
 
 # Single IC — auto-select best λ₀
 python applications/plot_ffs_tree.py \
@@ -384,12 +388,12 @@ python applications/analyze_ffs_logs.py ffs.yml --trace_all
 # 3. IFS reference rates
 python applications/ifs_brute_force_rates.py --ffs_config ffs.yml --ifs_path /path/to/IFS.zarr --n_jobs 8
 
-# 4. Reactive pathways
-python applications/reactive_pathways.py ffs.yml
+# 4. Reactive pathways (--no_plot to skip figures and only write JSON)
+python applications/reactive_pathways.py ffs.yml --workers 8
 
 # 5. Plots
-python applications/plot_reactive_trajectories.py --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots
-python applications/plot_ffs_tree.py              --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots
+python applications/plot_reactive_trajectories.py --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots --workers 8
+python applications/plot_ffs_tree.py              --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots --workers 8
 python applications/plot_commitment_curve.py       --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --ifs_csv results/IFS/ifs_rates_FFS.csv --plot_dir results/plots
 ```
 

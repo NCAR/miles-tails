@@ -37,6 +37,7 @@ from matplotlib.gridspec import GridSpec
 from pathlib import Path
 from datetime import datetime, timedelta
 from multiprocessing import Pool, cpu_count
+from functools import partial
 from tqdm import tqdm
 
 warnings.filterwarnings('ignore')
@@ -434,6 +435,24 @@ def plot_day(ic_time: str, tracks: list, plot_dir: Path):
     return out
 
 
+# ── Combined parallel worker ──────────────────────────────────────────────────
+
+def _load_and_plot(args: tuple) -> list:
+    """
+    Single worker: load tracks for one IC then immediately render the figure.
+    Runs entirely inside the subprocess — matplotlib is process-safe.
+    Returns the list of tracks for summary stats (or [] on failure/skip).
+    """
+    ic_dir, rt_dir, skip_plots = args
+    tracks = load_ic_tracks(ic_dir)
+    if not tracks:
+        return []
+    if not skip_plots:
+        ic_time = tracks[0]['ic_time']
+        plot_day(ic_time, tracks, rt_dir)
+    return tracks
+
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 
 def print_summary(all_tracks):
@@ -473,6 +492,8 @@ def main():
                         help='FFS output directory containing IC subdirectories')
     parser.add_argument('--plot_dir',   default='./plots')
     parser.add_argument('--workers',    type=int, default=min(8, cpu_count()))
+    parser.add_argument('--no_plot',    action='store_true',
+                        help='Skip figure creation (load tracks and print summary only)')
     args = parser.parse_args()
 
     # ── Load config and initialise interface constants ────────────────────────
@@ -493,27 +514,29 @@ def main():
     rt_dir = plot_dir / 'reactive_trajectories'
     rt_dir.mkdir(exist_ok=True)
 
-    n_workers  = min(args.workers, len(ic_dirs))
-    all_tracks = []
-    n_saved    = 0
+    n_workers   = min(args.workers, len(ic_dirs))
+    skip_plots  = args.no_plot
+    worker_args = [(ic_dir, rt_dir, skip_plots) for ic_dir in ic_dirs]
 
-    print(f'Loading and plotting with {n_workers} workers...')
+    verb = 'Loading tracks' if skip_plots else 'Loading + plotting'
+    print(f'{verb} with {n_workers} workers...')
+
+    all_tracks = []
     with Pool(processes=n_workers) as pool:
         for tracks in tqdm(
-            pool.imap_unordered(load_ic_tracks, ic_dirs),
+            pool.imap_unordered(_load_and_plot, worker_args),
             total=len(ic_dirs),
             desc='ICs',
             unit='IC',
             dynamic_ncols=True,
         ):
-            if not tracks:
-                continue
             all_tracks.extend(tracks)
-            ic_time = tracks[0]['ic_time']
-            plot_day(ic_time, tracks, rt_dir)
-            n_saved += 1
 
-    print(f'\n{n_saved} plots saved to {rt_dir}/')
+    if skip_plots:
+        print('\n(plots skipped — --no_plot flag set)')
+    else:
+        n_saved = sum(1 for t in all_tracks if t)   # non-empty ICs
+        print(f'\n{len(ic_dirs)} ICs processed, plots saved to {rt_dir}/')
     print_summary(all_tracks)
 
 

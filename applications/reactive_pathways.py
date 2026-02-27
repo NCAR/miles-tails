@@ -1,33 +1,16 @@
 #!/usr/bin/env python
 """
-plot_ffs_tree.py — FFS branching tree figure (single panel).
+Identify reactive trajectories in FFS hurricane genesis simulations.
 
-The reactive_trajectories.json records one representative path per λ₀ root
-with cluster_size encoding multiplicity — it does NOT contain the full
-branching tree.  The actual tree (all shots fired from each node, including
-non-reactive branches) lives in the pkl directories:
-
-    ic_dir/flux/   — all λ₀ crossings
-    ic_dir/1/      — all λ₁ configs generated during shooting
-    ic_dir/2/      — all λ₂ configs
-    …
-
-This script:
-  1. Scans reactive_trajectories.json across all ICs to find the λ₀ root
-     with the highest total cluster_size (most reactive-trajectory weight).
-  2. Scans the pkl directories for that IC to build the FULL shooting tree,
-     auto-discovering which pkl attribute stores the parent config name.
-  3. Draws the tree on a single Atlantic map panel.
+This script processes FFS output to identify genealogically independent reactive
+trajectories by detecting branching in the pathway ensemble. For each independent
+reactive trajectory, atmospheric state evolution is visualized using existing
+PNG snapshots of MSLP fields.
 
 Usage:
-    python plot_ffs_tree.py \\
-        --ffs_csv    results_feb14/ffs_statistics_all_ics.csv \\
-        --output_dir results_feb14 \\
-        --plot_dir   results_feb14/plots
-
-    python plot_ffs_tree.py \\
-        --ic_dir   results_feb14/2022-08-21T00Z \\
-        --plot_dir results_feb14/plots
+    python reactive_pathways.py ffs.yml
+    python reactive_pathways.py ffs.yml --workers 16
+    python reactive_pathways.py ffs.yml --no_plot          # JSON only, no figures
 """
 
 import os
@@ -38,476 +21,522 @@ import matplotlib
 matplotlib.use('Agg')
 
 import json
-import pickle
 import argparse
-import warnings
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
 from pathlib import Path
+from collections import defaultdict
+from datetime import datetime
+from multiprocessing import Pool, cpu_count
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+from tqdm import tqdm
 
-warnings.filterwarnings('ignore')
-
-try:
-    import cartopy.crs as ccrs
-    import cartopy.feature as cfeature
-    HAS_CARTOPY = True
-except ImportError:
-    HAS_CARTOPY = False
-    print('cartopy not found — falling back to plain lat/lon axes')
-
-# ── Constants (match plot_genesis_cone.py) ─────────────────────────────────────
-
-INTERFACE_PRESSURES = [1000, 988, 980, 975, 970, 965]
-N_IFACES            = len(INTERFACE_PRESSURES)
-IFACE_COLORS        = plt.cm.YlOrRd(np.linspace(0.25, 0.95, N_IFACES))
-
-# ── pkl helpers ────────────────────────────────────────────────────────────────
-
-def _pkl_path(ic_dir: Path, config_name: str) -> Path:
-    if config_name.startswith('lambda0_'):
-        return ic_dir / 'flux' / f'{config_name}.pkl'
-    elif config_name.startswith('stateB_'):
-        return ic_dir / 'stateB' / f'{config_name}.pkl'
-    else:
-        iface_num = config_name.split('_')[0].replace('lambda', '')
-        return ic_dir / iface_num / f'{config_name}.pkl'
+from analyze_ffs_logs import (
+    load_all_logs,
+    build_genealogy,
+    trace_pathway,
+    find_stateB_configs,
+    format_time_for_path
+)
 
 
-def _load_pkl(path: Path):
-    try:
-        with open(path, 'rb') as f:
-            return pickle.load(f)
-    except Exception:
-        return None
-
-
-def _node_from_pkl(cfg, parent_name: str, iface_num: int) -> dict | None:
-    """Extract position and metadata from a loaded pkl config object."""
-    loc = getattr(cfg, 'feature_location', None)
-    if loc is None:
-        return None
-    try:
-        lat, lon = float(loc[0]), float(loc[1])
-    except (TypeError, IndexError):
-        return None
-    iface_idx = getattr(cfg, 'interface_idx', iface_num)
-    if iface_idx == -1:
-        iface_idx = N_IFACES - 1
-    return {
-        'lat':           lat,
-        'lon':           lon,
-        'iface_idx':     int(iface_idx),
-        'parent':        parent_name,
-        'children':      set(),
-        'cluster_total': 0,
-    }
-
-
-# ── Parent attribute discovery ─────────────────────────────────────────────────
-
-def _find_parent_attr(cfg) -> str | None:
+def construct_descendant_map(genealogy, stateB_configs):
     """
-    Inspect a pkl config object to find the attribute that holds the
-    parent config name (a string starting with 'lambda' or 'stateB').
-
-    Tries common names first; falls back to scanning all string attributes.
+    Build mapping from each configuration to its state B descendants.
+    
+    Parameters
+    ----------
+    genealogy : dict
+        Parent-child relationships from FFS shooting
+    stateB_configs : list
+        Configurations reaching state B threshold
+        
+    Returns
+    -------
+    dict
+        Mapping {config_name: set of state B descendant configs}
     """
-    candidates = (
-        'parent_config', 'restart_config', 'parent_config_name',
-        'seed_config', 'parent_name', 'source_config', 'parent',
-        'lambda0_config', 'origin_config',
-    )
-    for attr in candidates:
-        val = getattr(cfg, attr, None)
-        if isinstance(val, str) and ('lambda' in val or 'stateB' in val):
-            return attr
-
-    # Fallback: scan all string attributes
-    try:
-        for attr, val in vars(cfg).items():
-            if (isinstance(val, str)
-                    and ('lambda' in val or 'stateB' in val)
-                    and '_config_' in val):
-                return attr
-    except TypeError:
-        pass
-
-    return None
-
-
-# ── IC/root selection (JSON-based, no pkl I/O) ─────────────────────────────────
-
-def find_best_example(ic_dirs: list):
-    """
-    Scan reactive_trajectories.json for every IC and return the (ic_dir,
-    root_config_name) with the highest total cluster_size — the λ₀ that
-    contributed the most reactive-trajectory weight.
-
-    Returns (ic_dir, root_config, total_cluster_weight).
-    """
-    best_score = 0
-    best_ic    = None
-    best_root  = None
-
-    for ic_dir in ic_dirs:
-        jp = ic_dir / 'reactive_trajectories' / 'reactive_trajectories.json'
-        if not jp.exists():
-            continue
-        try:
-            with open(jp) as f:
-                data = json.load(f)
-        except Exception:
-            continue
-
-        l0_weight: dict[str, int] = {}
-        for traj in data.get('reactive_trajectories', []):
-            pw      = traj.get('pathway', [])
-            cluster = int(traj.get('cluster_size', 1))
-            if pw:
-                l0_weight[pw[0]] = l0_weight.get(pw[0], 0) + cluster
-
-        for l0, w in l0_weight.items():
-            if w > best_score:
-                best_score = w
-                best_ic    = ic_dir
-                best_root  = l0
-
-    return best_ic, best_root, best_score
-
-
-def best_root_in_ic(ic_dir: Path) -> tuple[str, int]:
-    """Return (root_config_name, cluster_weight) for the best λ₀ in one IC."""
-    jp = ic_dir / 'reactive_trajectories' / 'reactive_trajectories.json'
-    if not jp.exists():
-        return None, 0
-    try:
-        with open(jp) as f:
-            data = json.load(f)
-    except Exception:
-        return None, 0
-
-    l0_weight: dict[str, int] = {}
-    for traj in data.get('reactive_trajectories', []):
-        pw      = traj.get('pathway', [])
-        cluster = int(traj.get('cluster_size', 1))
-        if pw:
-            l0_weight[pw[0]] = l0_weight.get(pw[0], 0) + cluster
-
-    if not l0_weight:
-        return None, 0
-    best = max(l0_weight, key=l0_weight.get)
-    return best, l0_weight[best]
-
-
-# ── Full shooting tree from pkl directories ────────────────────────────────────
-
-def build_shooting_tree(ic_dir: Path, root_config: str):
-    """
-    Build the FULL branching tree by scanning pkl directories.
-
-    For each interface level, loads every pkl in ic_dir/{N}/ and checks
-    whether its parent config attribute matches a known node at the
-    previous level.  Auto-discovers the parent attribute name from the
-    first readable pkl.
-
-    Returns (nodes dict, root_config) or (None, None) on failure.
-    """
-    # ── Load root ────────────────────────────────────────────────────────────
-    root_cfg = _load_pkl(_pkl_path(ic_dir, root_config))
-    if root_cfg is None:
-        print(f'  Could not load root pkl: {root_config}')
-        return None, None
-
-    loc = getattr(root_cfg, 'feature_location', None)
-    if loc is None:
-        print(f'  Root pkl has no feature_location')
-        return None, None
-
-    nodes = {
-        root_config: {
-            'lat':           float(loc[0]),
-            'lon':           float(loc[1]),
-            'iface_idx':     0,
-            'parent':        None,
-            'children':      set(),
-            'cluster_total': 0,
-        }
-    }
-
-    # ── Discover parent attribute from first available λ₁ pkl ────────────────
-    parent_attr = None
-    iface1_dir  = ic_dir / '1'
-    if iface1_dir.exists():
-        for pkl_file in list(iface1_dir.glob('*.pkl'))[:20]:
-            cfg  = _load_pkl(pkl_file)
-            if cfg is None:
-                continue
-            attr = _find_parent_attr(cfg)
-            if attr:
-                parent_attr = attr
-                print(f'  Parent attribute discovered: cfg.{parent_attr!r}')
+    descendant_map = defaultdict(set)
+    
+    # Construct reverse lookup for backward tracing
+    reverse_lookup = {}
+    for parent, children in genealogy.items():
+        for child_info in children:
+            child_name = child_info['child']
+            if child_name is not None:
+                reverse_lookup[child_name] = parent
+    
+    # Trace each B-state config backward to flux generation
+    for b_config_info in stateB_configs:
+        b_config = b_config_info['config']
+        current = b_config
+        
+        while current in reverse_lookup:
+            parent = reverse_lookup[current]
+            if parent is None:
                 break
-
-    if parent_attr is None:
-        print('  WARNING: could not find parent config attribute in λ₁ pkls.')
-        print('  Available attributes on first λ₁ pkl:')
-        for pkl_file in list(iface1_dir.glob('*.pkl'))[:1]:
-            cfg = _load_pkl(pkl_file)
-            if cfg:
-                try:
-                    for k, v in vars(cfg).items():
-                        print(f'    {k}: {type(v).__name__} = {str(v)[:80]}')
-                except Exception:
-                    pass
-        return None, None
-
-    # ── BFS through interface directories ────────────────────────────────────
-    current_parents = {root_config}
-
-    for iface_num in range(1, N_IFACES):
-        iface_dir = ic_dir / str(iface_num)
-        if not iface_dir.exists():
-            print(f'  λ{iface_num} directory not found: {iface_dir}')
-            break
-
-        pkl_files = list(iface_dir.glob('*.pkl'))
-        print(f'  λ{iface_num}: scanning {len(pkl_files)} pkls …', end=' ', flush=True)
-
-        next_parents = set()
-        for pkl_file in pkl_files:
-            cfg = _load_pkl(pkl_file)
-            if cfg is None:
-                continue
-            parent_name = getattr(cfg, parent_attr, None)
-            if not isinstance(parent_name, str) or parent_name not in current_parents:
-                continue
-
-            cname = pkl_file.stem   # filename without .pkl  == config name
-            node  = _node_from_pkl(cfg, parent_name, iface_num)
-            if node is None:
-                continue
-
-            if cname not in nodes:
-                nodes[cname] = node
-                nodes[parent_name]['children'].add(cname)
-            next_parents.add(cname)
-
-        print(f'{len(next_parents)} children found')
-        current_parents = next_parents
-        if not current_parents:
-            print(f'  No children found at λ{iface_num} — stopping.')
-            break
-
-    return nodes, root_config
+            
+            descendant_map[parent].add(b_config)
+            current = parent
+    
+    return dict(descendant_map)
 
 
-def subtree(nodes, root):
-    """All config names reachable from root (BFS)."""
-    reachable, stack = set(), [root]
-    while stack:
-        n = stack.pop()
-        if n in reachable or n not in nodes:
-            continue
-        reachable.add(n)
-        stack.extend(nodes[n]['children'])
-    return reachable
-
-
-# ── Map setup ──────────────────────────────────────────────────────────────────
-
-def make_atlantic_axes(fig):
-    if HAS_CARTOPY:
-        proj = ccrs.LambertConformal(
-            central_longitude=-60.0,
-            central_latitude=35.0,
-            standard_parallels=(30, 50),
-        )
-        ax = fig.add_subplot(111, projection=proj)
-        ax.set_extent([-100, -10, 5, 65], crs=ccrs.PlateCarree())
-        ax.add_feature(cfeature.LAND.with_scale('50m'),
-                       facecolor='#e8e8e8', zorder=2)
-        ax.add_feature(cfeature.OCEAN.with_scale('50m'),
-                       facecolor='#d0e8f5', zorder=1)
-        ax.add_feature(cfeature.COASTLINE.with_scale('50m'),
-                       linewidth=0.9, zorder=3)
-        ax.add_feature(cfeature.STATES.with_scale('50m'),
-                       linewidth=0.4, alpha=0.5, zorder=3)
-        ax.gridlines(draw_labels=True, linewidth=0.5, alpha=0.4,
-                     linestyle='--', zorder=4)
-    else:
-        ax = fig.add_subplot(111)
-        ax.set_xlim(-100, -10)
-        ax.set_ylim(5, 65)
-        ax.grid(True, alpha=0.3)
-    return ax
-
-
-# ── Drawing ────────────────────────────────────────────────────────────────────
-
-def _draw_tree(ax, nodes, visible):
+def identify_branch_points(genealogy, stateB_configs, min_degree=2):
     """
-    Draw the full tree: edges first (lower zorder), then nodes on top.
-    Edge colour = child interface level.  Seed drawn as large star.
+    Identify configurations generating multiple state B descendants.
+    
+    Parameters
+    ----------
+    genealogy : dict
+        Parent-child relationships
+    stateB_configs : list
+        Terminal state B configurations
+    min_degree : int
+        Minimum descendants to constitute branch point
+        
+    Returns
+    -------
+    dict
+        {config_name: number of descendants}
     """
-    pc = ccrs.PlateCarree() if HAS_CARTOPY else None
+    descendant_map = construct_descendant_map(genealogy, stateB_configs)
+    
+    branch_points = {}
+    for config, descendants in descendant_map.items():
+        if len(descendants) >= min_degree:
+            branch_points[config] = len(descendants)
+    
+    return branch_points
 
-    # Pass 1 — edges
-    for cname in visible:
-        node  = nodes.get(cname)
-        if node is None:
-            continue
-        pname = node['parent']
-        if pname is None or pname not in nodes:
-            continue
-        parent = nodes[pname]
-        iface  = min(node['iface_idx'], N_IFACES - 1)
-        color  = IFACE_COLORS[iface]
-        lw     = max(0.5, 1.6 - 0.18 * iface)
-        alpha  = max(0.25, 0.70 - 0.07 * iface)
-        xs = [parent['lon'], node['lon']]
-        ys = [parent['lat'], node['lat']]
-        kw = dict(color=color, alpha=alpha, linewidth=lw,
-                  solid_capstyle='round', zorder=5)
-        if HAS_CARTOPY:
-            ax.plot(xs, ys, transform=pc, **kw)
+
+def find_earliest_branch(pathway, branch_points):
+    """
+    Locate earliest branching event in pathway.
+    
+    Parameters
+    ----------
+    pathway : list
+        Ordered configurations from λ₀ to state B
+    branch_points : dict
+        Configurations with branching degree ≥ 2
+        
+    Returns
+    -------
+    tuple
+        (branch_config, index) or (None, -1) if no branching
+    """
+    for idx, step in enumerate(pathway):
+        if step['config'] in branch_points:
+            return (step['config'], idx)
+    return (None, -1)
+
+
+def cluster_trajectories(stateB_configs, genealogy, branch_points):
+    """
+    Partition trajectories into genealogically independent clusters.
+    
+    Trajectories sharing earliest branch point constitute correlated
+    family representing single reactive event.
+    
+    Parameters
+    ----------
+    stateB_configs : list
+        All state B terminal configurations
+    genealogy : dict
+        Complete genealogy structure
+    branch_points : dict
+        Identified branching configurations
+        
+    Returns
+    -------
+    dict
+        {
+            'independent': list of unbranched trajectories,
+            'clustered': {branch_config: list of correlated trajectories}
+        }
+    """
+    independent = []
+    clustered = defaultdict(list)
+    
+    for config_info in stateB_configs:
+        terminal_config = config_info['config']
+        pathway = trace_pathway(genealogy, terminal_config)
+        
+        earliest_branch, branch_idx = find_earliest_branch(pathway, branch_points)
+        
+        trajectory_info = {
+            'terminal_config': terminal_config,
+            'pathway': pathway,
+            'mslp': config_info['mslp']
+        }
+        
+        if earliest_branch is None:
+            independent.append(trajectory_info)
         else:
-            ax.plot(xs, ys, **kw)
+            clustered[earliest_branch].append(trajectory_info)
+    
+    return {
+        'independent': independent,
+        'clustered': dict(clustered)
+    }
 
-    # Pass 2 — nodes
-    for cname in visible:
-        node    = nodes.get(cname)
-        if node is None:
+
+def select_representative_trajectories(clustered_data, criterion='shortest'):
+    """
+    Select single representative from each correlated cluster.
+    
+    Parameters
+    ----------
+    clustered_data : dict
+        Output from cluster_trajectories()
+    criterion : str
+        Selection method: 'shortest', 'deepest_mslp', 'first'
+        
+    Returns
+    -------
+    list
+        Complete set of reactive trajectories
+    """
+    reactive_trajs = []
+    
+    # All independent trajectories are reactive
+    for traj in clustered_data['independent']:
+        traj['cluster_size'] = 1
+        traj['is_independent'] = True
+        reactive_trajs.append(traj)
+    
+    # Select one representative per cluster
+    for branch_config, trajs in clustered_data['clustered'].items():
+        if criterion == 'shortest':
+            representative = min(trajs, key=lambda t: len(t['pathway']))
+        elif criterion == 'deepest_mslp':
+            representative = min(trajs, key=lambda t: t['mslp'])
+        else:  # first
+            representative = trajs[0]
+        
+        representative['cluster_size'] = len(trajs)
+        representative['is_independent'] = False
+        representative['branch_point'] = branch_config
+        reactive_trajs.append(representative)
+    
+    return reactive_trajs
+
+
+def visualize_reactive_trajectory(trajectory, ic_dir, output_path, traj_id):
+    """
+    Create multi-panel figure showing atmospheric evolution along reactive pathway.
+    
+    Each panel displays PNG snapshot of MSLP field at successive interface crossings,
+    illustrating physical hurricane genesis process from initial disturbance to
+    mature tropical cyclone.
+    
+    Parameters
+    ----------
+    trajectory : dict
+        Reactive trajectory containing pathway information
+    ic_dir : Path
+        Initial condition directory containing configuration PNGs
+    output_path : Path
+        Output file path for figure
+    traj_id : int
+        Trajectory identifier for labeling
+    """
+    pathway = trajectory['pathway']
+    n_steps = len(pathway)
+
+    # Configure figure dimensions
+    import math
+
+    n_rows = 2
+    n_cols = max(1, math.ceil(n_steps / n_rows))
+
+    fig_width = min(6 * n_cols, 36)
+    fig_height = 6 * n_rows
+
+    # squeeze=False ensures we always get a 2-D array regardless of grid shape,
+    # so axes.flatten() is always safe and axes[i] is always a single Axes.
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(fig_width, fig_height),
+                             squeeze=False)
+    axes = axes.flatten()
+
+    # Hide any unused panels at the end of the grid
+    for j in range(n_steps, len(axes)):
+        axes[j].axis('off')
+    
+    for i, step in enumerate(pathway):
+        config_name = step['config']
+        
+        if config_name is None:
+            axes[i].text(0.5, 0.5, "Missing\nConfiguration", 
+                        ha='center', va='center', transform=axes[i].transAxes,
+                        fontsize=12, color='red', fontweight='bold')
+            axes[i].axis('off')
             continue
-        iface   = min(node['iface_idx'], N_IFACES - 1)
-        color   = IFACE_COLORS[iface]
-        is_seed = (node['parent'] is None)
-        kw = dict(
-            s          = 350 if is_seed else 40,
-            color      = color,
-            marker     = '*' if is_seed else 'o',
-            edgecolors = 'k',
-            linewidths = 1.0 if is_seed else 0.4,
-            alpha      = 0.95,
-            zorder     = 8 if is_seed else 6,
-        )
-        if HAS_CARTOPY:
-            ax.scatter(node['lon'], node['lat'], transform=pc, **kw)
+        
+        # Locate PNG in hierarchical directory structure
+        if config_name.startswith('lambda0_'):
+            png_path = ic_dir / 'flux' / f"{config_name}.png"
+        elif config_name.startswith('stateB_'):
+            png_path = ic_dir / 'stateB' / f"{config_name}.png"
         else:
-            ax.scatter(node['lon'], node['lat'], **kw)
-
-
-# ── Main figure ────────────────────────────────────────────────────────────────
-
-def plot_tree(ic_dir: Path, plot_dir: Path, root_config: str = None):
-    # Get ic_time from JSON
-    jp = ic_dir / 'reactive_trajectories' / 'reactive_trajectories.json'
-    ic_time = ic_dir.name
-    try:
-        with open(jp) as f:
-            ic_time = json.load(f).get('ic_time', ic_dir.name)
-    except Exception:
-        pass
-    date_str = str(ic_time).split(' ')[0][:10]
-
-    # Pick root if not given
-    if root_config is None:
-        root_config, weight = best_root_in_ic(ic_dir)
-        if root_config is None:
-            print(f'  No reactive trajectories found in {ic_dir}')
-            return None
-        print(f'  Best root: {root_config}  cluster_weight={weight}')
-
-    print(f'Building shooting tree from {ic_dir.name} ...')
-    nodes, root = build_shooting_tree(ic_dir, root_config)
-
-    if nodes is None:
-        print('  Tree build failed.')
-        return None
-
-    visible = subtree(nodes, root)
-    n_per   = [sum(1 for c in visible
-                   if c in nodes and nodes[c]['iface_idx'] == i)
-               for i in range(N_IFACES)]
-    print(f'  Subtree: {len(visible)} nodes   per interface: {n_per}')
-
-    fig = plt.figure(figsize=(12, 10))
-    ax  = make_atlantic_axes(fig)
-    _draw_tree(ax, nodes, visible)
-
-    # Legend
-    handles = [
-        Line2D([0], [0], marker='*', color='w',
-               markerfacecolor=IFACE_COLORS[0], markersize=16,
-               markeredgecolor='k', markeredgewidth=0.8,
-               label=f'λ₀  {INTERFACE_PRESSURES[0]} hPa  — seed  (n={n_per[0]})'),
-    ]
-    for i in range(1, N_IFACES):
-        handles.append(
-            Line2D([0], [0], marker='o', color='w',
-                   markerfacecolor=IFACE_COLORS[i], markersize=9,
-                   markeredgecolor='k', markeredgewidth=0.5,
-                   label=f'λ{i}  {INTERFACE_PRESSURES[i]} hPa  (n={n_per[i]})')
-        )
-    ax.legend(handles=handles, fontsize=9, loc='lower left',
-              framealpha=0.92, title='Interface level', title_fontsize=10)
-
-    n_branches_l1 = n_per[1] if len(n_per) > 1 else 0
-    ax.set_title(
-        f'FFS shooting tree — IC {date_str}\n'
-        f'λ₀ seed → {n_branches_l1} λ₁ branches → {len(visible) - 1} total nodes',
-        fontsize=12, fontweight='bold',
-    )
-
-    out = plot_dir / f'ffs_tree_{date_str}.png'
-    plt.savefig(out, dpi=150, bbox_inches='tight')
+            # Extract interface index from naming convention
+            interface_num = config_name.split('_')[0].replace('lambda', '')
+            png_path = ic_dir / interface_num / f"{config_name}.png"
+        
+        if png_path.exists():
+            img = mpimg.imread(png_path)
+            axes[i].imshow(img)
+            axes[i].axis('off')
+            
+            # Construct informative title
+            if i == 0:
+                title = f"λ₀ (Flux Generation)\n{config_name}"
+            elif step.get('interface') == 'B':
+                mslp = trajectory['mslp']
+                title = f"State B\n{config_name}\nMSLP = {mslp:.1f} hPa"
+            else:
+                lambda_label = step.get('lambda_label', '?')
+                mslp = step.get('mslp_value', 0.0)
+                title = f"λ_{lambda_label}\n{config_name}\nMSLP = {mslp:.1f} hPa"
+            
+            axes[i].set_title(title, fontsize=9, fontweight='bold')
+        else:
+            axes[i].text(0.5, 0.5, f"PNG not found:\n{config_name}", 
+                        ha='center', va='center', transform=axes[i].transAxes,
+                        fontsize=10, color='orange')
+            axes[i].axis('off')
+    
+    # Figure title with clustering information
+    cluster_info = ""
+    if not trajectory['is_independent']:
+        cluster_info = f" (Representative of {trajectory['cluster_size']} correlated trajectories)"
+    
+    fig.suptitle(f"Reactive Trajectory {traj_id}{cluster_info}", 
+                fontsize=14, fontweight='bold', y=0.98)
+    
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
-    print(f'  Saved → {out}')
-    return out
 
 
-# ── CLI ────────────────────────────────────────────────────────────────────────
+def generate_summary_report(reactive_trajectories, clustered_data, branch_points,
+                           total_stateB, output_path):
+    """
+    Generate text summary of reactive trajectory analysis.
+    
+    Parameters
+    ----------
+    reactive_trajectories : list
+        All identified reactive trajectories
+    clustered_data : dict
+        Clustering results
+    branch_points : dict
+        Branch point configurations
+    total_stateB : int
+        Total trajectories reaching state B
+    output_path : Path
+        Output file for summary text
+    """
+    n_independent = len(clustered_data['independent'])
+    n_clusters = len(clustered_data['clustered'])
+    n_reactive = len(reactive_trajectories)
+    correlation_factor = total_stateB / n_reactive if n_reactive > 0 else 1.0
+    
+    with open(output_path, 'w') as f:
+        f.write("="*80 + "\n")
+        f.write("REACTIVE TRAJECTORY ANALYSIS SUMMARY\n")
+        f.write("="*80 + "\n\n")
+        
+        f.write(f"Total trajectories reaching state B: {total_stateB}\n")
+        f.write(f"Reactive (independent) trajectories: {n_reactive}\n")
+        f.write(f"  - Unbranched trajectories: {n_independent}\n")
+        f.write(f"  - Clustered families: {n_clusters}\n")
+        f.write(f"Correlation factor: {correlation_factor:.3f}\n\n")
+        
+        f.write(f"Total branch points identified: {len(branch_points)}\n\n")
+        
+        if branch_points:
+            f.write("Top 10 branch points by descendant count:\n")
+            sorted_branches = sorted(branch_points.items(), 
+                                   key=lambda x: x[1], reverse=True)[:10]
+            for i, (config, degree) in enumerate(sorted_branches, 1):
+                f.write(f"  {i}. {config}: {degree} descendants\n")
+            f.write("\n")
+        
+        f.write("REACTIVE TRAJECTORY DETAILS\n")
+        f.write("-"*80 + "\n\n")
+        
+        for i, traj in enumerate(reactive_trajectories, 1):
+            f.write(f"Trajectory {i}:\n")
+            f.write(f"  Terminal config: {traj['terminal_config']}\n")
+            f.write(f"  Final MSLP: {traj['mslp']:.1f} hPa\n")
+            f.write(f"  Pathway length: {len(traj['pathway'])} interfaces\n")
+            f.write(f"  Cluster size: {traj['cluster_size']}")
+            if not traj['is_independent']:
+                f.write(f" (branched from {traj['branch_point']})")
+            f.write("\n\n")
+
+
+def _visualize_worker(args: tuple):
+    """Parallel worker — renders one reactive trajectory figure."""
+    traj, ic_dir, output_path, traj_id = args
+    visualize_reactive_trajectory(traj, ic_dir, output_path, traj_id)
+
 
 def main():
     parser = argparse.ArgumentParser(
-        description='FFS shooting tree — genealogical tree from a single λ₀ seed'
+        description='Identify and visualize reactive trajectories in FFS simulations'
     )
-    parser.add_argument('--ic_dir',     default=None)
-    parser.add_argument('--ffs_csv',    default=None)
-    parser.add_argument('--output_dir', default=None)
-    parser.add_argument('--plot_dir',   default='./plots')
+    parser.add_argument('config_file', type=str, help='FFS config file (ffs.yml)')
+    parser.add_argument('--min-branch-degree', type=int, default=2,
+                       help='Minimum branching degree (default: 2)')
+    parser.add_argument('--selection', type=str, default='shortest',
+                       choices=['shortest', 'deepest_mslp', 'first'],
+                       help='Cluster representative selection criterion')
+    parser.add_argument('--workers', type=int, default=min(8, cpu_count()),
+                       help='Parallel workers for figure rendering (default: min(8, ncpus))')
+    parser.add_argument('--no_plot', action='store_true',
+                       help='Skip figure creation — only compute trajectories and export JSON')
+
     args = parser.parse_args()
+    
+    # Load configuration
+    import yaml
+    with open(args.config_file, 'r') as f:
+        ffs_config = yaml.safe_load(f)
+    
+    output_dir = Path(ffs_config['output_dir'])
+    state_B = ffs_config['state_B']
+    forecast_times = ffs_config['forecast_times']
+    
+    interfaces = ffs_config['interfaces'].copy()
+    if interfaces[-1] != state_B:
+        interfaces.append(state_B)
+    
+    # Process each initial condition
+    for time_range in forecast_times:
+        ic_time = time_range[0]
+        time_label = format_time_for_path(ic_time)
+        
+        print("="*80)
+        print(f"Processing IC: {time_label}")
+        print("="*80)
+        
+        ic_dir = output_dir / time_label
+        logs_dir = ic_dir / 'logs'
+        
+        if not ic_dir.exists():
+            print(f"WARNING: IC directory not found: {ic_dir}")
+            continue
+        
+        # Create reactive trajectory directory INSIDE IC directory
+        reactive_dir = ic_dir / 'reactive_trajectories'
+        reactive_dir.mkdir(parents=True, exist_ok=True)
+        
+        print(f"Loading logs from {logs_dir}")
+        entries = load_all_logs(logs_dir)
+        print(f"Loaded {len(entries)} log entries")
+        
+        genealogy = build_genealogy(entries)
+        print(f"Built genealogy: {len(genealogy)} parent configurations")
+        
+        stateB_configs = find_stateB_configs(entries, state_B)
+        print(f"Found {len(stateB_configs)} trajectories reaching state B")
+        
+        if not stateB_configs:
+            print("No successful trajectories found for this IC")
+            continue
+        
+        # Identify branch points
+        print(f"\nIdentifying branch points (min degree = {args.min_branch_degree})")
+        branch_points = identify_branch_points(
+            genealogy, stateB_configs, min_degree=args.min_branch_degree
+        )
+        print(f"Identified {len(branch_points)} branch points")
+        
+        if branch_points:
+            sorted_branches = sorted(branch_points.items(), 
+                                   key=lambda x: x[1], reverse=True)[:5]
+            print("\nTop 5 branch points:")
+            for config, degree in sorted_branches:
+                print(f"  {config}: {degree} descendants")
+        
+        # Cluster trajectories
+        print("\nClustering correlated trajectories...")
+        clustered_data = cluster_trajectories(stateB_configs, genealogy, branch_points)
+        
+        n_independent = len(clustered_data['independent'])
+        n_clusters = len(clustered_data['clustered'])
+        n_total = len(stateB_configs)
+        n_reactive = n_independent + n_clusters
+        
+        print(f"  Independent trajectories: {n_independent}")
+        print(f"  Clustered families: {n_clusters}")
+        print(f"  Total reactive trajectories: {n_reactive}")
+        print(f"  Correlation factor: {n_total / n_reactive:.3f}")
+        
+        # Select representatives
+        print(f"\nSelecting representative trajectories (criterion: {args.selection})")
+        reactive_trajectories = select_representative_trajectories(
+            clustered_data, criterion=args.selection
+        )
+        
+        # Generate visualizations for each reactive trajectory
+        if args.no_plot:
+            print("\n(visualizations skipped — --no_plot flag set)")
+        else:
+            n_vis = len(reactive_trajectories)
+            print(f"\nGenerating {n_vis} trajectory visualizations "
+                  f"({args.workers} workers)...")
+            worker_args = [
+                (traj, ic_dir,
+                 reactive_dir / f"reactive_trajectory_{i:03d}.png", i)
+                for i, traj in enumerate(reactive_trajectories, 1)
+            ]
+            with Pool(processes=min(args.workers, n_vis)) as pool:
+                list(tqdm(
+                    pool.imap_unordered(_visualize_worker, worker_args),
+                    total=n_vis, desc='figures', unit='fig',
+                    dynamic_ncols=True,
+                ))
+            print(f"All visualizations saved to: {reactive_dir}")
+        
+        # Generate summary report
+        summary_path = reactive_dir / 'summary.txt'
+        generate_summary_report(
+            reactive_trajectories, clustered_data, branch_points,
+            len(stateB_configs), summary_path
+        )
+        print(f"Summary report saved: {summary_path}")
+        
+        # Export detailed JSON
+        json_path = reactive_dir / 'reactive_trajectories.json'
+        export_data = {
+            'ic_time': ic_time,
+            'time_label': time_label,
+            'total_stateB_trajectories': len(stateB_configs),
+            'n_reactive_trajectories': n_reactive,
+            'correlation_factor': n_total / n_reactive if n_reactive > 0 else 1.0,
+            'branch_points': {k: v for k, v in branch_points.items()},
+            'reactive_trajectories': [
+                {
+                    'trajectory_id': i,
+                    'terminal_config': traj['terminal_config'],
+                    'final_mslp': traj['mslp'],
+                    'pathway_length': len(traj['pathway']),
+                    'cluster_size': traj['cluster_size'],
+                    'is_independent': traj['is_independent'],
+                    'pathway': [step['config'] for step in traj['pathway']]
+                }
+                for i, traj in enumerate(reactive_trajectories, 1)
+            ]
+        }
+        
+        with open(json_path, 'w') as f:
+            json.dump(export_data, f, indent=2)
+        
+        print(f"JSON data exported: {json_path}\n")
 
-    plot_dir = Path(args.plot_dir)
-    plot_dir.mkdir(parents=True, exist_ok=True)
 
-    if args.ic_dir:
-        plot_tree(Path(args.ic_dir), plot_dir)
-        return
-
-    if not (args.ffs_csv and args.output_dir):
-        parser.error('Provide --ic_dir  OR  both --ffs_csv and --output_dir')
-
-    import pandas as pd
-    df      = pd.read_csv(args.ffs_csv)
-    out_dir = Path(args.output_dir)
-    ic_dirs = [out_dir / tl for tl in df['time_label'].tolist()
-               if (out_dir / tl).exists()]
-
-    if not ic_dirs:
-        print('No IC directories found.')
-        return
-
-    print(f'Scanning {len(ic_dirs)} ICs for highest cluster-weight root ...')
-    ic_dir, root, weight = find_best_example(ic_dirs)
-
-    if ic_dir is None:
-        print('No usable IC found.')
-        return
-
-    print(f'Best: {ic_dir.name}  root={root}  cluster_weight={weight}')
-    plot_tree(ic_dir, plot_dir, root_config=root)
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

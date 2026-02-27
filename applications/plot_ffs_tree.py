@@ -20,14 +20,14 @@ Usage
     # Single IC
     python plot_ffs_tree.py \\
         --ic_dir   results_feb14/2022-08-21T00Z \\
-        --state_B  960 \\
+        --state_B  965 \\
         --plot_dir results_feb14/plots
 
     # Scan all ICs in a CSV
     python plot_ffs_tree.py \\
         --ffs_csv    results_feb14/ffs_statistics_all_ics.csv \\
         --output_dir results_feb14 \\
-        --state_B    960 \\
+        --state_B    965 \\
         --plot_dir   results_feb14/plots
 """
 
@@ -48,6 +48,7 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from pathlib import Path
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 
 warnings.filterwarnings('ignore')
 
@@ -245,46 +246,68 @@ def rank_lambda0s_for_ic(ic_dir: Path, state_B: float, top_n: int = 20):
     return scores
 
 
-def find_best_example(ic_dirs: list, state_B: float):
+def _scan_ic_worker(args: tuple):
     """
-    Scan logs for all ICs and return
+    Module-level worker for find_best_example() — must be picklable.
+    Returns (ic_dir_str, best_lambda0_name, best_score).
+    """
+    ic_dir_str, state_B = args
+    ic_dir = Path(ic_dir_str)
+    genealogy, stateB = _load_genealogy_for_ic(ic_dir, state_B)
+    if genealogy is None:
+        return ic_dir_str, None, 0
+    scores = _score_lambda0s(genealogy, stateB)
+    if not scores:
+        return ic_dir_str, None, 0
+    top = max(scores, key=scores.get)
+    return ic_dir_str, top, scores[top]
+
+
+def find_best_example(ic_dirs: list, state_B: float, workers: int = 8):
+    """
+    Scan logs for all ICs in parallel and return
         (ic_dir, root_config_name, n_B_descendants)
     for the λ₀ with the highest number of state-B descendants.
     """
+    n_workers = min(workers, len(ic_dirs))
+    worker_args = [(str(d), state_B) for d in ic_dirs]
+
     best_score = 0
     best_ic    = None
     best_root  = None
 
-    for ic_dir in ic_dirs:
-        print(f'  Scanning {ic_dir.name} …', end=' ', flush=True)
-        genealogy, stateB = _load_genealogy_for_ic(ic_dir, state_B)
-        if genealogy is None:
-            print('no logs')
-            continue
-
-        scores = _score_lambda0s(genealogy, stateB)
-        if scores:
-            top = max(scores, key=scores.get)
-            print(f'{len(stateB)} B-configs, best λ₀ has {scores[top]} descendants')
-        else:
-            print(f'{len(stateB)} B-configs, no λ₀ scored')
-            continue
-
-        for l0, sc in scores.items():
-            if sc > best_score:
-                best_score = sc
+    with ProcessPoolExecutor(max_workers=n_workers) as ex:
+        futures = {ex.submit(_scan_ic_worker, a): Path(a[0])
+                   for a in worker_args}
+        for fut in as_completed(futures):
+            ic_dir_str, top_root, score = fut.result()
+            ic_dir = Path(ic_dir_str)
+            if top_root is not None:
+                print(f'  {ic_dir.name}: best λ₀ has {score} descendants')
+            else:
+                print(f'  {ic_dir.name}: no logs / no scored λ₀')
+            if score > best_score:
+                best_score = score
                 best_ic    = ic_dir
-                best_root  = l0
+                best_root  = top_root
 
     return best_ic, best_root, best_score
 
 
 # ── full tree builder ──────────────────────────────────────────────────────────
 
-def build_tree(ic_dir: Path, root_config: str, state_B: float):
+def build_tree(ic_dir: Path, root_config: str, state_B: float,
+               genealogy: dict = None):
     """
-    Load logs for this IC, BFS-forward from root_config through all
-    successful children, load lat/lon from each pkl.
+    BFS-forward from root_config through all successful children, then
+    load each node's lat/lon from its pkl (parallel via ThreadPoolExecutor).
+
+    Parameters
+    ----------
+    genealogy : optional pre-loaded genealogy dict.  If None, logs are
+                loaded from ic_dir — pass this in from plot_tree() when
+                you already loaded them for root selection to avoid a
+                redundant second parse.
 
     Returns
     -------
@@ -292,7 +315,8 @@ def build_tree(ic_dir: Path, root_config: str, state_B: float):
         {config_name: {lat, lon, iface_idx, parent}}
     root_config : str
     """
-    genealogy, _ = _load_genealogy_for_ic(ic_dir, state_B)
+    if genealogy is None:
+        genealogy, _ = _load_genealogy_for_ic(ic_dir, state_B)
     if genealogy is None:
         return None, None
 
@@ -302,20 +326,25 @@ def build_tree(ic_dir: Path, root_config: str, state_B: float):
     reachable = _bfs_forward(children_map, root_config)
     print(f'  {len(reachable)} configs reachable from {root_config}')
 
+    # ── parallel pkl loading (I/O-bound → threads are fine) ──────────────────
+    def _load_one(cname):
+        return cname, _get_latlon(ic_dir, cname)
+
     nodes = {}
     n_missing = 0
-    for cname in reachable:
-        ll = _get_latlon(ic_dir, cname)
-        if ll is None:
-            n_missing += 1
-            continue
-        lat, lon = ll
-        nodes[cname] = {
-            'lat':       lat,
-            'lon':       lon,
-            'iface_idx': min(_iface_idx_from_name(cname), N_IFACES - 1),
-            'parent':    reverse_map.get(cname),      # None for the root
-        }
+    n_threads = min(32, len(reachable))
+    with ThreadPoolExecutor(max_workers=n_threads) as ex:
+        for cname, ll in ex.map(_load_one, reachable):
+            if ll is None:
+                n_missing += 1
+                continue
+            lat, lon = ll
+            nodes[cname] = {
+                'lat':       lat,
+                'lon':       lon,
+                'iface_idx': min(_iface_idx_from_name(cname), N_IFACES - 1),
+                'parent':    reverse_map.get(cname),
+            }
 
     if n_missing:
         print(f'  Warning: {n_missing} nodes skipped (pkl missing or no feature_location)')
@@ -444,6 +473,7 @@ def plot_tree(ic_dir: Path, plot_dir: Path, state_B: float,
     date_str = ic_dir.name[:10]
 
     # ── select root if not specified ──────────────────────────────────────────
+    cached_genealogy = None
     if root_config is None:
         genealogy, stateB = _load_genealogy_for_ic(ic_dir, state_B)
         if genealogy is None:
@@ -455,10 +485,12 @@ def plot_tree(ic_dir: Path, plot_dir: Path, state_B: float,
             return None
         root_config = max(scores, key=scores.get)
         print(f'  Best root: {root_config}  ({scores[root_config]} B-descendants)')
+        cached_genealogy = genealogy   # reuse — avoids a second log parse
 
     # ── build tree ────────────────────────────────────────────────────────────
     print(f'Building tree: {ic_dir.name} / {root_config}')
-    nodes, root = build_tree(ic_dir, root_config, state_B)
+    nodes, root = build_tree(ic_dir, root_config, state_B,
+                             genealogy=cached_genealogy)
 
     if not nodes:
         print('  Tree build failed — no nodes with lat/lon.')
@@ -523,6 +555,8 @@ def main():
                         help='Manually specify λ₀ config name to use as tree root')
     parser.add_argument('--rank',       action='store_true',
                         help='Print ranked table of all λ₀ roots by B-descendants, then exit')
+    parser.add_argument('--workers',    type=int, default=min(8, os.cpu_count() or 1),
+                        help='Parallel workers for multi-IC log scanning (CSV mode)')
     args = parser.parse_args()
 
     # ── Load config and initialise interface constants ────────────────────────
@@ -558,8 +592,9 @@ def main():
         print('No IC directories found.')
         return
 
-    print(f'Scanning {len(ic_dirs)} ICs …')
-    ic_dir, root, score = find_best_example(ic_dirs, state_B)
+    print(f'Scanning {len(ic_dirs)} ICs  ({args.workers} workers) …')
+    ic_dir, root, score = find_best_example(ic_dirs, state_B,
+                                            workers=args.workers)
 
     if ic_dir is None:
         print('No usable IC found.')
