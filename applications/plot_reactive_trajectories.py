@@ -37,6 +37,7 @@ from matplotlib.gridspec import GridSpec
 from pathlib import Path
 from datetime import datetime, timedelta
 from multiprocessing import Pool, cpu_count
+from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from tqdm import tqdm
 
@@ -115,6 +116,9 @@ def load_ic_tracks(ic_dir: Path) -> list:
         }
     Points with missing feature_location are skipped; tracks with fewer
     than 2 valid points are dropped.
+
+    All pkls across every pathway are loaded in parallel (ThreadPoolExecutor)
+    to avoid hundreds of sequential disk reads.
     """
     json_path = ic_dir / 'reactive_trajectories' / 'reactive_trajectories.json'
     if not json_path.exists():
@@ -126,10 +130,29 @@ def load_ic_tracks(ic_dir: Path) -> list:
     except Exception:
         return []
 
-    ic_time = data.get('ic_time', ic_dir.name)
-    tracks  = []
+    ic_time   = data.get('ic_time', ic_dir.name)
+    raw_trajs = data.get('reactive_trajectories', [])
 
-    for traj in data.get('reactive_trajectories', []):
+    # ── Collect every (traj_idx, step_idx, config_name) we need to load ──────
+    load_items = []   # (traj_idx, step_idx, config_name)
+    for t_idx, traj in enumerate(raw_trajs):
+        for s_idx, config_name in enumerate(traj.get('pathway', [])):
+            load_items.append((t_idx, s_idx, config_name))
+
+    # ── Parallel pkl load (I/O-bound — threads are fine inside a subprocess) ─
+    def _load_one(item):
+        t_idx, s_idx, cname = item
+        return t_idx, s_idx, _load_pkl(_pkl_path(ic_dir, cname))
+
+    n_threads = min(32, max(1, len(load_items)))
+    loaded = {}   # (traj_idx, step_idx) -> cfg
+    with ThreadPoolExecutor(max_workers=n_threads) as ex:
+        for t_idx, s_idx, cfg in ex.map(_load_one, load_items):
+            loaded[(t_idx, s_idx)] = cfg
+
+    # ── Assemble tracks from pre-loaded cfgs ──────────────────────────────────
+    tracks = []
+    for t_idx, traj in enumerate(raw_trajs):
         pathway    = traj.get('pathway', [])
         path_len   = traj.get('pathway_length', len(pathway))
         final_mslp = traj.get('final_mslp', INTERFACE_PRESSURES[-1])
@@ -143,8 +166,8 @@ def load_ic_tracks(ic_dir: Path) -> list:
             path_type = 'partial'
 
         points = []
-        for config_name in pathway:
-            cfg = _load_pkl(_pkl_path(ic_dir, config_name))
+        for s_idx in range(len(pathway)):
+            cfg = loaded.get((t_idx, s_idx))
             if cfg is None:
                 continue
 
@@ -350,7 +373,10 @@ def plot_day(ic_time: str, tracks: list, plot_dir: Path):
     """
     from matplotlib.lines import Line2D
 
-    date_str = str(ic_time).split(' ')[0][:10]
+    # Include hour to avoid 00Z/12Z filename collisions:
+    # '2022-08-21 00:00:00' → '2022-08-21T00Z'
+    _t       = str(ic_time)
+    date_str = _t[:10] + 'T' + _t[11:13] + 'Z'
     n        = len(tracks)
 
     fig = plt.figure(figsize=(26, 10))
@@ -373,16 +399,22 @@ def plot_day(ic_time: str, tracks: list, plot_dir: Path):
         alpha = 0.30 + 0.40 * (lw - LW_MIN) / (LW_MAX - LW_MIN)
         plot_track(ax1, track['points'], color=TRACK_COLOR, alpha=alpha, lw=lw)
 
+    # Batch scatter calls by interface — one ax.scatter() per interface level
+    # instead of one per point, which is O(tracks × steps) and very slow.
+    from collections import defaultdict
+    pts_by_iface = defaultdict(list)
     for track in tracks:
         for pt in track['points']:
-            idx = min(pt['iface_idx'], N_IFACES - 1)
-            c   = IFACE_COLORS[idx]
-            kw  = dict(s=18, alpha=0.85, zorder=5, edgecolors='k', linewidths=0.3)
-            if HAS_CARTOPY:
-                ax1.scatter(pt['lon'], pt['lat'], color=c,
-                            transform=ccrs.PlateCarree(), **kw)
-            else:
-                ax1.scatter(pt['lon'], pt['lat'], color=c, **kw)
+            pts_by_iface[min(pt['iface_idx'], N_IFACES - 1)].append(pt)
+    kw = dict(s=18, alpha=0.85, zorder=5, edgecolors='k', linewidths=0.3)
+    for idx, pts in pts_by_iface.items():
+        lons = [p['lon'] for p in pts]
+        lats = [p['lat'] for p in pts]
+        if HAS_CARTOPY:
+            ax1.scatter(lons, lats, color=IFACE_COLORS[idx],
+                        transform=ccrs.PlateCarree(), **kw)
+        else:
+            ax1.scatter(lons, lats, color=IFACE_COLORS[idx], **kw)
 
     c_mid = int(np.sqrt(c_min * c_max))
     seen, lw_handles = set(), []

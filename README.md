@@ -356,7 +356,29 @@ Output: `results/plots/ffs_tree_YYYY-MM-DD_lambda0_config_XXXX_YY.png`
 
 ---
 
-### 6. Plot Commitment Curve
+### 6. Plot Committor Map
+
+2D spatial map of the committor p_B(x | λᵢ) — the probability of reaching state B given a config's lat/lon at each interface. Aggregated across all ICs. Each panel covers one interface; bins without enough configs are masked.
+
+```bash
+python applications/plot_committor_map.py \
+    --ffs_config  ffs.yml \
+    --ffs_csv     results/ffs_statistics_all_ics.csv \
+    --output_dir  results \
+    --plot_dir    results/plots \
+    --workers     8 \
+    --bin_size    2.0 \       # Degree resolution of the p_B map (default: 2.0)
+    --min_samples 3 \         # Min configs per bin to show (default: 3)
+    --no_cache                # Force recompute (ignore cached pkl data)
+```
+
+One figure per IC. The first run is slow — it loads every pkl in every interface directory. Per-IC results are cached in `ic_dir/committor_pts_cache.pkl` so reruns (e.g. adjusting `--bin_size`) skip the pkl loading entirely.
+
+Output: `results/plots/committor_maps/committor_map_2022-08-21T00Z.png`
+
+---
+
+### 7. Plot Commitment Curve
 
 Plots the committor function p_B(λᵢ) — the probability of reaching state B given that interface λᵢ has been crossed — for both FFS (product of forward transition probabilities) and IFS (brute-force count ratios).
 
@@ -394,6 +416,7 @@ python applications/reactive_pathways.py ffs.yml --workers 8
 # 5. Plots
 python applications/plot_reactive_trajectories.py --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots --workers 8
 python applications/plot_ffs_tree.py              --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots --workers 8
+python applications/plot_committor_map.py          --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots --workers 8
 python applications/plot_commitment_curve.py       --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --ifs_csv results/IFS/ifs_rates_FFS.csv --plot_dir results/plots
 ```
 
@@ -446,6 +469,7 @@ miles-tails/
 │   ├── ifs_brute_force_rates.py      # IFS ensemble reference rates
 │   ├── plot_reactive_trajectories.py # Spaghetti tracks + density heatmap
 │   ├── plot_ffs_tree.py              # Single-seed branching tree figure
+│   ├── plot_committor_map.py         # 2D spatial p_B(x|λᵢ) committor map
 │   └── plot_commitment_curve.py      # Committor p_B(λᵢ) vs interface
 ├── config/
 │   ├── ffs.yml                       # FFS algorithm configuration
@@ -463,7 +487,9 @@ results/
 ├── plots/
 │   ├── reactive_trajectories/
 │   │   └── reactive_trajectories_YYYY-MM-DD.png
-│   ├── ffs_tree_YYYY-MM-DD_lambda0_config_XXXX_YY.png
+│   ├── ffs_tree_YYYY-MM-DDT00Z_lambda0_config_XXXX_YY.png
+│   ├── committor_maps/
+│   │   └── committor_map_YYYY-MM-DDT00Z.png
 │   └── commitment_curve.png
 └── 2022-08-21T00Z/                   # One directory per initial condition
     ├── logs/

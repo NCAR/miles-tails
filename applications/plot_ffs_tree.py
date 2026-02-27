@@ -20,14 +20,14 @@ Usage
     # Single IC
     python plot_ffs_tree.py \\
         --ic_dir   results_feb14/2022-08-21T00Z \\
-        --state_B  965 \\
+        --state_B  960 \\
         --plot_dir results_feb14/plots
 
     # Scan all ICs in a CSV
     python plot_ffs_tree.py \\
         --ffs_csv    results_feb14/ffs_statistics_all_ics.csv \\
         --output_dir results_feb14 \\
-        --state_B    965 \\
+        --state_B    960 \\
         --plot_dir   results_feb14/plots
 """
 
@@ -470,7 +470,7 @@ def _draw_tree(ax, nodes: dict, root: str):
 
 def plot_tree(ic_dir: Path, plot_dir: Path, state_B: float,
               root_config: str = None):
-    date_str = ic_dir.name[:10]
+    date_str = ic_dir.name   # e.g. '2022-08-21T00Z' — keep full name to avoid 00Z/12Z collisions
 
     # ── select root if not specified ──────────────────────────────────────────
     cached_genealogy = None
