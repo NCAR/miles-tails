@@ -324,7 +324,7 @@ Output: `results/plots/reactive_trajectories/reactive_trajectories_YYYY-MM-DD.pn
 Draws the complete forward branching tree from a single λ₀ seed — all shooting attempts at every interface — on a zoomed Atlantic map. Useful as an explainer figure for papers and presentations.
 
 ```bash
-# Auto-select the IC and λ₀ with the most state-B descendants (parallel scan)
+# Auto-select best IC+λ₀ globally (parallel scan across all ICs)
 python applications/plot_ffs_tree.py \
     --ffs_config ffs.yml \
     --ffs_csv    results/ffs_statistics_all_ics.csv \
@@ -332,13 +332,29 @@ python applications/plot_ffs_tree.py \
     --plot_dir   results/plots \
     --workers    8              # Parallel workers for multi-IC log scanning (default: min(8, ncpu))
 
+# Top-5 globally by B-descendant count — generates 5 ranked figures
+python applications/plot_ffs_tree.py \
+    --ffs_config ffs.yml \
+    --ffs_csv    results/ffs_statistics_all_ics.csv \
+    --output_dir results \
+    --plot_dir   results/plots \
+    --workers    8 \
+    --top_k      5
+
 # Single IC — auto-select best λ₀
 python applications/plot_ffs_tree.py \
     --ffs_config ffs.yml \
     --ic_dir     results/2022-08-21T00Z \
     --plot_dir   results/plots
 
-# Rank all λ₀ roots by B-descendant count (inspect before plotting)
+# Single IC — top-3 λ₀ roots (generates 3 ranked figures)
+python applications/plot_ffs_tree.py \
+    --ffs_config ffs.yml \
+    --ic_dir     results/2022-08-21T00Z \
+    --plot_dir   results/plots \
+    --top_k      3
+
+# Rank all λ₀ roots by B-descendant count (print table, no figures)
 python applications/plot_ffs_tree.py \
     --ffs_config ffs.yml \
     --ic_dir     results/2022-08-21T00Z \
@@ -352,7 +368,9 @@ python applications/plot_ffs_tree.py \
     --plot_dir   results/plots
 ```
 
-Output: `results/plots/ffs_tree_YYYY-MM-DD_lambda0_config_XXXX_YY.png`
+`--top_k 1` (default) produces a single figure with no rank prefix.  `--top_k N > 1` produces N figures with filenames prefixed `rank01_`, `rank02_`, … ordered by B-descendant count.
+
+Output: `results/plots/ffs_tree_[rankNN_]YYYY-MM-DDT00Z_lambda0_config_XXXX_YY.png`
 
 ---
 
@@ -378,9 +396,51 @@ Output: `results/plots/committor_maps/committor_map_2022-08-21T00Z.png`
 
 ---
 
-### 7. Plot Commitment Curve
+### 7. Plot Committor Fields
 
-Plots the committor function p_B(λᵢ) — the probability of reaching state B given that interface λᵢ has been crossed — for both FFS (product of forward transition probabilities) and IFS (brute-force count ratios).
+Extracts atmospheric variables from the full model state stored in each pkl and computes the committor as a function of those variables — p_B(ξ | λᵢ) — aggregated across all ICs.  Answers the question: *which atmospheric conditions predict genesis?*
+
+Variables extracted from `cfg._y_phys` at the storm center:
+
+| Variable | Channel(s) | Description |
+|---|:---:|---|
+| MSLP | `mslp_value` attr | Mean sea level pressure (hPa) — FFS order parameter |
+| t2m | 65 | 2 m temperature (°C) — SST / boundary-layer warmth proxy |
+| Z500 | 69 | 500 hPa geopotential (m²/s²) |
+| V500 speed | 66, 67 | 500 hPa wind speed (m/s) |
+| Wind shear | 1, 17 vs 66, 67 | Level-30 minus 500 hPa wind shear (m/s) — upper-trop shear proxy |
+| Q500 | 70 | 500 hPa specific humidity (g/kg) |
+
+Produces two figures:
+1. **`committor_fields_aggregated.png`** — N_VARS × N_INTERFACES panel grid.  Each panel shows histograms (green=reaches B, red=fails) and the p_B curve on a right axis.
+2. **`committor_curves_by_variable.png`** — One panel per variable with all interface p_B curves overlaid and colour-coded by interface index.
+
+```bash
+python applications/plot_committor_fields.py \
+    --ffs_config  ffs.yml \
+    --ffs_csv     results/ffs_statistics_all_ics.csv \
+    --output_dir  results \
+    --plot_dir    results/plots \
+    --workers     8 \
+    --min_samples 5 \         # Min configs per bin to draw p_B curve (default: 5)
+    --n_bins      15 \        # Bins along each variable axis (default: 15)
+    --no_cache                # Force recompute (ignore cached pkl data)
+```
+
+**Note:** The first run reads every pkl for every interface across every IC — expect significant I/O time if `_y_phys` stores the full global tensor (~19 MB per pkl).  Per-IC results are cached in `ic_dir/committor_fields_cache.pkl` so reruns with different `--n_bins` or `--min_samples` are fast.
+
+Output: `results/plots/committor_fields/committor_fields_aggregated.png` and `committor_curves_by_variable.png`
+
+---
+
+### 8. Plot Commitment Curve
+
+Hockey-stick plot of p_B(λᵢ) — the cumulative probability of reaching state B given that interface λᵢ has been crossed — comparing FFS (AI model) against IFS brute-force ensemble.
+
+- **FFS**: p_B(λᵢ) = ∏ P_forward(λⱼ→λⱼ₊₁)  — low-variance product-rule estimate from the statistics CSV
+- **IFS**: p_B(λᵢ) = n_crossed_λ_last / n_crossed_λᵢ — direct count ratio from brute-force ensemble
+
+Mean ± std across all ICs is shown as shaded band. The largest single Δp_B drop (rate-limiting step) is highlighted in grey. A summary table is also printed to stdout.
 
 ```bash
 python applications/plot_commitment_curve.py \
@@ -415,8 +475,9 @@ python applications/reactive_pathways.py ffs.yml --workers 8
 
 # 5. Plots
 python applications/plot_reactive_trajectories.py --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots --workers 8
-python applications/plot_ffs_tree.py              --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots --workers 8
+python applications/plot_ffs_tree.py              --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots --workers 8 --top_k 5
 python applications/plot_committor_map.py          --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots --workers 8
+python applications/plot_committor_fields.py       --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots --workers 8
 python applications/plot_commitment_curve.py       --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --ifs_csv results/IFS/ifs_rates_FFS.csv --plot_dir results/plots
 ```
 
@@ -470,6 +531,7 @@ miles-tails/
 │   ├── plot_reactive_trajectories.py # Spaghetti tracks + density heatmap
 │   ├── plot_ffs_tree.py              # Single-seed branching tree figure
 │   ├── plot_committor_map.py         # 2D spatial p_B(x|λᵢ) committor map
+│   ├── plot_committor_fields.py      # Atmospheric-variable p_B(ξ|λᵢ) curves
 │   └── plot_commitment_curve.py      # Committor p_B(λᵢ) vs interface
 ├── config/
 │   ├── ffs.yml                       # FFS algorithm configuration
@@ -490,6 +552,9 @@ results/
 │   ├── ffs_tree_YYYY-MM-DDT00Z_lambda0_config_XXXX_YY.png
 │   ├── committor_maps/
 │   │   └── committor_map_YYYY-MM-DDT00Z.png
+│   ├── committor_fields/
+│   │   ├── committor_fields_aggregated.png
+│   │   └── committor_curves_by_variable.png
 │   └── commitment_curve.png
 └── 2022-08-21T00Z/                   # One directory per initial condition
     ├── logs/
@@ -501,6 +566,8 @@ results/
     ├── 1/                            # λ₁ configs
     ├── 2/                            # λ₂ configs
     ├── stateB/                       # Hurricane formation configs
+    ├── committor_pts_cache.pkl       # Cache: (lat, lon, reached_B) per interface
+    ├── committor_fields_cache.pkl    # Cache: (lat, lon, reached_B, fields) per interface
     └── reactive_trajectories/
         ├── reactive_trajectories.json
         └── reactive_trajectory_NNN.png

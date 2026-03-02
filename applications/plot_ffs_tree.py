@@ -23,12 +23,13 @@ Usage
         --state_B  960 \\
         --plot_dir results_feb14/plots
 
-    # Scan all ICs in a CSV
+    # Scan all ICs in a CSV — top-5 globally by B-descendant count
     python plot_ffs_tree.py \\
         --ffs_csv    results_feb14/ffs_statistics_all_ics.csv \\
         --output_dir results_feb14 \\
-        --state_B    960 \\
-        --plot_dir   results_feb14/plots
+        --ffs_config ffs.yml \\
+        --plot_dir   results_feb14/plots \\
+        --top_k      5
 """
 
 import os
@@ -248,50 +249,52 @@ def rank_lambda0s_for_ic(ic_dir: Path, state_B: float, top_n: int = 20):
 
 def _scan_ic_worker(args: tuple):
     """
-    Module-level worker for find_best_example() — must be picklable.
-    Returns (ic_dir_str, best_lambda0_name, best_score).
+    Module-level worker for find_top_examples() — must be picklable.
+    Returns (ic_dir_str, [(root, score), ...]) sorted by score descending.
     """
     ic_dir_str, state_B = args
     ic_dir = Path(ic_dir_str)
     genealogy, stateB = _load_genealogy_for_ic(ic_dir, state_B)
     if genealogy is None:
-        return ic_dir_str, None, 0
+        return ic_dir_str, []
     scores = _score_lambda0s(genealogy, stateB)
     if not scores:
-        return ic_dir_str, None, 0
-    top = max(scores, key=scores.get)
-    return ic_dir_str, top, scores[top]
+        return ic_dir_str, []
+    ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+    return ic_dir_str, ranked
 
 
-def find_best_example(ic_dirs: list, state_B: float, workers: int = 8):
+def find_top_examples(ic_dirs: list, state_B: float,
+                      workers: int = 8, top_k: int = 1):
     """
-    Scan logs for all ICs in parallel and return
-        (ic_dir, root_config_name, n_B_descendants)
-    for the λ₀ with the highest number of state-B descendants.
+    Scan logs for all ICs in parallel and return the top_k global entries:
+
+        [(ic_dir, root_config_name, n_B_descendants), ...]
+
+    sorted by n_B_descendants descending (rank 1 = most descendants).
     """
-    n_workers = min(workers, len(ic_dirs))
+    n_workers   = min(workers, len(ic_dirs))
     worker_args = [(str(d), state_B) for d in ic_dirs]
 
-    best_score = 0
-    best_ic    = None
-    best_root  = None
+    all_entries = []   # (score, ic_dir, root)
 
     with ProcessPoolExecutor(max_workers=n_workers) as ex:
         futures = {ex.submit(_scan_ic_worker, a): Path(a[0])
                    for a in worker_args}
         for fut in as_completed(futures):
-            ic_dir_str, top_root, score = fut.result()
+            ic_dir_str, ranked = fut.result()
             ic_dir = Path(ic_dir_str)
-            if top_root is not None:
-                print(f'  {ic_dir.name}: best λ₀ has {score} descendants')
+            if ranked:
+                best_score = ranked[0][1]
+                print(f'  {ic_dir.name}: best λ₀ has {best_score} descendants '
+                      f'({len(ranked)} roots scored)')
             else:
                 print(f'  {ic_dir.name}: no logs / no scored λ₀')
-            if score > best_score:
-                best_score = score
-                best_ic    = ic_dir
-                best_root  = top_root
+            for root, score in ranked:
+                all_entries.append((score, ic_dir, root))
 
-    return best_ic, best_root, best_score
+    all_entries.sort(key=lambda x: x[0], reverse=True)
+    return [(ic, root, score) for score, ic, root in all_entries[:top_k]]
 
 
 # ── full tree builder ──────────────────────────────────────────────────────────
@@ -469,7 +472,16 @@ def _draw_tree(ax, nodes: dict, root: str):
 # ── main figure ───────────────────────────────────────────────────────────────
 
 def plot_tree(ic_dir: Path, plot_dir: Path, state_B: float,
-              root_config: str = None):
+              root_config: str = None, rank: int = None):
+    """
+    Build and render the shooting tree for one (IC, root) pair.
+
+    Parameters
+    ----------
+    rank : int or None
+        When provided (and > 0), prepended to the output filename as
+        'rank{rank:02d}_' so that top-K runs don't overwrite each other.
+    """
     date_str = ic_dir.name   # e.g. '2022-08-21T00Z' — keep full name to avoid 00Z/12Z collisions
 
     # ── select root if not specified ──────────────────────────────────────────
@@ -529,7 +541,8 @@ def plot_tree(ic_dir: Path, plot_dir: Path, state_B: float,
         fontsize=12, fontweight='bold',
     )
 
-    out = plot_dir / f'ffs_tree_{date_str}_{root}.png'
+    rank_prefix = f'rank{rank:02d}_' if rank is not None else ''
+    out = plot_dir / f'ffs_tree_{rank_prefix}{date_str}_{root}.png'
     plt.savefig(out, dpi=150, bbox_inches='tight')
     plt.close()
     print(f'  Saved → {out}')
@@ -555,6 +568,8 @@ def main():
                         help='Manually specify λ₀ config name to use as tree root')
     parser.add_argument('--rank',       action='store_true',
                         help='Print ranked table of all λ₀ roots by B-descendants, then exit')
+    parser.add_argument('--top_k',      type=int, default=1,
+                        help='Number of top-ranked (IC, λ₀) pairs to plot (default: 1)')
     parser.add_argument('--workers',    type=int, default=min(8, os.cpu_count() or 1),
                         help='Parallel workers for multi-IC log scanning (CSV mode)')
     args = parser.parse_args()
@@ -575,7 +590,30 @@ def main():
         if args.rank:
             rank_lambda0s_for_ic(ic_dir, state_B)
             return
-        plot_tree(ic_dir, plot_dir, state_B, root_config=args.root)
+
+        if args.root:
+            # Explicit root — just plot it (rank prefix omitted)
+            plot_tree(ic_dir, plot_dir, state_B, root_config=args.root)
+        else:
+            # Auto-select top-K roots within this IC
+            genealogy, stateB = _load_genealogy_for_ic(ic_dir, state_B)
+            if genealogy is None:
+                print(f'No logs found in {ic_dir}')
+                return
+            scores = _score_lambda0s(genealogy, stateB)
+            if not scores:
+                print(f'No λ₀ roots scored in {ic_dir}')
+                return
+            ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+            top_k  = min(args.top_k, len(ranked))
+            print(f'Plotting top {top_k} of {len(ranked)} λ₀ roots '
+                  f'(--top_k={args.top_k})')
+            use_rank_prefix = top_k > 1
+            for k, (root, sc) in enumerate(ranked[:top_k], 1):
+                print(f'\nRank {k}: {root}  ({sc} B-descendants)')
+                plot_tree(ic_dir, plot_dir, state_B,
+                          root_config=root,
+                          rank=k if use_rank_prefix else None)
         return
 
     # ── multi-IC mode ────────────────────────────────────────────────────────
@@ -592,16 +630,22 @@ def main():
         print('No IC directories found.')
         return
 
-    print(f'Scanning {len(ic_dirs)} ICs  ({args.workers} workers) …')
-    ic_dir, root, score = find_best_example(ic_dirs, state_B,
-                                            workers=args.workers)
+    print(f'Scanning {len(ic_dirs)} ICs  ({args.workers} workers)  '
+          f'top_k={args.top_k} …')
+    top_results = find_top_examples(ic_dirs, state_B,
+                                    workers=args.workers,
+                                    top_k=args.top_k)
 
-    if ic_dir is None:
+    if not top_results:
         print('No usable IC found.')
         return
 
-    print(f'\nBest: {ic_dir.name}  root={root}  B-descendants={score}')
-    plot_tree(ic_dir, plot_dir, state_B, root_config=root)
+    use_rank_prefix = args.top_k > 1
+    for k, (ic_dir, root, score) in enumerate(top_results, 1):
+        print(f'\nRank {k}: {ic_dir.name}  root={root}  B-descendants={score}')
+        plot_tree(ic_dir, plot_dir, state_B,
+                  root_config=root,
+                  rank=k if use_rank_prefix else None)
 
 
 if __name__ == '__main__':
