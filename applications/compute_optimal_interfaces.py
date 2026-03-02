@@ -144,40 +144,91 @@ def optimal_next_interface(min_mslps, p_target):
     return float(np.percentile(min_mslps, p_target * 100))
 
 
-def build_optimal_chain(by_stage, lambda0, state_b, p_target):
+def subdivide_stage(min_mslps, p_target, state_b, min_n=20):
     """
-    Iteratively build the optimal interface chain from lambda0 to state_b.
+    Extract as many optimal interfaces as the data supports from one stage.
 
-    At stage i (trajectories launched from λ_i), the optimal λ_{i+1} is the
-    p_target quantile of the min-MSLP distribution — the threshold where
-    exactly p_target fraction of trajectories would cross.
+    Algorithm:
+      1. pool = all min-MSLPs from this stage
+      2. opt = p_target quantile of pool  → candidate next interface
+      3. If opt > state_b and pool has >= min_n entries: record opt, then
+         filter pool to trajectories that passed through opt (min < opt),
+         and repeat from step 2.
+
+    This works because trajectories launched from λ_i that crossed some
+    intermediate threshold y are unbiased samples of "what happens after y"
+    (they carry the atmospheric state at the moment they crossed y).
+    Sample size shrinks by ~p_target each iteration, so precision degrades —
+    hence the min_n guard.
+
+    Returns list of interface values (not including the stage launch point
+    or state_b itself).
+    """
+    pool = np.asarray(min_mslps, dtype=float)
+    interfaces = []
+
+    while len(pool) >= min_n:
+        opt = float(np.percentile(pool, p_target * 100))
+
+        # Stop if we've reached or passed state_b
+        if opt <= state_b:
+            break
+
+        interfaces.append(round(opt, 1))
+
+        # Keep only trajectories that penetrated strictly past this interface.
+        # This guarantees pool shrinks each iteration → no infinite loop.
+        pool = pool[pool < opt]
+
+    return interfaces
+
+
+def build_optimal_chain(by_stage, lambda0, state_b, p_target, min_n=20, verbose=False):
+    """
+    Build the optimal interface chain from lambda0 to state_b.
+
+    For each shooting stage (lambda_label >= 0), the p_target quantile of
+    that stage's min-MSLP distribution gives the optimal next interface:
+    exactly p_target fraction of trajectories launched from that stage will
+    cross it.  One interface per stage.  Flux (label=-1) is skipped — its
+    min-MSLP is the basin minimum over a full run, not a single storm track.
+
+    If a stage's p_target quantile is already at or below state_b, that
+    stage contributes no new interface (the chain is already at state_b).
+
+    min_n: reserved for future sub-division support (currently unused).
 
     Returns:
         chain      : list of hPa values [lambda0, λ1*, λ2*, ..., state_b]
         stage_stats: dict with per-stage diagnostics
     """
-    sorted_labels = sorted(k for k in by_stage if k >= -1)
-    chain = [lambda0]
+    # Only use shooting stages (label >= 0), ordered shallowest → deepest
+    shooting_labels = sorted(k for k in by_stage if k >= 0)
     stage_stats = {}
+    chain = [lambda0]
 
-    for label in sorted_labels:
+    for label in shooting_labels:
         mins = np.asarray(by_stage[label])
         n = len(mins)
+        stage_name = f"λ{label}"
 
-        # Optimal next interface from this stage
-        opt_next = optimal_next_interface(mins, p_target)
-        p_at_opt = float(np.mean(mins < opt_next))  # should ≈ p_target
+        opt_next = float(np.percentile(mins, p_target * 100))
+        p_at_opt = float(np.mean(mins < opt_next))
+        p_to_b   = float(np.mean(mins < state_b))
 
-        # P(reaching state_b directly from this stage)
-        p_to_b = float(np.mean(mins < state_b))
+        above_stateB = opt_next > state_b
+        below_tip    = opt_next < chain[-1] - 0.5
 
-        # Current empirical P (using whatever the EXISTING next interface was)
-        # We don't know the existing next interface precisely, but
-        # the success fraction in the log gives it directly if status is stored.
-        # Approximate: fraction below the median of successess.
-        # Just report p_to_b and p_at_opt; the user can compare.
+        if verbose:
+            if above_stateB and below_tip:
+                reason = '→ added'
+            elif not above_stateB:
+                reason = f'→ skipped (λ_opt={opt_next:.1f} ≤ state_B={state_b})'
+            else:
+                reason = f'→ skipped (λ_opt={opt_next:.1f} too close to tip={chain[-1]:.1f})'
+            print(f"  [{stage_name}] N={n}  λ_opt={opt_next:.1f}  P@opt={p_at_opt:.3f}  "
+                  f"P→B={p_to_b:.3f}  {reason}")
 
-        stage_name = "flux (state A)" if label == -1 else f"λ{label}"
         stage_stats[label] = {
             'name': stage_name,
             'n': n,
@@ -186,17 +237,92 @@ def build_optimal_chain(by_stage, lambda0, state_b, p_target):
             'opt_next': round(opt_next, 1),
             'p_at_opt': p_at_opt,
             'p_to_stateB': p_to_b,
+            'n_sub_interfaces': int(above_stateB and below_tip),
+            'sub_interfaces': [round(opt_next, 1)] if (above_stateB and below_tip) else [],
         }
 
-        # Add to chain only if opt_next > state_b (still making progress)
-        if opt_next > state_b and opt_next < (chain[-1] - 0.5):
+        if above_stateB and below_tip:
             chain.append(round(opt_next, 1))
 
-    # Always end with state_b
     if chain[-1] != state_b:
         chain.append(state_b)
 
     return chain, stage_stats
+
+
+def build_chain_target_n(by_stage, lambda0, state_b, n_steps, min_n=20, verbose=False):
+    """
+    Build a chain with exactly n_steps transitions (lambda0 → i1 → … → state_b)
+    using the λ0 min-MSLP distribution as the reference.
+
+    Solves for the per-step crossing probability:
+        p_step = P(min < state_b | λ0) ^ (1 / n_steps)
+    Interface k is placed at the p_step^k quantile of λ0's distribution, giving:
+        P(cross step k | crossed step k-1) ≈ p_step   (Markov property)
+
+    This allows you to request more (or fewer) steps than the number of original
+    stages.  With 273K λ0 trajectories, precision is good down to ~0.5% quantiles.
+
+    Args:
+        n_steps : total number of transitions  (chain length = n_steps + 1,
+                  including lambda0 and state_b)
+        min_n   : unused; kept for API compatibility with build_optimal_chain
+    """
+    label0 = min(k for k in by_stage if k >= 0)
+    mins0  = np.asarray(by_stage[label0])
+    n0     = len(mins0)
+
+    p_to_b = float(np.mean(mins0 < state_b))
+    if p_to_b == 0:
+        print(f"WARNING: No λ0 trajectories reached state_B={state_b:.0f} hPa. Cannot build chain.")
+        return [lambda0, state_b], {}
+
+    p_step = p_to_b ** (1.0 / n_steps)
+
+    if verbose:
+        print(f"  λ0 (N={n0})  P(min<{state_b:.0f})={p_to_b:.5f}"
+              f"  →  p_step = {p_step:.4f}  (1/e = {1/np.e:.4f})")
+
+    chain      = [lambda0]
+    step_stats = {}
+
+    for k in range(1, n_steps):
+        q     = p_step ** k
+        iface = round(float(np.percentile(mins0, q * 100)), 1)
+
+        # Conditional probability from the previous step
+        p_prev = float(np.mean(mins0 < chain[-1])) if k > 1 else 1.0
+        p_here = float(np.mean(mins0 < iface))
+        p_cond = p_here / p_prev if p_prev > 0 else 0.0
+
+        stop = iface <= state_b or iface >= chain[-1] - 0.5
+        if verbose:
+            note = (' → stop (at/past state_B)' if iface <= state_b
+                    else ' → stop (too close to tip)' if iface >= chain[-1] - 0.5
+                    else '')
+            print(f"    k={k}: q={q*100:.3f}th pct → {iface:.1f} hPa  "
+                  f"p_cond≈{p_cond:.3f}{note}")
+
+        step_stats[k] = {
+            'name':           f'step{k}',
+            'n':              n0,
+            'min_mslp_mean':  float(np.mean(mins0)),
+            'min_mslp_min':   float(np.min(mins0)),
+            'opt_next':       iface,
+            'p_at_opt':       p_cond,
+            'p_to_stateB':    p_to_b,
+            'n_sub_interfaces': int(not stop),
+            'sub_interfaces': [iface] if not stop else [],
+        }
+
+        if stop:
+            break
+        chain.append(iface)
+
+    if chain[-1] != state_b:
+        chain.append(state_b)
+
+    return chain, step_stats
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -353,15 +479,27 @@ def main():
                         help='Directory for plots and results')
     parser.add_argument('--n_jobs', type=int, default=-1,
                         help='Parallel workers for file parsing (-1 = all cores, default: -1)')
+    parser.add_argument('--n_interfaces', type=int, default=None,
+                        help='Request exactly this many steps from λ₀ to state_B '
+                             '(e.g. --n_interfaces 5 gives chain of length 6 incl. endpoints). '
+                             'Overrides the default one-interface-per-stage heuristic. '
+                             'Uses the λ0 distribution to solve for the required p_step.')
+    parser.add_argument('--min_n', type=int, default=20,
+                        help='Min trajectories required for sub-interface subdivision (reserved for future use; '
+                             'current build uses one interface per stage, default: 20)')
+    parser.add_argument('--verbose', action='store_true',
+                        help='Print per-stage sub-interfaces and merge steps')
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"\np_target = {args.p_target:.4f}  (1/e = {1/np.e:.4f})")
-    print(f"λ₀       = {args.lambda0} hPa")
-    print(f"state_B  = {args.state_b} hPa")
-    print(f"log_dirs = {args.log_dir} ({len(args.log_dir)} directories)\n")
+    print(f"\np_target     = {args.p_target:.4f}  (1/e = {1/np.e:.4f})")
+    print(f"λ₀           = {args.lambda0} hPa")
+    print(f"state_B      = {args.state_b} hPa")
+    if args.n_interfaces is not None:
+        print(f"n_interfaces = {args.n_interfaces}  (fixed-step mode: p_step solved per state_B)")
+    print(f"log_dirs     = {args.log_dir} ({len(args.log_dir)} directories)\n")
 
     # ── Load ──────────────────────────────────────────────────────────────────
     by_stage = load_all_trajectories(args.log_dir, n_jobs=args.n_jobs)
@@ -376,14 +514,32 @@ def main():
                            args.p_target, cdf_plot)
 
     # ── Build optimal chain for each state_B ─────────────────────────────────
-    chains_by_stateB = {}
+    chains_by_stateB     = {}
     stage_stats_by_stateB = {}
+    pstep_by_stateB       = {}   # only populated in fixed-step mode
 
     for state_b in args.state_b:
-        chain, stage_stats = build_optimal_chain(
-            by_stage, args.lambda0, state_b, args.p_target
-        )
-        chains_by_stateB[state_b] = chain
+        if args.verbose:
+            print(f"\n--- state_B = {state_b} hPa ---")
+
+        if args.n_interfaces is not None:
+            chain, stage_stats = build_chain_target_n(
+                by_stage, args.lambda0, state_b, args.n_interfaces,
+                min_n=args.min_n, verbose=args.verbose
+            )
+            # Record the p_step that was actually used
+            label0  = min(k for k in by_stage if k >= 0)
+            mins0   = np.asarray(by_stage[label0])
+            p_to_b  = float(np.mean(mins0 < state_b))
+            p_step  = p_to_b ** (1.0 / args.n_interfaces) if p_to_b > 0 else float('nan')
+            pstep_by_stateB[state_b] = p_step
+        else:
+            chain, stage_stats = build_optimal_chain(
+                by_stage, args.lambda0, state_b, args.p_target,
+                min_n=args.min_n, verbose=args.verbose
+            )
+
+        chains_by_stateB[state_b]      = chain
         stage_stats_by_stateB[state_b] = stage_stats
 
     # ── Per-step P bar chart ──────────────────────────────────────────────────
@@ -396,49 +552,61 @@ def main():
     print("PER-STAGE DIAGNOSTICS")
     print("=" * 65)
 
-    # Print once (same stages regardless of state_B)
-    first_stats = next(iter(stage_stats_by_stateB.values()))
-    header = f"{'Stage':<20} {'N':>6} {'mean_min':>9} {'abs_min':>9} {'λ_opt':>8} {'P@opt':>7}"
-    print(header)
-    print("-" * 65)
-    for label in sorted(first_stats):
-        s = first_stats[label]
-        print(f"{s['name']:<20} {s['n']:>6} "
-              f"{s['min_mslp_mean']:>9.1f} {s['min_mslp_min']:>9.1f} "
-              f"{s['opt_next']:>8.1f} {s['p_at_opt']:>7.3f}")
+    # In fixed-step mode, each state_B gets its own step_stats; print per state_B.
+    # In per-stage mode, stats are the same for all state_B, so print once.
+    stats_to_print = (stage_stats_by_stateB if args.n_interfaces is not None
+                      else {None: next(iter(stage_stats_by_stateB.values()))})
+
+    for sb_key, first_stats in stats_to_print.items():
+        if sb_key is not None:
+            print(f"state_B = {sb_key} hPa:")
+        header = (f"{'Step/Stage':<20} {'N':>6} {'mean_min':>9} {'abs_min':>9} "
+                  f"{'λ_opt':>8} {'P@opt':>7}  sub_interfaces")
+        print(header)
+        print("-" * 85)
+        for label in sorted(first_stats):
+            s = first_stats[label]
+            print(f"{s['name']:<20} {s['n']:>6} "
+                  f"{s['min_mslp_mean']:>9.1f} {s['min_mslp_min']:>9.1f} "
+                  f"{s['opt_next']:>8.1f} {s['p_at_opt']:>7.3f}  {s['sub_interfaces']}")
+        print()
 
     print("\n" + "=" * 65)
     print("OPTIMAL INTERFACE CHAINS")
     print("=" * 65)
-    print(f"(p_target = {args.p_target:.4f},  gaps chosen so P(cross) ≈ p*)\n")
+    if args.n_interfaces is not None:
+        print(f"(fixed-step mode: n_interfaces={args.n_interfaces}, p_step solved per state_B)\n")
+    else:
+        print(f"(p_target = {args.p_target:.4f},  gaps chosen so P(cross) ≈ p*)\n")
 
     for state_b in args.state_b:
         chain = chains_by_stateB[state_b]
         stats = stage_stats_by_stateB[state_b]
 
-        # Compute P to this state_B at each stage for context
         p_to_b_per_stage = {
             label: stats[label]['p_to_stateB']
             for label in sorted(stats)
         }
 
         print(f"state_B = {state_b} hPa")
+        if args.n_interfaces is not None:
+            p_step = pstep_by_stateB.get(state_b, float('nan'))
+            print(f"  p_step   = {p_step:.4f}  (cf. 1/e = {1/np.e:.4f})")
         print(f"  Proposed: interfaces = {chain}")
-        print(f"  N steps  = {len(chain) - 1}")
+        n_steps_actual = len(chain) - 1
+        print(f"  N steps  = {n_steps_actual}")
         gaps = [round(chain[i] - chain[i+1], 1) for i in range(len(chain)-1)]
         print(f"  Gaps     = {gaps} hPa")
 
-        # Estimate cumulative probability (product of P@opt across stages)
-        p_vals = [first_stats[lbl]['p_at_opt'] for lbl in sorted(first_stats)]
-        # Only use stages up to those needed for this state_B
-        n_steps = len(chain) - 1
-        p_prod = np.prod(p_vals[:n_steps]) if p_vals else 0.0
+        # Cumulative crossing probability
+        p_vals  = [stats[lbl]['p_at_opt'] for lbl in sorted(stats)]
+        p_prod  = np.prod(p_vals) if p_vals else 0.0
         print(f"  Est. cumulative P(λ₀ → state_B) ≈ {p_prod:.5f}")
 
-        print("  P(reach state_B) from each stage:")
-        for label, p_b in p_to_b_per_stage.items():
-            name = first_stats[label]['name']
-            print(f"    {name}: {p_b:.4f}")
+        print(f"  P(reach state_B) from reference stage:")
+        for label in sorted(stats):
+            s = stats[label]
+            print(f"    {s['name']}: {s['p_to_stateB']:.4f}")
         print()
 
     print("=" * 65)
