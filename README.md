@@ -208,35 +208,19 @@ python applications/run_parallel_ffs.py \
 
 ### Job Submission Script (PBS/Derecho)
 
+`applications/launch_derecho.sh` is the ready-to-use PBS script for NCAR's Derecho system. It handles module loading, conda activation, NCCL/GPU environment variables, and launches one `torchrun` process per GPU.
+
+Edit these variables at the top of the script before submitting:
+
 ```bash
-#!/bin/bash
-#PBS -A PROJECT_CODE
-#PBS -N hurricane_ffs
-#PBS -l walltime=04:00:00
-#PBS -l select=1:ncpus=64:ngpus=4
-#PBS -q main
+PHASE=shoot      # Options: flux, shoot
+INTERFACE=4      # Interface index (shoot phase only; 0 = λ₀→λ₁, etc.)
+NUM_WORKERS=2    # Workers per GPU
+```
 
-SCRIPT_DIR=/glade/work/schreck/repos/miles-tails/applications
-MODEL_CONFIG=model.yml
-FFS_CONFIG=ffs.yml
-
-IC_INDEX=${PBS_ARRAY_INDEX:-0}
-PHASE=flux           # Options: flux, shoot
-INTERFACE=0          # Only used for shoot phase
-NUM_WORKERS=2        # Workers per GPU
-
-for gpu in {0..3}; do
-    CUDA_VISIBLE_DEVICES=${gpu} \
-    torchrun --nproc_per_node=1 --master-port=$((RANDOM % 10000 + 20000)) \
-        ${SCRIPT_DIR}/run_parallel_ffs.py \
-        --model_config ${MODEL_CONFIG} \
-        --ffs_config ${FFS_CONFIG} \
-        --phase ${PHASE} \
-        --interface ${INTERFACE} \
-        --num_workers ${NUM_WORKERS} \
-        --ic_index ${IC_INDEX} &
-done
-wait
+Submit:
+```bash
+qsub applications/launch_derecho.sh
 ```
 
 **Job arrays** — process all ICs automatically:
@@ -267,7 +251,47 @@ Output: `results/ffs_statistics_all_ics.csv` — one row per IC with flux, trans
 
 ---
 
-### 2. IFS Brute-Force Rates
+### 2. Compute Optimal Interfaces
+
+Reads JSONL trajectory logs from a completed run and recommends interface placements for the next production run. Uses empirical penetration CDFs: the optimal next interface λ* is placed where exactly `p_target` (default 1/e ≈ 0.368) of trajectories from the previous interface cross it (Kratzer, Arnold & Allen 2013).
+
+```bash
+# Auto heuristic: one optimal interface per shooting stage
+python applications/compute_optimal_interfaces.py \
+    --log_dir results/*/logs \
+    --state_b 970 975 \
+    --lambda0 1000 \
+    --p_target 0.368 \
+    --output_dir ./interface_analysis
+
+# Fixed-step mode: solve for exactly N transitions from λ₀ to state_B
+python applications/compute_optimal_interfaces.py \
+    --log_dir results/*/logs \
+    --state_b 970 \
+    --lambda0 1000 \
+    --n_interfaces 5 \
+    --output_dir ./interface_analysis \
+    --verbose
+```
+
+| Argument | Default | Description |
+|---|---|---|
+| `--log_dir` | required | One or more log directories (supports globs: `results/*/logs`) |
+| `--state_b` | `970 975` | Candidate state_B values in hPa (multiple accepted) |
+| `--lambda0` | `1000` | λ₀ threshold in hPa |
+| `--p_target` | `1/e` | Target per-step crossing probability |
+| `--n_interfaces` | — | Request exactly this many steps (overrides heuristic) |
+| `--n_jobs` | `-1` | Parallel workers for JSONL parsing (-1 = all cores) |
+| `--verbose` | — | Print per-stage diagnostics |
+
+Outputs:
+- `interface_analysis/penetration_cdfs.png` — empirical P(min_MSLP < x) CDF per stage with optimal threshold marked
+- `interface_analysis/optimal_chain_Ps.png` — bar chart of per-step crossing probabilities for proposed chain
+- Prints recommended `interfaces = [...]` list for `ffs.yml`
+
+---
+
+### 3. IFS Brute-Force Rates
 
 Computes hurricane genesis rates directly from IFS ensemble forecasts using the same multi-storm tracking methodology as FFS. Used as a reference benchmark.
 
@@ -282,7 +306,7 @@ Output: `results/IFS/ifs_rates_FFS.csv`
 
 ---
 
-### 3. Identify Reactive Pathways
+### 4. Identify Reactive Pathways
 
 Traces the complete genealogy from every state-B config back to its λ₀ seed, clusters correlated trajectories by their earliest branch point, and selects one independent representative per cluster. Saves a JSON and PNG for each reactive trajectory.
 
@@ -301,7 +325,7 @@ Output per IC: `results/2022-08-21T00Z/reactive_trajectories/reactive_trajectori
 
 ---
 
-### 4. Plot Reactive Trajectories
+### 5. Plot Reactive Trajectories
 
 Spaghetti track map of all reactive trajectories (left panel) and a 2D cluster-weighted crossing-density heatmap with transition flow arrows (right panel). One figure per IC.
 
@@ -319,7 +343,7 @@ Output: `results/plots/reactive_trajectories/reactive_trajectories_YYYY-MM-DD.pn
 
 ---
 
-### 5. Plot FFS Tree
+### 6. Plot FFS Tree
 
 Draws the complete forward branching tree from a single λ₀ seed — all shooting attempts at every interface — on a zoomed Atlantic map. Useful as an explainer figure for papers and presentations.
 
@@ -374,7 +398,7 @@ Output: `results/plots/ffs_tree_[rankNN_]YYYY-MM-DDT00Z_lambda0_config_XXXX_YY.p
 
 ---
 
-### 6. Plot Committor Map
+### 7. Plot Committor Map
 
 2D spatial map of the committor p_B(x | λᵢ) — the probability of reaching state B given a config's lat/lon at each interface. Aggregated across all ICs. Each panel covers one interface; bins without enough configs are masked.
 
@@ -396,7 +420,7 @@ Output: `results/plots/committor_maps/committor_map_2022-08-21T00Z.png`
 
 ---
 
-### 7. Plot Committor Fields
+### 8. Plot Committor Fields
 
 Extracts atmospheric variables from the full model state stored in each pkl and computes the committor as a function of those variables — p_B(ξ | λᵢ) — aggregated across all ICs.  Answers the question: *which atmospheric conditions predict genesis?*
 
@@ -433,7 +457,7 @@ Output: `results/plots/committor_fields/committor_fields_aggregated.png` and `co
 
 ---
 
-### 8. Plot Commitment Curve
+### 9. Plot Commitment Curve
 
 Hockey-stick plot of p_B(λᵢ) — the cumulative probability of reaching state B given that interface λᵢ has been crossed — comparing FFS (AI model) against IFS brute-force ensemble.
 
@@ -467,13 +491,16 @@ python applications/run_parallel_ffs.py --model_config model.yml --ffs_config ff
 # 2. Analyze logs → statistics CSV
 python applications/analyze_ffs_logs.py ffs.yml --trace_all
 
-# 3. IFS reference rates
+# 3. (Optional) Recommend interface placement for the next run
+python applications/compute_optimal_interfaces.py --log_dir results/*/logs --state_b 970 975 --output_dir ./interface_analysis
+
+# 4. IFS reference rates
 python applications/ifs_brute_force_rates.py --ffs_config ffs.yml --ifs_path /path/to/IFS.zarr --n_jobs 8
 
-# 4. Reactive pathways (--no_plot to skip figures and only write JSON)
+# 5. Reactive pathways (--no_plot to skip figures and only write JSON)
 python applications/reactive_pathways.py ffs.yml --workers 8
 
-# 5. Plots
+# 6. Plots
 python applications/plot_reactive_trajectories.py --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots --workers 8
 python applications/plot_ffs_tree.py              --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots --workers 8 --top_k 5
 python applications/plot_committor_map.py          --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots --workers 8
@@ -525,9 +552,11 @@ miles-tails/
 │   └── cyclone_phase_tracker.py      # CPS classification (optional)
 ├── applications/
 │   ├── run_parallel_ffs.py           # Multi-GPU parallel FFS execution
+│   ├── launch_derecho.sh             # PBS job submission script for Derecho
 │   ├── analyze_ffs_logs.py           # Parse logs → statistics CSV
-│   ├── reactive_pathways.py          # Identify independent reactive trajectories
+│   ├── compute_optimal_interfaces.py # Recommend interface placement for next run
 │   ├── ifs_brute_force_rates.py      # IFS ensemble reference rates
+│   ├── reactive_pathways.py          # Identify independent reactive trajectories
 │   ├── plot_reactive_trajectories.py # Spaghetti tracks + density heatmap
 │   ├── plot_ffs_tree.py              # Single-seed branching tree figure
 │   ├── plot_committor_map.py         # 2D spatial p_B(x|λᵢ) committor map
