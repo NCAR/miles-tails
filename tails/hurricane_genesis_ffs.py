@@ -52,15 +52,15 @@ class HurricaneGenesisFFS:
     All functionality in one place with clean conditional logic for CPS.
     """
     
-    def __init__(self, 
-                 model, 
-                 state_transformer, 
-                 config, 
+    def __init__(self,
+                 model,
+                 state_transformer,
+                 config,
                  initial_dataset,
                  dataset_params,
                  output_dir='./ffs_output',
-                 state_A=1008, 
-                 state_B=982, 
+                 state_A=1008,
+                 state_B=982,
                  interfaces=[1000, 988, 980, 975, 970],
                  decorrelation_interface=None,
                  max_attempts_without_success=1000,
@@ -68,7 +68,9 @@ class HurricaneGenesisFFS:
                  rank=0,
                  world_size=1,
                  ic_dirname=None,
-                 use_cps=True):
+                 use_cps=True,
+                 flux_length_days=15,
+                 shoot_length_days=10):
         
         self.model = model
         self.state_transformer = state_transformer
@@ -80,7 +82,9 @@ class HurricaneGenesisFFS:
         self.world_size = world_size
         self.device = f'cuda:{rank}' if torch.cuda.is_available() else 'cpu'
         self.max_attempts_without_success = max_attempts_without_success
-        
+        self.flux_length_days = flux_length_days
+        self.shoot_length_days = shoot_length_days
+
         # Output directories
         self.output_dir = Path(output_dir)
         self.ic_base_dir = self.output_dir / ic_dirname if ic_dirname else self.output_dir
@@ -795,7 +799,7 @@ class HurricaneGenesisFFS:
             for batch in loader:
                 step = batch["forecast_step"].item()
 
-                if mode == 'flux' and step > 60:
+                if mode == 'flux' and step > self.flux_length_days * 4:
                     stop_tracking_new = True
                     
                     # Early termination if no storms being tracked
@@ -1403,7 +1407,7 @@ class HurricaneGenesisFFS:
         restart_time = config.restart_datetime
         forecast_times = [[
             (restart_time + timedelta(hours=6)).strftime('%Y-%m-%d %H:%M:%S'),
-            (restart_time + timedelta(days=10)).strftime('%Y-%m-%d %H:%M:%S')
+            (restart_time + timedelta(days=self.shoot_length_days)).strftime('%Y-%m-%d %H:%M:%S')
         ]]
         
         restart_dataset = Predict_Dataset_Batcher(

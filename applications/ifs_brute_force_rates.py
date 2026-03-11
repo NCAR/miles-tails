@@ -106,13 +106,13 @@ class IFSRateEstimator:
         
         self.ds = None
     
-    def load_data(self, forecast_times: list = None):
+    def load_data(self, forecast_start_times: list = None):
         """Load IFS data."""
         print(f"Loading IFS data from {self.ifs_path}...")
         self.ds = xr.open_zarr(self.ifs_path, consolidated=True)
-        
-        if forecast_times is not None and len(forecast_times) > 0:
-            init_times = [pd.to_datetime(ft[0]) for ft in forecast_times]
+
+        if forecast_start_times is not None and len(forecast_start_times) > 0:
+            init_times = [pd.to_datetime(ft) for ft in forecast_start_times]
             self.ds_filtered = self.ds.sel(time=init_times)
             max_lead = pd.Timedelta(days=15)
             valid_leads = self.ds_filtered.prediction_timedelta <= max_lead
@@ -926,14 +926,13 @@ def main():
         output_dir=str(output_dir)
     )
     
-    estimator.load_data(forecast_times=ffs_config['forecast_times'])
-    
+    estimator.load_data(forecast_start_times=ffs_config['forecast_start_times'])
+
     df = estimator.compute_rates(n_jobs=args.n_jobs)
-    
+
     # Save
-    start_str = ffs_config['forecast_times'][0][0].replace(' ', 'T').replace(':', '')[:10]
-    end_str = ffs_config['forecast_times'][0][1].replace(' ', 'T').replace(':', '')[:10]
-    time_label = f"{start_str}_to_{end_str}"
+    start_str = ffs_config['forecast_start_times'][0].replace(' ', 'T').replace(':', '')[:10]
+    time_label = start_str
     
     output_file = output_dir / f"ifs_rates_FFS.csv"
     df.to_csv(output_file, index=False)

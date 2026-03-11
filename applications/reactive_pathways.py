@@ -407,15 +407,14 @@ def main():
     
     output_dir = Path(ffs_config['output_dir'])
     state_B = ffs_config['state_B']
-    forecast_times = ffs_config['forecast_times']
-    
+    forecast_times = ffs_config['forecast_start_times']
+
     interfaces = ffs_config['interfaces'].copy()
     if interfaces[-1] != state_B:
         interfaces.append(state_B)
-    
+
     # Process each initial condition
-    for time_range in forecast_times:
-        ic_time = time_range[0]
+    for ic_time in forecast_times:
         time_label = format_time_for_path(ic_time)
         
         print("="*80)

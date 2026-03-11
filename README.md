@@ -208,19 +208,35 @@ python applications/run_parallel_ffs.py \
 
 ### Job Submission Script (PBS/Derecho)
 
-`applications/launch_derecho.sh` is the ready-to-use PBS script for NCAR's Derecho system. It handles module loading, conda activation, NCCL/GPU environment variables, and launches one `torchrun` process per GPU.
-
-Edit these variables at the top of the script before submitting:
-
 ```bash
-PHASE=shoot      # Options: flux, shoot
-INTERFACE=4      # Interface index (shoot phase only; 0 = λ₀→λ₁, etc.)
-NUM_WORKERS=2    # Workers per GPU
-```
+#!/bin/bash
+#PBS -A PROJECT_CODE
+#PBS -N hurricane_ffs
+#PBS -l walltime=04:00:00
+#PBS -l select=1:ncpus=64:ngpus=4
+#PBS -q main
 
-Submit:
-```bash
-qsub applications/launch_derecho.sh
+SCRIPT_DIR=/glade/work/schreck/repos/miles-tails/applications
+MODEL_CONFIG=model.yml
+FFS_CONFIG=ffs.yml
+
+IC_INDEX=${PBS_ARRAY_INDEX:-0}
+PHASE=flux           # Options: flux, shoot
+INTERFACE=0          # Only used for shoot phase
+NUM_WORKERS=2        # Workers per GPU
+
+for gpu in {0..3}; do
+    CUDA_VISIBLE_DEVICES=${gpu} \
+    torchrun --nproc_per_node=1 --master-port=$((RANDOM % 10000 + 20000)) \
+        ${SCRIPT_DIR}/run_parallel_ffs.py \
+        --model_config ${MODEL_CONFIG} \
+        --ffs_config ${FFS_CONFIG} \
+        --phase ${PHASE} \
+        --interface ${INTERFACE} \
+        --num_workers ${NUM_WORKERS} \
+        --ic_index ${IC_INDEX} &
+done
+wait
 ```
 
 **Job arrays** — process all ICs automatically:
@@ -251,47 +267,7 @@ Output: `results/ffs_statistics_all_ics.csv` — one row per IC with flux, trans
 
 ---
 
-### 2. Compute Optimal Interfaces
-
-Reads JSONL trajectory logs from a completed run and recommends interface placements for the next production run. Uses empirical penetration CDFs: the optimal next interface λ* is placed where exactly `p_target` (default 1/e ≈ 0.368) of trajectories from the previous interface cross it (Kratzer, Arnold & Allen 2013).
-
-```bash
-# Auto heuristic: one optimal interface per shooting stage
-python applications/compute_optimal_interfaces.py \
-    --log_dir results/*/logs \
-    --state_b 970 975 \
-    --lambda0 1000 \
-    --p_target 0.368 \
-    --output_dir ./interface_analysis
-
-# Fixed-step mode: solve for exactly N transitions from λ₀ to state_B
-python applications/compute_optimal_interfaces.py \
-    --log_dir results/*/logs \
-    --state_b 970 \
-    --lambda0 1000 \
-    --n_interfaces 5 \
-    --output_dir ./interface_analysis \
-    --verbose
-```
-
-| Argument | Default | Description |
-|---|---|---|
-| `--log_dir` | required | One or more log directories (supports globs: `results/*/logs`) |
-| `--state_b` | `970 975` | Candidate state_B values in hPa (multiple accepted) |
-| `--lambda0` | `1000` | λ₀ threshold in hPa |
-| `--p_target` | `1/e` | Target per-step crossing probability |
-| `--n_interfaces` | — | Request exactly this many steps (overrides heuristic) |
-| `--n_jobs` | `-1` | Parallel workers for JSONL parsing (-1 = all cores) |
-| `--verbose` | — | Print per-stage diagnostics |
-
-Outputs:
-- `interface_analysis/penetration_cdfs.png` — empirical P(min_MSLP < x) CDF per stage with optimal threshold marked
-- `interface_analysis/optimal_chain_Ps.png` — bar chart of per-step crossing probabilities for proposed chain
-- Prints recommended `interfaces = [...]` list for `ffs.yml`
-
----
-
-### 3. IFS Brute-Force Rates
+### 2. IFS Brute-Force Rates
 
 Computes hurricane genesis rates directly from IFS ensemble forecasts using the same multi-storm tracking methodology as FFS. Used as a reference benchmark.
 
@@ -306,7 +282,7 @@ Output: `results/IFS/ifs_rates_FFS.csv`
 
 ---
 
-### 4. Identify Reactive Pathways
+### 3. Identify Reactive Pathways
 
 Traces the complete genealogy from every state-B config back to its λ₀ seed, clusters correlated trajectories by their earliest branch point, and selects one independent representative per cluster. Saves a JSON and PNG for each reactive trajectory.
 
@@ -325,7 +301,7 @@ Output per IC: `results/2022-08-21T00Z/reactive_trajectories/reactive_trajectori
 
 ---
 
-### 5. Plot Reactive Trajectories
+### 4. Plot Reactive Trajectories
 
 Spaghetti track map of all reactive trajectories (left panel) and a 2D cluster-weighted crossing-density heatmap with transition flow arrows (right panel). One figure per IC.
 
@@ -343,7 +319,7 @@ Output: `results/plots/reactive_trajectories/reactive_trajectories_YYYY-MM-DD.pn
 
 ---
 
-### 6. Plot FFS Tree
+### 5. Plot FFS Tree
 
 Draws the complete forward branching tree from a single λ₀ seed — all shooting attempts at every interface — on a zoomed Atlantic map. Useful as an explainer figure for papers and presentations.
 
@@ -398,7 +374,7 @@ Output: `results/plots/ffs_tree_[rankNN_]YYYY-MM-DDT00Z_lambda0_config_XXXX_YY.p
 
 ---
 
-### 7. Plot Committor Map
+### 6. Plot Committor Map
 
 2D spatial map of the committor p_B(x | λᵢ) — the probability of reaching state B given a config's lat/lon at each interface. Aggregated across all ICs. Each panel covers one interface; bins without enough configs are masked.
 
@@ -420,9 +396,9 @@ Output: `results/plots/committor_maps/committor_map_2022-08-21T00Z.png`
 
 ---
 
-### 8. Plot Committor Fields
+### 7. Plot Committor Fields
 
-Extracts atmospheric variables from the full model state stored in each pkl and computes the committor as a function of those variables — p_B(ξ | λᵢ) — aggregated across all ICs.  Answers the question: *which atmospheric conditions predict genesis?*
+Extracts atmospheric variables from the full model state stored in each pkl and shows how the distribution of those variables differs between configs that reach genesis and configs that fail.  Answers the question: *which atmospheric conditions predict genesis?*
 
 Variables extracted from `cfg._y_phys` at the storm center:
 
@@ -435,11 +411,12 @@ Variables extracted from `cfg._y_phys` at the storm center:
 | Wind shear | 1, 17 vs 66, 67 | Level-30 minus 500 hPa wind shear (m/s) — upper-trop shear proxy |
 | Q500 | 70 | 500 hPa specific humidity (g/kg) |
 
-Produces two figures:
-1. **`committor_fields_aggregated.png`** — N_VARS × N_INTERFACES panel grid.  Each panel shows histograms (green=reaches B, red=fails) and the p_B curve on a right axis.
-2. **`committor_curves_by_variable.png`** — One panel per variable with all interface p_B curves overlaid and colour-coded by interface index.
+**Per-IC figures** (default) — one PNG per IC, N_VARS × N_INTERFACES panel grid.  Each panel shows only the green/red histograms (per-IC sample sizes are too small for a reliable p_B curve).
+
+**Aggregated figure** (`--aggregate`) — one additional PNG pooling all ICs.  With the full sample size each panel also shows the p_B committor curve on a right axis.
 
 ```bash
+# Per-IC figures only
 python applications/plot_committor_fields.py \
     --ffs_config  ffs.yml \
     --ffs_csv     results/ffs_statistics_all_ics.csv \
@@ -449,15 +426,26 @@ python applications/plot_committor_fields.py \
     --min_samples 5 \         # Min configs per bin to draw p_B curve (default: 5)
     --n_bins      15 \        # Bins along each variable axis (default: 15)
     --no_cache                # Force recompute (ignore cached pkl data)
+
+# Per-IC figures + one aggregated figure with p_B curves
+python applications/plot_committor_fields.py \
+    --ffs_config  ffs.yml \
+    --ffs_csv     results/ffs_statistics_all_ics.csv \
+    --output_dir  results \
+    --plot_dir    results/plots \
+    --workers     8 \
+    --aggregate
 ```
 
-**Note:** The first run reads every pkl for every interface across every IC — expect significant I/O time if `_y_phys` stores the full global tensor (~19 MB per pkl).  Per-IC results are cached in `ic_dir/committor_fields_cache.pkl` so reruns with different `--n_bins` or `--min_samples` are fast.
+**Note:** The first run reads every pkl for every interface across every IC — expect significant I/O time if `_y_phys` stores the full global tensor (~19 MB per pkl).  Per-IC results are cached in `ic_dir/committor_fields_cache.pkl` so reruns with different `--n_bins`, `--min_samples`, or `--aggregate` are fast.
 
-Output: `results/plots/committor_fields/committor_fields_aggregated.png` and `committor_curves_by_variable.png`
+Output:
+- `results/plots/committor_fields/committor_fields_2022-08-21T00Z.png`  (one per IC)
+- `results/plots/committor_fields/committor_fields_aggregated.png`  (with `--aggregate`)
 
 ---
 
-### 9. Plot Commitment Curve
+### 8. Plot Commitment Curve
 
 Hockey-stick plot of p_B(λᵢ) — the cumulative probability of reaching state B given that interface λᵢ has been crossed — comparing FFS (AI model) against IFS brute-force ensemble.
 
@@ -478,6 +466,98 @@ Output: `results/plots/commitment_curve.png`
 
 ---
 
+### 9. Enhancement Factor Scaling Curve
+
+Log-log plot of computational enhancement factor E ≈ 1/p vs genesis probability p_B(λ₀) across all ICs, with the theoretical E ∝ 1/p line overlaid. Demonstrates the scaling argument for FFS efficiency.
+
+```bash
+python applications/plot_enhancement_factor.py \
+    --ffs_csv    results/ffs_statistics_all_ics.csv \
+    --ifs_csv    results/IFS/ifs_rates_FFS.csv \
+    --plot_dir   results/plots \
+    [--highlight_ic 2022-08-21T00Z]   # mark a specific IC with a star
+```
+
+Output: `results/plots/enhancement_factor.png`
+
+---
+
+### 10. Bottleneck Interface Heatmap
+
+Heatmap of P_forward per IC × interface transition, with the rate-limiting step (minimum P_forward) marked per IC row and a season-mean bar chart below.
+
+```bash
+python applications/plot_bottleneck_heatmap.py \
+    --ffs_csv    results/ffs_statistics_all_ics.csv \
+    --plot_dir   results/plots \
+    [--sort_by_bottleneck]            # group rows by which interface is the bottleneck
+    [--log_scale]                     # log colour axis
+    [--stride 2]                      # show every 2nd IC to reduce crowding
+    [--highlight_ic 2022-08-21T00Z]   # draw a gold line across this IC row
+```
+
+Output: `results/plots/bottleneck_interface_heatmap.png`
+
+---
+
+### 11. Physics Along a Reactive Pathway
+
+Multi-panel figure showing atmospheric physics at each step of a single reactive trajectory — from λ₀ to State B. Each column is one FFS step; rows show different physical fields centered on the tracked storm. Replaces bulk composite figures with per-pathway detail, making individual storm evolution directly interpretable.
+
+```bash
+# List all available State-B pathways for an IC, sorted by min MSLP
+python applications/plot_trajectory_physics.py \
+    --model_config model.yml \
+    --ffs_config   results/ffs.yml \
+    --ic_time      "2022-09-02 00:00:00" \
+    --list_pathways
+
+# Plot the most intense pathway (default: idx 0)
+python applications/plot_trajectory_physics.py \
+    --model_config model.yml \
+    --ffs_config   results/ffs.yml \
+    --ic_time      "2022-09-02 00:00:00"
+
+# Hurricane Earl (2022-09-02 IC) — pathway idx 875, min MSLP = 964 hPa
+# Warm-core system, rapid poleward track to ~45°N, warm core intact throughout
+python applications/plot_trajectory_physics.py \
+    --model_config model.yml \
+    --ffs_config   results/ffs.yml \
+    --ic_time      "2022-09-02 00:00:00" \
+    --pathway_idx  875
+
+# Include vertical wind shear row
+python applications/plot_trajectory_physics.py \
+    --model_config model.yml \
+    --ffs_config   results/ffs.yml \
+    --ic_time      "2022-09-02 00:00:00" \
+    --pathway_idx  0 \
+    --plot_vws
+```
+
+Output: `results/physics/plots/trajectory_YYYY-MM-DDTHHMZ_pathwayNNN.png`
+
+---
+
+### 12. Contrasting Case Study
+
+Side-by-side comparison of a high-genesis-rate IC and a suppressed-period IC: spaghetti track maps on top, committor curves p_B(λᵢ) on the bottom.
+
+```bash
+python applications/plot_case_study_contrast.py \
+    --ffs_csv      results/ffs_statistics_all_ics.csv \
+    --ifs_csv      results/IFS/ifs_rates_FFS.csv \
+    --output_dir   results \
+    --plot_dir     results/plots \
+    [--highlight_ic   2022-08-21T00Z]   # active case (default: 2022-08-21T00Z)
+    [--suppressed_ic  2022-09-24T00Z]   # suppressed case (default: auto lowest k_FFS)
+    [--max_tracks 100]                  # cap tracks loaded per IC for speed
+```
+
+Output: `results/plots/case_study_contrast.png`
+
+---
+
 ## Full Pipeline Summary
 
 ```bash
@@ -491,21 +571,23 @@ python applications/run_parallel_ffs.py --model_config model.yml --ffs_config ff
 # 2. Analyze logs → statistics CSV
 python applications/analyze_ffs_logs.py ffs.yml --trace_all
 
-# 3. (Optional) Recommend interface placement for the next run
-python applications/compute_optimal_interfaces.py --log_dir results/*/logs --state_b 970 975 --output_dir ./interface_analysis
-
-# 4. IFS reference rates
+# 3. IFS reference rates
 python applications/ifs_brute_force_rates.py --ffs_config ffs.yml --ifs_path /path/to/IFS.zarr --n_jobs 8
 
-# 5. Reactive pathways (--no_plot to skip figures and only write JSON)
+# 4. Reactive pathways (--no_plot to skip figures and only write JSON)
 python applications/reactive_pathways.py ffs.yml --workers 8
 
-# 6. Plots
+# 5. Plots
 python applications/plot_reactive_trajectories.py --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots --workers 8
 python applications/plot_ffs_tree.py              --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots --workers 8 --top_k 5
 python applications/plot_committor_map.py          --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots --workers 8
-python applications/plot_committor_fields.py       --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots --workers 8
+python applications/plot_committor_fields.py       --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --output_dir results --plot_dir results/plots --workers 8 --aggregate
 python applications/plot_commitment_curve.py       --ffs_config ffs.yml --ffs_csv results/ffs_statistics_all_ics.csv --ifs_csv results/IFS/ifs_rates_FFS.csv --plot_dir results/plots
+python applications/plot_enhancement_factor.py     --ffs_csv results/ffs_statistics_all_ics.csv --ifs_csv results/IFS/ifs_rates_FFS.csv --plot_dir results/plots
+python applications/plot_bottleneck_heatmap.py     --ffs_csv results/ffs_statistics_all_ics.csv --plot_dir results/plots --sort_by_bottleneck
+python applications/plot_case_study_contrast.py    --ffs_csv results/ffs_statistics_all_ics.csv --ifs_csv results/IFS/ifs_rates_FFS.csv --output_dir results --plot_dir results/plots
+python applications/plot_trajectory_physics.py     --model_config model.yml --ffs_config ffs.yml --ic_time "2022-09-02 00:00:00" --list_pathways
+python applications/plot_trajectory_physics.py     --model_config model.yml --ffs_config ffs.yml --ic_time "2022-09-02 00:00:00" --pathway_idx 875  # Hurricane Earl
 ```
 
 ---
@@ -552,16 +634,18 @@ miles-tails/
 │   └── cyclone_phase_tracker.py      # CPS classification (optional)
 ├── applications/
 │   ├── run_parallel_ffs.py           # Multi-GPU parallel FFS execution
-│   ├── launch_derecho.sh             # PBS job submission script for Derecho
 │   ├── analyze_ffs_logs.py           # Parse logs → statistics CSV
-│   ├── compute_optimal_interfaces.py # Recommend interface placement for next run
-│   ├── ifs_brute_force_rates.py      # IFS ensemble reference rates
 │   ├── reactive_pathways.py          # Identify independent reactive trajectories
+│   ├── ifs_brute_force_rates.py      # IFS ensemble reference rates
 │   ├── plot_reactive_trajectories.py # Spaghetti tracks + density heatmap
 │   ├── plot_ffs_tree.py              # Single-seed branching tree figure
 │   ├── plot_committor_map.py         # 2D spatial p_B(x|λᵢ) committor map
 │   ├── plot_committor_fields.py      # Atmospheric-variable p_B(ξ|λᵢ) curves
-│   └── plot_commitment_curve.py      # Committor p_B(λᵢ) vs interface
+│   ├── plot_commitment_curve.py      # Committor p_B(λᵢ) vs interface
+│   ├── plot_enhancement_factor.py    # Enhancement factor E ∝ 1/p scaling curve
+│   ├── plot_bottleneck_heatmap.py    # P_forward heatmap — bottleneck per IC
+│   ├── plot_case_study_contrast.py   # Active vs suppressed IC side-by-side
+│   └── plot_trajectory_physics.py    # Physics panels along a single reactive pathway
 ├── config/
 │   ├── ffs.yml                       # FFS algorithm configuration
 │   └── sdl_wxformer.yml              # Model configuration
@@ -582,9 +666,15 @@ results/
 │   ├── committor_maps/
 │   │   └── committor_map_YYYY-MM-DDT00Z.png
 │   ├── committor_fields/
-│   │   ├── committor_fields_aggregated.png
-│   │   └── committor_curves_by_variable.png
-│   └── commitment_curve.png
+│   │   ├── committor_fields_YYYY-MM-DDT00Z.png
+│   │   └── committor_fields_aggregated.png      (--aggregate)
+│   ├── commitment_curve.png
+│   ├── enhancement_factor.png
+│   ├── bottleneck_interface_heatmap.png
+│   ├── case_study_contrast.png
+│   └── physics/
+│       └── plots/
+│           └── trajectory_YYYY-MM-DDTHHMZ_pathwayNNN.png
 └── 2022-08-21T00Z/                   # One directory per initial condition
     ├── logs/
     │   ├── flux/                     # Flux generation JSONL logs

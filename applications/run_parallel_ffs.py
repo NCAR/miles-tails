@@ -69,7 +69,6 @@ def flux_generation_worker(worker_id: int,
                            ffs_config: dict,
                            model_config: dict,
                            ic_start: str,
-                           ic_end: str,
                            n_trials_total: int,
                            rank: int,
                            world_size: int) -> dict:
@@ -136,14 +135,16 @@ def flux_generation_worker(worker_id: int,
 
     # Create dataset
     from datetime import datetime, timedelta
+    flux_length_days = ffs_config.get('flux_length_days', 15)
+    dataset_days = flux_length_days * 3  # run dataset 3x flux window so storms can resolve
     ic_start_dt = datetime.strptime(ic_start, '%Y-%m-%d %H:%M:%S')
-    ic_end_extended = (ic_start_dt + timedelta(days=45)).strftime('%Y-%m-%d %H:%M:%S')
+    ic_end_extended = (ic_start_dt + timedelta(days=dataset_days)).strftime('%Y-%m-%d %H:%M:%S')
     forecast_times = [[ic_start, ic_end_extended]]
 
-    logging.info(f"[Worker {worker_id}] Flux generation: {ic_start} → {ic_end_extended} (45 days)")
-    logging.info(f"[Worker {worker_id}] New storm tracking stops after 15 days")
-    logging.info(f"[Worker {worker_id}] Existing storms tracked until dissipation or B-state (up to day 45 from IC)")
-    logging.info(f"[Worker {worker_id}] This ensures proper flux statistics: genesis events counted in first 15 days, storms allowed to resolve")
+    logging.info(f"[Worker {worker_id}] Flux generation: {ic_start} → {ic_end_extended} ({dataset_days} days)")
+    logging.info(f"[Worker {worker_id}] New storm tracking stops after {flux_length_days} days")
+    logging.info(f"[Worker {worker_id}] Existing storms tracked until dissipation or B-state (up to day {dataset_days} from IC)")
+    logging.info(f"[Worker {worker_id}] This ensures proper flux statistics: genesis events counted in first {flux_length_days} days, storms allowed to resolve")
 
     dataset = Predict_Dataset_Batcher(**dataset_params, fcst_datetime=forecast_times)
     loader = BatchForecastLenDataLoader(dataset)
@@ -167,9 +168,11 @@ def flux_generation_worker(worker_id: int,
         rank=rank,
         world_size=world_size,
         ic_dirname=ic_dirname,
-        use_cps=use_cps
+        use_cps=use_cps,
+        flux_length_days=flux_length_days,
+        shoot_length_days=ffs_config.get('shoot_length_days', 10),
     )
-    
+
     logging.info(f"[Worker {worker_id}] Starting for {ic_dirname}")
     if use_cps:
         logging.info(f"[Worker {worker_id}] ✓ CPS-enhanced FFS initialized")
@@ -191,7 +194,6 @@ def shooting_worker(worker_id: int,
                    ffs_config: dict,
                    model_config: dict,
                    ic_start: str,
-                   ic_end: str,
                    interface_idx: int,
                    n_trials_total: int,
                    shared_config_pool: list,
@@ -257,12 +259,16 @@ def shooting_worker(worker_id: int,
     }
     
     # Create dataset
+    from datetime import datetime, timedelta
+    shoot_length_days = ffs_config.get('shoot_length_days', 10)
+    ic_start_dt = datetime.strptime(ic_start, '%Y-%m-%d %H:%M:%S')
+    ic_end = (ic_start_dt + timedelta(days=shoot_length_days)).strftime('%Y-%m-%d %H:%M:%S')
     forecast_times = [[ic_start, ic_end]]
     dataset = Predict_Dataset_Batcher(**dataset_params, fcst_datetime=forecast_times)
-    
+
     # Setup output directory
     ic_dirname = format_ic_dirname(ic_start)
-    
+
     # Initialize FFS with CPS enabled
     use_cps = ffs_config.get('use_cps', False)
     ffs = HurricaneGenesisFFS(
@@ -279,7 +285,9 @@ def shooting_worker(worker_id: int,
         rank=rank,
         world_size=world_size,
         ic_dirname=ic_dirname,
-        use_cps=use_cps
+        use_cps=use_cps,
+        flux_length_days=ffs_config.get('flux_length_days', 15),
+        shoot_length_days=shoot_length_days,
     )
     
     # Load shared configs
@@ -311,7 +319,6 @@ def shooting_worker(worker_id: int,
 def run_flux_phase(model_config: dict,
                   ffs_config: dict,
                   ic_start: str,
-                  ic_end: str,
                   num_workers: int,
                   rank: int,
                   world_size: int,
@@ -358,7 +365,6 @@ def run_flux_phase(model_config: dict,
             ffs_config=ffs_config,
             model_config=model_config,
             ic_start=ic_start,
-            ic_end=ic_end,
             n_trials_total=n_flux_total,
             rank=rank,
             world_size=world_size
@@ -366,7 +372,7 @@ def run_flux_phase(model_config: dict,
         flux_results = [result]
     else:
         mp.set_start_method('spawn', force=True)
-        
+
         flux_results = []
         with ProcessPoolExecutor(max_workers=num_workers) as executor:
             futures = [
@@ -376,7 +382,6 @@ def run_flux_phase(model_config: dict,
                     ffs_config=ffs_config,
                     model_config=model_config,
                     ic_start=ic_start,
-                    ic_end=ic_end,
                     n_trials_total=n_flux_total,
                     rank=rank,
                     world_size=world_size
@@ -398,7 +403,6 @@ def run_flux_phase(model_config: dict,
 def run_shoot_phase(model_config: dict,
                    ffs_config: dict,
                    ic_start: str,
-                   ic_end: str,
                    interface_idx: int,
                    num_workers: int,
                    rank: int,
@@ -468,7 +472,6 @@ def run_shoot_phase(model_config: dict,
             ffs_config=ffs_config,
             model_config=model_config,
             ic_start=ic_start,
-            ic_end=ic_end,
             interface_idx=interface_idx,
             n_trials_total=n_shoot_total,
             shared_config_pool=[str(p) for p in source_configs],
@@ -478,7 +481,7 @@ def run_shoot_phase(model_config: dict,
         shoot_results = [result]
     else:
         mp.set_start_method('spawn', force=True)
-        
+
         shoot_results = []
         with ProcessPoolExecutor(max_workers=num_workers) as executor:
             futures = [
@@ -488,7 +491,6 @@ def run_shoot_phase(model_config: dict,
                     ffs_config=ffs_config,
                     model_config=model_config,
                     ic_start=ic_start,
-                    ic_end=ic_end,
                     interface_idx=interface_idx,
                     n_trials_total=n_shoot_total,
                     shared_config_pool=[str(p) for p in source_configs],
@@ -567,16 +569,16 @@ def main():
     
     # Check for single IC mode
     single_ic_mode = ffs_config.get('single_ic_mode', False)
-    all_forecast_times = ffs_config['forecast_times']
-    
+    all_forecast_start_times = ffs_config['forecast_start_times']
+
     if single_ic_mode:
         ic_index = args.ic_index if args.ic_index is not None else ffs_config.get('ic_index', 0)
-        
-        if ic_index < 0 or ic_index >= len(all_forecast_times):
-            raise ValueError(f"ic_index {ic_index} out of range [0, {len(all_forecast_times)-1}]")
-        
-        forecast_subset = [all_forecast_times[ic_index]]
-        
+
+        if ic_index < 0 or ic_index >= len(all_forecast_start_times):
+            raise ValueError(f"ic_index {ic_index} out of range [0, {len(all_forecast_start_times)-1}]")
+
+        forecast_subset = [all_forecast_start_times[ic_index]]
+
         if rank == 0:
             logging.info(f"\n{'='*80}")
             use_cps = ffs_config.get('use_cps', False)
@@ -584,25 +586,25 @@ def main():
             logging.info(f"SINGLE IC MODE{cps_str}")
             logging.info(f"{'='*80}")
             logging.info(f"All {world_size} GPUs working on IC index {ic_index}")
-            logging.info(f"IC: {forecast_subset[0][0]} → {forecast_subset[0][1]}")
+            logging.info(f"IC start: {forecast_subset[0]}")
             logging.info(f"{'='*80}")
     else:
-        forecast_subset = [all_forecast_times[i] for i in range(len(all_forecast_times)) 
+        forecast_subset = [all_forecast_start_times[i] for i in range(len(all_forecast_start_times))
                           if i % world_size == rank]
-        
+
         if len(forecast_subset) == 0:
             logging.info(f"[Rank {rank}] No forecast times assigned, exiting")
             return
-        
+
         if rank == 0:
             logging.info(f"\n{'='*80}")
             use_cps = ffs_config.get('use_cps', False)
             cps_str = " (CPS-Enhanced)" if use_cps else ""
             logging.info(f"DISTRIBUTED IC MODE{cps_str}")
             logging.info(f"{'='*80}")
-            logging.info(f"Total ICs: {len(all_forecast_times)}")
+            logging.info(f"Total ICs: {len(all_forecast_start_times)}")
             logging.info(f"{'='*80}")
-    
+
     if rank == 0:
         logging.info(f"\n{'='*80}")
         logging.info("PARALLEL FFS CONFIGURATION")
@@ -611,14 +613,16 @@ def main():
         if args.phase == 'shoot':
             lambda_label = args.interface
             logging.info(f"Interface: {args.interface} (λ_{lambda_label})")
+        logging.info(f"Flux length: {ffs_config.get('flux_length_days', 15)} days")
+        logging.info(f"Shoot length: {ffs_config.get('shoot_length_days', 10)} days")
         if args.walltime is not None:
             logging.info(f"Walltime: {args.walltime:.2f}h (buffer: {args.walltime_buffer:.0f} min)")
         logging.info(f"World size: {world_size} GPUs")
         logging.info(f"Workers per GPU: {args.num_workers}")
         logging.info(f"{'='*80}\n")
-    
+
     # Process each IC
-    for ic_idx, (ic_start, ic_end) in enumerate(forecast_subset):
+    for ic_idx, ic_start in enumerate(forecast_subset):
         if args.walltime is not None and not single_ic_mode:
             has_time, elapsed, remaining = check_walltime_remaining(
                 start_time, args.walltime, args.walltime_buffer
@@ -627,13 +631,12 @@ def main():
                 logging.warning(f"\n[Rank {rank}] ⏰ WALLTIME LIMIT - Stopping")
                 logging.warning(f"Processed {ic_idx}/{len(forecast_subset)} ICs")
                 break
-        
+
         if args.phase == 'flux':
             run_flux_phase(
                 model_config=model_config,
                 ffs_config=ffs_config,
                 ic_start=ic_start,
-                ic_end=ic_end,
                 num_workers=args.num_workers,
                 rank=rank,
                 world_size=world_size,
@@ -641,13 +644,12 @@ def main():
                 walltime_hours=args.walltime,
                 buffer_minutes=args.walltime_buffer
             )
-        
+
         elif args.phase == 'shoot':
             run_shoot_phase(
                 model_config=model_config,
                 ffs_config=ffs_config,
                 ic_start=ic_start,
-                ic_end=ic_end,
                 interface_idx=args.interface,
                 num_workers=args.num_workers,
                 rank=rank,
