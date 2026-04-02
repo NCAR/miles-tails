@@ -12,8 +12,6 @@
 
 % \documentclass[draft]{agujournal2019}  % uncomment when template is available
 % \usepackage{url}
-% \usepackage{lineno}
-% \linenumbers
 
 %% ---- Placeholder class for local compilation without AGU template ----
 \documentclass[11pt]{article}
@@ -37,6 +35,7 @@
 \usepackage{booktabs}
 \usepackage{setspace}
 \onehalfspacing
+\usepackage{lineno}
 %% ---- End placeholder ----
 
 \title{Forward Flux Sampling for Tropical Cyclogenesis in a Neural Weather Emulator}
@@ -84,28 +83,32 @@
 Tropical cyclone genesis is a rare atmospheric event whose probability varies by
 orders of magnitude across synoptic regimes, yet direct ensemble sampling cannot resolve
 this variability at operationally feasible ensemble sizes.
-We demonstrate that Forward Flux Sampling (FFS), a non-equilibrium rare-event technique
-from statistical mechanics, efficiently estimates genesis rates in a learned neural
-weather emulator (SDL-WXFormer, 1$^\circ$ resolution) without modifying model dynamics.
+This paper presents a \textit{methods demonstration}: we show that Forward Flux Sampling
+(FFS), a non-equilibrium rare-event technique from statistical mechanics, can be
+efficiently coupled to a fast neural weather emulator (SDL-WXFormer, 1$^\circ$ resolution)
+to estimate conditional genesis rates without modifying model dynamics.
+The 1$^\circ$ emulator is chosen deliberately for computational tractability --- FFS
+requires $\mathcal{O}(10^4)$ model trajectories per initial condition --- and its
+calibrated stochastic layers provide the ensemble spread the method requires.
 FFS decomposes the rare $A \to B$ transition into a flux through an initial interface
 and a product of conditional crossing probabilities across four shooting interfaces,
 exploiting the natural parallelism of the shooting phase.
 Applied to 98 Atlantic basin initial conditions spanning August~21 -- October~8,~2022,
 FFS resolves genesis rates spanning nearly three orders of magnitude
 ($2.6\times10^{-5}$ to $1.7\times10^{-2}$ events~day$^{-1}$),
-capturing a clear seasonal cycle invisible to 50-member direct ensemble forecasting.
+capturing a clear seasonal cycle consistent with observed 2022 Atlantic activity.
 Internal validation --- comparing FFS rates to independent direct-sampling rates from the
-same flux trajectories --- yields a mean ratio of $1.03 \pm 0.15$ across all 98 initial
-conditions, confirming correct implementation of the conditional probability factorization.
+same flux trajectories --- yields a mean ratio of $1.03 \pm 0.15$ (range 0.71--1.52)
+across all 98 initial conditions, confirming self-consistent implementation of the
+conditional probability factorization within this model.
 Computational enhancement factors range from $3\times$ (most active environment) to
 $140\times$ (most suppressed), with a geometric mean of $14\times$.
-Three case studies --- Hurricane Earl (September~2), a peak-activity environment
-(September~9), and the Hurricane Ian precursor (September~22) --- reveal physically
-distinct genesis bottlenecks: the rate-limiting step is initial tropical organization
-for Earl, uniformly high crossing probabilities for the active-period environment, and
-a hard barrier at the final intensification interface for the Ian precursor.
-These contrasting probability structures encode distinct atmospheric physics and
-demonstrate FFS as a diagnostic tool for mechanistic understanding of genesis pathways.
+Three case studies illustrate the physical diagnostics the method provides: the
+rate-limiting step is initial tropical organization for the Earl environment, uniformly
+high crossing probabilities for the Fiona precursor environment, and a compound barrier
+at the final intensification stages for the Ian precursor.
+The methodology is independent of model architecture and extends directly to
+higher-resolution physics-based systems.
 \end{abstract}
 
 \section{Introduction}
@@ -160,13 +163,31 @@ inherit the attractor structure of the training data. The SDL-WXFormer \citep{sc
 extends this with stochastic decomposition layers calibrated to ERA5 ensemble statistics,
 making it suitable for the large trajectory counts required by FFS.
 
-This paper demonstrates FFS for Atlantic tropical cyclogenesis in SDL-WXFormer,
-applied to 98 initial conditions from the 2022 hurricane season. We report (1) a
-three-order-of-magnitude seasonal cycle in genesis rates; (2) internal validation
-showing direct-sampling and FFS rates agree within 3\% on average; (3) case studies
-revealing physically distinct rate-limiting steps across atmospheric regimes; and
-(4) a Cyclone Phase Space contamination screen ensuring sampled pathways correspond
-to tropical rather than extratropical development.
+\textbf{Scope and model choice.}
+This paper is primarily a \textit{methods demonstration}: we establish that FFS can be
+coupled to a fast neural emulator to produce physically interpretable genesis rate
+estimates, and characterize the method's behaviour across a full hurricane season.
+We deliberately use SDL-WXFormer at 1$^\circ$ resolution rather than a convection-permitting
+physics-based model for two practical reasons. First, FFS is computationally demanding:
+each initial condition requires $\mathcal{O}(10^4)$ 15-day trajectories, and at
+$\sim$1.5 GPU-minutes per forecast on an NVIDIA A100, the full 98-IC dataset required
+approximately 2,450 GPU-hours. A comparable experiment with WRF or IFS would be
+prohibitively expensive on available allocations. Second, the SDL-WXFormer's calibrated
+stochastic decomposition layers provide the ensemble variability the FFS shooting phase
+requires; a deterministic neural emulator would collapse all branching probabilities to
+zero or one. The 1$^\circ$ resolution imposes a well-understood limitation: the model
+cannot faithfully reproduce Category~3+ intensity or convective-scale vortex dynamics,
+so state~$B$ is defined at 975~hPa (tropical storm to minimal hurricane) rather than
+the intensities typical of major hurricane development. This limitation is consistent
+with the paper's methodological focus, and the framework transfers directly to
+higher-resolution systems as compute budgets permit.
+
+This paper reports: (1) a three-order-of-magnitude seasonal cycle in conditional genesis
+rates consistent with observed 2022 Atlantic activity; (2) internal self-consistency
+validation showing FFS and direct-sampling rates agree within a mean ratio of
+$1.03\pm0.15$ across 98 initial conditions; (3) case studies illustrating physically
+distinct rate-limiting steps; and (4) a Cyclone Phase Space contamination screen
+separating tropical from extratropical development pathways.
 
 \section{Methods}
 
@@ -190,11 +211,16 @@ $\Omega = [10^\circ\text{N},\,40^\circ\text{N}] \times [100^\circ\text{W},\,20^\
 State $A$: $Q > \lambda_A = 1008$~hPa (unorganized synoptic disturbances).
 State $B$: $Q \leq \lambda_B = 975$~hPa (tropical storm to minimal hurricane intensity).
 The 975~hPa threshold is calibrated to the SDL-WXFormer's 1$^\circ$ horizontal
-resolution: at this resolution the model reliably represents mesoscale circulation and
-warm-core development through 975~hPa but cannot be expected to faithfully reproduce
-intensity fluctuations at $\leq$960~hPa characteristic of major hurricanes, which
-require convection-permitting resolution. The flux interface and four shooting
-interfaces are:
+resolution through trial experiments. Initial runs used $\lambda_B = 965$~hPa, but at
+this threshold state-$B$ arrivals were disproportionately found at high latitudes
+($>40^\circ$N) and frequently misclassified by the CPS filter due to the model's
+limited representation of intense warm-core structure at fine pressure values.
+Raising the threshold to 975~hPa shifted state-$B$ arrivals to physically
+expected geographic regions and reduced extratropical contamination substantially
+(see Supplementary Information for sensitivity analysis).
+At 975~hPa the model reliably represents mesoscale circulation and warm-core development,
+corresponding to tropical storm to minimal hurricane intensity.
+The flux interface and four shooting interfaces are:
 \begin{equation*}
 \lambda_0 = 1000.0,\quad
 \lambda_1 = 987.2,\quad
@@ -203,6 +229,14 @@ interfaces are:
 \lambda_4 = \lambda_B = 975.0 \quad [\text{hPa}]
 \end{equation*}
 satisfying $\lambda_A > \lambda_0 > \lambda_1 > \cdots > \lambda_4 = \lambda_B$.
+
+\textbf{Notation.}
+We label the four conditional crossing probabilities $P_1$--$P_4$ in order of the
+FFS product: $P_1 = P(\lambda_2|\lambda_1)$, $P_2 = P(\lambda_3|\lambda_2)$,
+$P_3 = P(\lambda_4|\lambda_3)$, and $P_4 = P(B|\lambda_4)$.
+The $\lambda_0\to\lambda_1$ transition is implicit in the flux $\Phi_{A,0}$ and is
+not a shooting interface; $P_1$ therefore refers to the \textit{first shooting} step
+(987.2 $\to$ 984.7~hPa), not the first interface crossing from $A$.
 
 \textbf{Interface placement.}
 Shooting interfaces are chosen using the optimal-$1/e$ rule of
@@ -311,28 +345,50 @@ Figure~\ref{fig:rates} shows FFS genesis rates across all 98 initial conditions.
 The full seasonal cycle spans nearly three orders of magnitude,
 from $2.6\times10^{-5}$~day$^{-1}$ during suppressed October conditions to
 $1.7\times10^{-2}$~day$^{-1}$ during the peak-activity period around September~9--10
-(consistent with the Fiona formation environment). This dynamic range is entirely
-unresolvable by direct 50-member ensemble sampling: the ECMWF IFS 50-member
-ensemble, analyzed over the same 98 initial conditions, reaches the minimum MSLP
-threshold in 25.4\% of members on average. We note that this IFS statistic cannot
-be directly interpreted as a genesis rate: IFS uses 0.25$^\circ$ physics coarsened
-to 1.5$^\circ$ output, does not apply the decorrelated-crossing requirement that
-defines $\lambda_0$ flux, and includes extratropical systems without a CPS filter.
-We include this figure only as a contextual upper bound indicating that strong
-MSLP deepening occurs at a frequency broadly consistent with SDL-WXFormer, while
-acknowledging that day-to-day variability and the rate magnitude itself are
-meaningful only for the FFS estimates.
+(consistent with the Fiona formation environment). This dynamic range is entirely unresolvable by direct 50-member ensemble sampling.
+For context, the ECMWF IFS 50-member ensemble analyzed over the same 98 initial
+conditions reaches the minimum MSLP threshold in 25.4\% of members on average;
+this figure is included in Figure~\ref{fig:rates} as a \textit{qualitative sanity check}
+only. A direct rate comparison between FFS (SDL-WXFormer, 1$^\circ$) and IFS
+(0.25$^\circ$ physics, 1.5$^\circ$ output) is not appropriate: IFS does not apply
+the decorrelated-crossing requirement defining $\lambda_0$ flux, does not use a CPS
+filter, and operates at different resolution with different physics.
+The IFS figures confirm that strong MSLP deepening occurs in the model at a
+plausible frequency; quantitative rate comparisons between the two systems
+are deferred to future work with matched configurations.
 
 The primary internal validation is the agreement between $k^{\text{FFS}}$ and the
-independent direct-sampling rate $k^{\text{direct}}$ (Figure~\ref{fig:rates},
-orange triangles; scatter comparison in Figure~\ref{fig:rate_scatter}). These estimates
-are derived from entirely separate components of the calculation: $k^{\text{FFS}}$ is a
-product of flux and shooting probabilities, while $k^{\text{direct}}$ counts raw state-$B$
-arrivals during flux generation.
+independent direct-sampling rate $k^{\text{direct}}$ (Figure~\ref{fig:rate_scatter}).
+These estimates are derived from entirely separate components of the same simulation:
+$k^{\text{FFS}}$ is a product of flux and shooting probabilities, while $k^{\text{direct}}$
+counts raw state-$B$ arrivals during the flux phase.
 Across all 98 initial conditions, the ratio $k^{\text{FFS}}/k^{\text{direct}} = 1.03 \pm 0.15$
-(mean $\pm$ std; individual ratios range 0.71--1.52). Agreement within 3\% on average
-provides strong evidence that the conditional probability factorization is correctly
-implemented and that the interface ensemble sizes are adequate.
+(mean $\pm$ std; median 1.00; range 0.71--1.52; Figure~\ref{fig:rate_scatter}).
+The near-unity mean and median indicate no systematic bias in the factorization.
+The standard deviation of 0.15 and the factor-of-two range reflect the Poisson
+sampling noise inherent in $k^{\text{direct}}$ (which has few counts at suppressed ICs),
+not a bias in $k^{\text{FFS}}$.
+Critically, this agreement holds across three orders of magnitude of genesis probability,
+which would be expected only if (1) the interface spacing produces well-conditioned
+probability estimates, (2) the ensemble sizes are adequate, and (3) the CPS screen
+does not introduce systematic bias.
+We interpret this agreement as self-consistency validation within the SDL-WXFormer
+framework; it does not constitute verification against observed climatology.
+
+\textbf{Markovianity.}
+FFS requires Markovian dynamics: a trajectory's future behaviour must depend only
+on its current state, not on its history prior to the most recent interface crossing.
+We test this implicitly through the self-consistency validation: if significant
+memory effects were present across interfaces, the FFS product $\Phi_{A,0}\prod P_i$
+would systematically over- or under-estimate $k^{\text{direct}}$ (which contains no
+interface-level conditioning). The near-unity ratio across 98 ICs constitutes an
+empirical trajectory-level test — the most direct available within this framework.
+We note that the observed anti-correlation between $P_1$ and $P_4$ across ICs
+(environments favorable for initial organisation tend to have suppressed final-stage
+probabilities) reflects \textit{cross-IC} atmospheric variability, not within-trajectory
+memory, and does not violate Markovianity. A more rigorous test --- comparing
+conditional probabilities for trajectories with different histories at the same interface
+--- is deferred to future work but is not indicated by the current validation results.
 
 Computational enhancement factors range from $3\times$ (most active IC) to $140\times$
 (most suppressed), with geometric mean $14\times$ and arithmetic mean $26\times$;
@@ -404,6 +460,10 @@ in setting the first intensification barrier. Mean $\pm$ SD for each interface a
 Table~\ref{tab:results} presents FFS statistics for the three case-study initial
 conditions. The most striking feature is the variable position of the rate-limiting
 step, encoded in which conditional probability is smallest.
+Figure~\ref{fig:stateb_geo} shows the geographic distribution of state-$B$ arrivals
+across all 98 ICs, confirming that the model's genesis events cluster in physically
+plausible locations (tropical Atlantic, Caribbean, Gulf of Mexico) and shift
+geographically with the seasonal cycle.
 
 \begin{table}[htbp]
 \centering
@@ -456,6 +516,21 @@ organizing over the Caribbean on September~22--23, entering the Gulf of Mexico's
 core environment only after September~25, when conditions supported rapid intensification.
 The FFS framework identifies the final-stage intensification barrier \textit{one day before}
 Ian's official genesis --- a diagnostic that direct ensemble sampling cannot resolve.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{stateb_geography.png}
+\caption{Geographic distribution of state-$B$ arrival locations (MSLP $\leq$ 975~hPa)
+across all 98 initial conditions.
+Each point marks where a reactive trajectory first reached state~$B$; colour encodes
+the IC initialisation date from August~21 (light) to October~8 (dark).
+The 2$^\circ$ density contours (background) show the spatial clustering of genesis events
+across the season. Approximate observed genesis locations for Earl, Fiona, and Ian are
+annotated for reference. The distribution is concentrated in the tropical Atlantic,
+Caribbean, and Gulf of Mexico, consistent with observed 2022 Atlantic storm tracks,
+and shifts westward later in the season as Ian-like Gulf environments become active.}
+\label{fig:stateb_geo}
+\end{figure}
 
 \begin{figure}[htbp]
 \centering
@@ -588,24 +663,29 @@ at 500~hPa that strengthens progressively from $\lambda_0$ through state~$B$.
 The amplitude of $T'_{500}$ at state~$B$ is comparable across the three cases despite their
 differing genesis rates, suggesting that once a vortex reaches state~$B$ it has traversed
 a physically similar intensification pathway regardless of the environmental background.
-The primary difference among the ICs appears in the earlier interfaces: the Earl IC
-($k = 1.8\times10^{-3}$~day$^{-1}$) shows weaker vorticity organisation at $\lambda_1$
-compared to the active-period IC, consistent with the lower $P_1$ value for that case
-(Table~\ref{tab:results}).
+The primary inter-IC difference appears at early interfaces: the Earl IC composites
+show weaker vorticity and warm-core organisation at $\lambda_1$--$\lambda_2$ compared
+to the Fiona and Ian composites, directly reflecting the lower $P_1$ value for Earl
+(Table~\ref{tab:results}) and confirming that the conditional probability bottleneck
+has a physically interpretable composite signature.
 
-\begin{figure}[htbp]
+\begin{figure}[p]
 \centering
-\includegraphics[width=\textwidth]{all_ics_composites.png}
-\caption{Storm-centred physics composites along reactive pathways, averaged over all
-reactive configurations for the three case-study ICs combined (all~ICs panel).
-Columns show interfaces $\lambda_0$ through state~$B$; sample sizes $n$ are given
-in each column header.
-\textit{Row 1}: 850-hPa relative vorticity $\zeta_{850}$ ($10^{-5}$~s$^{-1}$).
-\textit{Row 2}: 700-hPa relative humidity RH$_{700}$ (\%).
-\textit{Row 3}: 500-hPa warm-core anomaly $T'_{500}$ (K, relative to 0--30$^\circ$N mean).
-The progressive intensification of the vortex core and warm anomaly from $\lambda_0$
-to state~$B$ is robust across ICs, confirming that the FFS reactive pathways capture
-physically coherent tropical cyclogenesis rather than model noise.}
+\includegraphics[width=0.58\textwidth]{2022-09-02T00Z_composites.png}\\[1pt]
+\includegraphics[width=0.58\textwidth]{2022-09-09T12Z_composites.png}\\[1pt]
+\includegraphics[width=0.58\textwidth]{2022-09-22T00Z_composites.png}
+\caption{Storm-centred physics composites along reactive pathways for each case-study IC.
+\textit{Top}: Earl IC (2022-09-02T00Z).
+\textit{Middle}: Fiona precursor IC (2022-09-09T12Z).
+\textit{Bottom}: Ian precursor IC (2022-09-22T00Z).
+Within each panel, columns show interfaces $\lambda_0$ through state~$B$; sample sizes
+$n$ in each column header. Rows show: (1) 850-hPa relative vorticity $\zeta_{850}$
+($10^{-5}$~s$^{-1}$); (2) 700-hPa relative humidity RH$_{700}$ (\%);
+(3) 500-hPa warm-core anomaly $T'_{500}$ (K).
+The Earl composites show weaker vorticity and warm-core development at $\lambda_1$
+relative to the Fiona and Ian composites, consistent with Earl's lower $P_1$ value
+and the identification of initial organisation as the rate-limiting bottleneck for
+that environment.}
 \label{fig:composites}
 \end{figure}
 
@@ -676,6 +756,34 @@ sudden stratospheric warmings, blocking onset) and to physics-based models. The
 combination of neural emulators with rare event sampling opens a computationally
 tractable path to systematic characterization of low-probability, high-consequence
 atmospheric events across climatic regimes.
+
+\appendix
+\section{Supplementary Information: State-$B$ Threshold Sensitivity}
+\label{sec:si_threshold}
+
+The choice of $\lambda_B = 975$~hPa was arrived at empirically.
+Initial experiments used $\lambda_B = 965$~hPa, targeting stronger tropical storm
+to Category~1 intensity. Two systematic problems emerged at this threshold:
+(1) state-$B$ arrivals were disproportionately located at latitudes $>40^\circ$N,
+where the SDL-WXFormer's 1$^\circ$ MSLP field deepens in association with
+extratropical systems that the simplified CPS filter could not reliably reject
+at this intensity; (2) the conditional probability $P_4$ collapsed toward values
+$<0.05$ across most ICs, concentrating nearly all the variance in the final interface
+and producing highly skewed speedup distributions that degraded FFS efficiency.
+
+Raising $\lambda_B$ to 975~hPa resolved both issues: state-$B$ arrivals shifted to
+the tropical and subtropical Atlantic/Caribbean/Gulf domain consistent with observed
+genesis climatology (Figure~\ref{fig:stateb_geo}), and the four $P_i$ values
+distributed more uniformly, maintaining the well-conditioned range (0.25--0.75)
+targeted by the interface placement algorithm.
+
+The sensitivity of reported genesis \textit{rates} to threshold choice is expected:
+$k(\lambda_B = 975)$ and $k(\lambda_B = 965)$ differ by roughly one order of magnitude,
+consistent with the additional conditional probability factor for the extra interface.
+The key methodological properties --- internal self-consistency, seasonal cycle
+structure, and bottleneck diagnostics --- are qualitatively robust across thresholds.
+For physics-based models at finer resolution, a lower $\lambda_B$ (e.g., 960~hPa)
+may be more appropriate, and the interface placement should be re-optimised accordingly.
 
 \section*{Acknowledgments}
 The author thanks colleagues at NCAR's Earth System Data Science group for discussions
