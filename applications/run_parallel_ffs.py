@@ -290,17 +290,11 @@ def shooting_worker(worker_id: int,
         shoot_length_days=shoot_length_days,
     )
     
-    # Load shared configs
-    loaded_configs = []
-    for config_path in shared_config_pool:
-        with open(config_path, 'rb') as f:
-            config = pickle.load(f)
-            loaded_configs.append(config)
-    
-    ffs.interface_configs[interface_idx] = loaded_configs
-    
+    # Pass config file paths — load one at a time during shooting
+    ffs.interface_config_paths[interface_idx] = shared_config_pool
+
     lambda_label = interface_idx
-    logging.info(f"[SHOOT Worker {worker_id}] Starting λ_{lambda_label}, pool size: {len(loaded_configs)}")
+    logging.info(f"[SHOOT Worker {worker_id}] Starting λ_{lambda_label}, pool size: {len(shared_config_pool)}")
     if use_cps:
         logging.info(f"[SHOOT Worker {worker_id}] ✓ CPS-enhanced FFS initialized")
     

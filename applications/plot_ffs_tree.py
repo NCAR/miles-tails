@@ -1,651 +1,399 @@
 #!/usr/bin/env python
 """
-plot_ffs_tree.py — FFS branching tree figure (single panel).
+plot_ffs_tree.py — FFS shooting tree from a single λ₀ seed (geographic map).
 
-Uses the same JSONL log files as reactive_pathways.py to reconstruct
-the full shooting genealogy.  For the λ₀ seed with the most state-B
-descendants, traces the complete forward tree and draws it on a map.
-
-Algorithm
----------
-1. For each IC load ic_dir/logs/ → build genealogy + find stateB configs.
-2. Trace every B-state config backward to its λ₀ ancestor; count per λ₀.
-3. Pick the IC / λ₀ with the highest B-descendant count.
-4. BFS forward through the genealogy from that λ₀ — collect all nodes.
-5. Load each node's .pkl to get (lat, lon).
-6. Draw tree: ★ = λ₀ seed, coloured circles = λ₁…λₙ / stateB nodes.
+Ranks λ₀ seeds by number of λ₄ descendants (lambda4_config_* only — stateB_
+configs are excluded because they lack reliable geographic positions).  Plots
+the top --top_n seeds as geographic branching trees on a cartopy map.
 
 Usage
 -----
-    # Single IC
     python plot_ffs_tree.py \\
-        --ic_dir   results_feb14/2022-08-21T00Z \\
-        --state_B  960 \\
-        --plot_dir results_feb14/plots
-
-    # Scan all ICs in a CSV — top-5 globally by B-descendant count
-    python plot_ffs_tree.py \\
-        --ffs_csv    results_feb14/ffs_statistics_all_ics.csv \\
-        --output_dir results_feb14 \\
         --ffs_config ffs.yml \\
-        --plot_dir   results_feb14/plots \\
-        --top_k      5
+        --ic_dir     results/2022-09-02T00Z \\
+        --plot_dir   results/plots \\
+        --top_n      5
 """
 
-import os
+import os, sys, pickle, argparse, warnings, yaml
 os.environ['OMP_NUM_THREADS'] = '1'
-os.environ['MKL_NUM_THREADS'] = '1'
-
-import sys
-import matplotlib
-matplotlib.use('Agg')
-
-import pickle
-import argparse
-import warnings
-import yaml
-import numpy as np
+import matplotlib; matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+import numpy as np
 from pathlib import Path
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 
 warnings.filterwarnings('ignore')
 
-# ── allow importing sibling scripts (analyze_ffs_logs etc.) ───────────────────
-_here = Path(__file__).resolve().parent
-if str(_here) not in sys.path:
-    sys.path.insert(0, str(_here))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from analyze_ffs_logs import load_all_logs, build_genealogy, find_stateB_configs
 
-from analyze_ffs_logs import (
-    load_all_logs,
-    build_genealogy,
-    find_stateB_configs,
-)
-
-try:
-    import cartopy.crs as ccrs
-    import cartopy.feature as cfeature
-    HAS_CARTOPY = True
-except ImportError:
-    HAS_CARTOPY = False
-    print('cartopy not found — falling back to plain lat/lon axes')
-
-# ── Module-level config — overwritten from ffs.yml in main() ──────────────────
-INTERFACE_PRESSURES: list   = []
-N_IFACES:            int    = 0
-IFACE_COLORS:        object = None   # np.ndarray after init
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 
 
-def _init_from_config(ffs_config: dict):
-    """Set module-level interface constants from the loaded ffs.yml dict."""
-    global INTERFACE_PRESSURES, N_IFACES, IFACE_COLORS
-    ifaces  = ffs_config['interfaces'].copy()
-    state_B = float(ffs_config['state_B'])
-    if ifaces[-1] != state_B:
-        ifaces.append(state_B)
-    INTERFACE_PRESSURES = ifaces
-    N_IFACES            = len(ifaces)
-    IFACE_COLORS        = plt.cm.YlOrRd(np.linspace(0.25, 0.95, N_IFACES))
+# ── helpers ──────────────────────────────────────────────────────────────────
+
+def build_reverse(genealogy):
+    rev = {}
+    for parent, kids in genealogy.items():
+        for info in kids:
+            if info.get('status') in ('success', 'reached_B', 'instant_success'):
+                c = info.get('child')
+                if c:
+                    rev[c] = parent
+    return rev
 
 
-# ── pkl helpers ────────────────────────────────────────────────────────────────
-
-def _pkl_path(ic_dir: Path, config_name: str) -> Path:
-    if config_name.startswith('lambda0_'):
-        return ic_dir / 'flux' / f'{config_name}.pkl'
-    elif config_name.startswith('stateB_'):
-        return ic_dir / 'stateB' / f'{config_name}.pkl'
-    else:
-        iface_num = config_name.split('_')[0].replace('lambda', '')
-        return ic_dir / iface_num / f'{config_name}.pkl'
-
-
-def _load_pkl(path: Path):
+def iface_level(cname):
+    if cname.startswith('lambda0_'):
+        return 0
     try:
-        with open(path, 'rb') as f:
-            return pickle.load(f)
+        return int(cname.split('_')[0].replace('lambda', ''))
+    except:
+        return 0
+
+
+def pkl_path(ic_dir, cname):
+    if cname.startswith('lambda0_'):
+        return ic_dir / 'flux' / f'{cname}.pkl'
+    try:
+        level = cname.split('_')[0].replace('lambda', '')
+        return ic_dir / level / f'{cname}.pkl'
+    except:
+        return None
+
+
+def load_loc(args):
+    ic_dir, cname = args
+    p = pkl_path(ic_dir, cname)
+    if p is None or not p.exists():
+        return cname, None
+    try:
+        obj = pickle.load(open(p, 'rb'))
+        loc = obj.feature_location
+        return cname, (float(loc[0]), float(loc[1]))
     except Exception:
-        return None
+        return cname, None
 
 
-def _get_latlon(ic_dir: Path, config_name: str):
-    """Return (lat, lon) from the pkl's feature_location, or None."""
-    cfg = _load_pkl(_pkl_path(ic_dir, config_name))
-    if cfg is None:
-        return None
-    loc = getattr(cfg, 'feature_location', None)
-    if loc is None:
-        return None
-    try:
-        return float(loc[0]), float(loc[1])
-    except (TypeError, IndexError):
-        return None
-
-
-def _iface_idx_from_name(config_name: str) -> int:
-    if config_name.startswith('lambda0_'):
-        return 0
-    if config_name.startswith('stateB_'):
-        return N_IFACES - 1
-    try:
-        return int(config_name.split('_')[0].replace('lambda', ''))
-    except ValueError:
-        return 0
-
-
-# ── genealogy helpers ──────────────────────────────────────────────────────────
-
-def _make_children_map(genealogy: dict) -> dict:
-    """
-    genealogy = {parent: [{child, status, ...}, ...]}
-    Returns   {parent: [child_name, ...]}  — successful shoots only.
-    """
-    children = defaultdict(list)
-    for parent, child_list in genealogy.items():
-        for info in child_list:
-            if info.get('status') in ('success', 'reached_B', 'instant_success'):
-                c = info.get('child')
-                if c:
-                    children[parent].append(c)
-    return dict(children)
-
-
-def _make_reverse_map(genealogy: dict) -> dict:
-    """Returns {child_name: parent_name} for successful shoots only."""
-    reverse = {}
-    for parent, child_list in genealogy.items():
-        for info in child_list:
-            if info.get('status') in ('success', 'reached_B', 'instant_success'):
-                c = info.get('child')
-                if c:
-                    reverse[c] = parent
-    return reverse
-
-
-def _score_lambda0s(genealogy: dict, stateB_configs: list) -> dict:
-    """
-    For each λ₀ config, count the number of distinct state-B descendants
-    by tracing each B-state backward through the genealogy to its λ₀ root.
-
-    Returns {lambda0_name: n_B_descendants}.
-    """
-    reverse = _make_reverse_map(genealogy)
-
-    scores = defaultdict(set)   # lambda0_name → set of stateB config names
-    for b_info in stateB_configs:
-        b = b_info['config']
-        cur = b
-        while cur in reverse:
-            par = reverse[cur]
+def score_lambda0s_lambda4only(genealogy):
+    """Score λ₀ seeds by number of unique lambda4 descendants only."""
+    rev = build_reverse(genealogy)
+    scores = defaultdict(set)
+    for cname in genealogy:
+        pass
+    # Walk every lambda4 config back to its lambda0 ancestor
+    all_configs = set(rev.keys()) | set(genealogy.keys())
+    for cname in all_configs:
+        if not cname.startswith('lambda4_'):
+            continue
+        cur = cname
+        while cur in rev:
+            par = rev[cur]
             if par is None:
                 break
             if par.startswith('lambda0_'):
-                scores[par].add(b)
+                scores[par].add(cname)
                 break
             cur = par
-
     return {k: len(v) for k, v in scores.items()}
 
 
-def _bfs_forward(children_map: dict, root: str) -> set:
-    """All config names reachable from root via the children_map (BFS)."""
-    visited, queue = set(), [root]
+def collect_tree_nodes(genealogy, l0_name, max_level=4):
+    """Return all lambda configs reachable from l0_name up to max_level."""
+    nodes = {l0_name}
+    edges = []
+    queue = [l0_name]
     while queue:
-        n = queue.pop(0)
-        if n in visited:
-            continue
-        visited.add(n)
-        queue.extend(children_map.get(n, []))
-    return visited
-
-
-# ── IC / root selection ────────────────────────────────────────────────────────
-
-def _load_genealogy_for_ic(ic_dir: Path, state_B: float):
-    """
-    Load logs for one IC and return (genealogy, stateB_configs).
-    Returns (None, None) if logs directory is missing or empty.
-    """
-    logs_dir = ic_dir / 'logs'
-    if not logs_dir.exists():
-        return None, None
-    try:
-        entries   = load_all_logs(logs_dir)
-        genealogy = build_genealogy(entries)
-        stateB    = find_stateB_configs(entries, state_B)
-        return genealogy, stateB
-    except Exception as e:
-        print(f'  ERROR loading logs for {ic_dir.name}: {e}')
-        return None, None
-
-
-def rank_lambda0s_for_ic(ic_dir: Path, state_B: float, top_n: int = 20):
-    """
-    Print a ranked table of all λ₀ roots for one IC by B-descendant count.
-    Returns the full scores dict {lambda0_name: n_descendants}.
-    """
-    genealogy, stateB = _load_genealogy_for_ic(ic_dir, state_B)
-    if genealogy is None:
-        print(f'  No logs found in {ic_dir}')
-        return {}
-
-    scores = _score_lambda0s(genealogy, stateB)
-    print(f'\n  IC: {ic_dir.name}')
-    print(f'  Total B-state configs : {len(stateB)}')
-    print(f'  Total λ₀ roots scored : {len(scores)}')
-    print(f'\n  {"Rank":>4}  {"λ₀ config name":<40}  {"B-descendants":>13}')
-    print('  ' + '-'*62)
-    ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-    for rank, (name, sc) in enumerate(ranked[:top_n], 1):
-        marker = '  ← winner' if rank == 1 else ''
-        print(f'  {rank:>4}  {name:<40}  {sc:>13}{marker}')
-    if len(ranked) > top_n:
-        print(f'  … and {len(ranked) - top_n} more')
-    print()
-    return scores
-
-
-def _scan_ic_worker(args: tuple):
-    """
-    Module-level worker for find_top_examples() — must be picklable.
-    Returns (ic_dir_str, [(root, score), ...]) sorted by score descending.
-    """
-    ic_dir_str, state_B = args
-    ic_dir = Path(ic_dir_str)
-    genealogy, stateB = _load_genealogy_for_ic(ic_dir, state_B)
-    if genealogy is None:
-        return ic_dir_str, []
-    scores = _score_lambda0s(genealogy, stateB)
-    if not scores:
-        return ic_dir_str, []
-    ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-    return ic_dir_str, ranked
-
-
-def find_top_examples(ic_dirs: list, state_B: float,
-                      workers: int = 8, top_k: int = 1):
-    """
-    Scan logs for all ICs in parallel and return the top_k global entries:
-
-        [(ic_dir, root_config_name, n_B_descendants), ...]
-
-    sorted by n_B_descendants descending (rank 1 = most descendants).
-    """
-    n_workers   = min(workers, len(ic_dirs))
-    worker_args = [(str(d), state_B) for d in ic_dirs]
-
-    all_entries = []   # (score, ic_dir, root)
-
-    with ProcessPoolExecutor(max_workers=n_workers) as ex:
-        futures = {ex.submit(_scan_ic_worker, a): Path(a[0])
-                   for a in worker_args}
-        for fut in as_completed(futures):
-            ic_dir_str, ranked = fut.result()
-            ic_dir = Path(ic_dir_str)
-            if ranked:
-                best_score = ranked[0][1]
-                print(f'  {ic_dir.name}: best λ₀ has {best_score} descendants '
-                      f'({len(ranked)} roots scored)')
-            else:
-                print(f'  {ic_dir.name}: no logs / no scored λ₀')
-            for root, score in ranked:
-                all_entries.append((score, ic_dir, root))
-
-    all_entries.sort(key=lambda x: x[0], reverse=True)
-    return [(ic, root, score) for score, ic, root in all_entries[:top_k]]
-
-
-# ── full tree builder ──────────────────────────────────────────────────────────
-
-def build_tree(ic_dir: Path, root_config: str, state_B: float,
-               genealogy: dict = None):
-    """
-    BFS-forward from root_config through all successful children, then
-    load each node's lat/lon from its pkl (parallel via ThreadPoolExecutor).
-
-    Parameters
-    ----------
-    genealogy : optional pre-loaded genealogy dict.  If None, logs are
-                loaded from ic_dir — pass this in from plot_tree() when
-                you already loaded them for root selection to avoid a
-                redundant second parse.
-
-    Returns
-    -------
-    nodes : dict
-        {config_name: {lat, lon, iface_idx, parent}}
-    root_config : str
-    """
-    if genealogy is None:
-        genealogy, _ = _load_genealogy_for_ic(ic_dir, state_B)
-    if genealogy is None:
-        return None, None
-
-    children_map = _make_children_map(genealogy)
-    reverse_map  = _make_reverse_map(genealogy)
-
-    reachable = _bfs_forward(children_map, root_config)
-    print(f'  {len(reachable)} configs reachable from {root_config}')
-
-    # ── parallel pkl loading (I/O-bound → threads are fine) ──────────────────
-    def _load_one(cname):
-        return cname, _get_latlon(ic_dir, cname)
-
-    nodes = {}
-    n_missing = 0
-    n_threads = min(32, len(reachable))
-    with ThreadPoolExecutor(max_workers=n_threads) as ex:
-        for cname, ll in ex.map(_load_one, reachable):
-            if ll is None:
-                n_missing += 1
+        parent = queue.pop()
+        for info in genealogy.get(parent, []):
+            if info.get('status') not in ('success', 'reached_B', 'instant_success'):
                 continue
-            lat, lon = ll
-            nodes[cname] = {
-                'lat':       lat,
-                'lon':       lon,
-                'iface_idx': min(_iface_idx_from_name(cname), N_IFACES - 1),
-                'parent':    reverse_map.get(cname),
-            }
-
-    if n_missing:
-        print(f'  Warning: {n_missing} nodes skipped (pkl missing or no feature_location)')
-
-    n_per = [sum(1 for n in nodes.values() if n['iface_idx'] == i)
-             for i in range(N_IFACES)]
-    print(f'  Nodes per interface: {n_per}')
-
-    return nodes, root_config
+            child = info.get('child')
+            if child is None:
+                continue
+            if child.startswith('stateB_'):
+                continue  # skip stateB configs entirely
+            lv = iface_level(child)
+            if lv > max_level:
+                continue
+            if child not in nodes:
+                nodes.add(child)
+                queue.append(child)
+            edges.append((parent, child))
+    return nodes, edges
 
 
-# ── map axes ──────────────────────────────────────────────────────────────────
+def plot_tree(l0_name, rank, nodes, edges, loc_map, ifaces, n_ifaces,
+              date_str, n_lambda4, plot_dir):
+    lats = [loc_map[n][0] for n in nodes if n in loc_map]
+    lons = [loc_map[n][1] for n in nodes if n in loc_map]
+    if not lats:
+        print(f'  No locations for {l0_name}, skipping')
+        return
 
-def make_atlantic_axes(fig, nodes: dict = None, pad: float = 6.0):
-    """
-    If nodes is provided, auto-zoom to their bounding box + pad degrees.
-    Falls back to full-basin extent if nodes is empty/None.
-    """
-    if nodes:
-        lons = [n['lon'] for n in nodes.values()]
-        lats = [n['lat'] for n in nodes.values()]
-        lon0 = max(min(lons) - pad, -100)
-        lon1 = min(max(lons) + pad,  -10)
-        lat0 = max(min(lats) - pad,    5)
-        lat1 = min(max(lats) + pad,   65)
+    pad = 4
+    lat_range = max(lats) - min(lats)
+    lon_range = max(lons) - min(lons)
+    # Enforce a minimum map size of 10° so single-point seeds still show context
+    if lat_range < 10:
+        clat = (max(lats) + min(lats)) / 2
+        lats_ext = [clat - 5, clat + 5]
     else:
-        lon0, lon1, lat0, lat1 = -100, -10, 5, 65
-
-    if HAS_CARTOPY:
-        clat = (lat0 + lat1) / 2
-        clon = (lon0 + lon1) / 2
-        proj = ccrs.LambertConformal(
-            central_longitude=clon,
-            central_latitude=clat,
-            standard_parallels=(clat - 5, clat + 5),
-        )
-        ax = fig.add_subplot(111, projection=proj)
-        ax.set_extent([lon0, lon1, lat0, lat1], crs=ccrs.PlateCarree())
-        ax.add_feature(cfeature.LAND.with_scale('50m'),
-                       facecolor='#e8e8e8', zorder=2)
-        ax.add_feature(cfeature.OCEAN.with_scale('50m'),
-                       facecolor='#d0e8f5', zorder=1)
-        ax.add_feature(cfeature.COASTLINE.with_scale('50m'),
-                       linewidth=0.9, zorder=3)
-        ax.add_feature(cfeature.STATES.with_scale('50m'),
-                       linewidth=0.4, alpha=0.5, zorder=3)
-        ax.gridlines(draw_labels=True, linewidth=0.5, alpha=0.4,
-                     linestyle='--', zorder=4)
+        lats_ext = lats
+    if lon_range < 15:
+        clon = (max(lons) + min(lons)) / 2
+        lons_ext = [clon - 8, clon + 8]
     else:
-        ax = fig.add_subplot(111)
-        ax.set_xlim(lon0, lon1)
-        ax.set_ylim(lat0, lat1)
-        ax.grid(True, alpha=0.3)
-    return ax
+        lons_ext = lons
 
+    extent = [min(lons_ext) - pad, max(lons_ext) + pad,
+              max(min(lats_ext) - pad, -5), min(max(lats_ext) + pad, 70)]
 
-# ── drawing ───────────────────────────────────────────────────────────────────
+    cmap   = plt.cm.YlOrRd
+    colors = [cmap(0.15 + 0.8 * i / max(n_ifaces - 1, 1)) for i in range(n_ifaces)]
 
-def _jitter_positions(nodes: dict, seed: int = 42, scale: float = 0.25) -> dict:
-    """
-    Return a {config_name: (jittered_lat, jittered_lon)} map.
-    Nodes snap to a 1° grid so without jitter hundreds of lines overlap exactly.
-    Scale ≈ 0.25° keeps points visually near their true grid cell.
-    The seed node (λ₀) is never jittered.
-    """
-    rng = np.random.default_rng(seed)
-    pos = {}
-    for cname, node in nodes.items():
-        if node['parent'] is None:          # root — no jitter
-            pos[cname] = (node['lat'], node['lon'])
-        else:
-            pos[cname] = (
-                node['lat'] + rng.uniform(-scale, scale),
-                node['lon'] + rng.uniform(-scale, scale),
-            )
-    return pos
+    proj = ccrs.PlateCarree()
+    fig, ax = plt.subplots(figsize=(12, 8), subplot_kw=dict(projection=proj))
+    ax.set_extent(extent, crs=ccrs.PlateCarree())
+    ax.add_feature(cfeature.LAND,      facecolor='#e8e4d9', zorder=0)
+    ax.add_feature(cfeature.OCEAN,     facecolor='#c9dff0', zorder=0)
+    ax.add_feature(cfeature.COASTLINE, linewidth=0.6, edgecolor='#555', zorder=1)
+    ax.add_feature(cfeature.BORDERS,   linewidth=0.3, edgecolor='#888', zorder=1)
+    ax.gridlines(draw_labels=True, linewidth=0.4, color='gray',
+                 alpha=0.5, linestyle='--', zorder=1)
 
+    # Count how many times each node appears as a parent (branching weight)
+    child_count = defaultdict(int)
+    for pa, ch in edges:
+        child_count[pa] += 1
 
-def _draw_tree(ax, nodes: dict, root: str):
-    pc  = ccrs.PlateCarree() if HAS_CARTOPY else None
-    pos = _jitter_positions(nodes)
-
-    # Pass 1 — edges (parent → child lines)
-    for cname, node in nodes.items():
-        pname = node['parent']
-        if pname not in nodes:
+    # Draw edges
+    drawn = set()
+    for pa, ch in edges:
+        key = (pa, ch)
+        if key in drawn:
             continue
-        iface = node['iface_idx']
-        color = IFACE_COLORS[iface]
-        lw    = max(0.5, 1.8 - 0.20 * iface)
-        alpha = max(0.25, 0.75 - 0.08 * iface)
-        plat, plon = pos[pname]
-        clat, clon = pos[cname]
-        kw = dict(color=color, alpha=alpha, linewidth=lw,
-                  solid_capstyle='round', zorder=5)
-        if HAS_CARTOPY:
-            ax.plot([plon, clon], [plat, clat], transform=pc, **kw)
-        else:
-            ax.plot([plon, clon], [plat, clat], **kw)
+        drawn.add(key)
+        if pa not in loc_map or ch not in loc_map:
+            continue
+        lat0, lon0 = loc_map[pa]
+        lat1, lon1 = loc_map[ch]
+        lv  = iface_level(ch)
+        col = colors[min(lv, len(colors) - 1)]
+        ax.plot([lon0, lon1], [lat0, lat1], '-',
+                color=col, alpha=0.6, linewidth=1.0,
+                transform=ccrs.PlateCarree(), zorder=3)
 
-    # Pass 2 — nodes
-    for cname, node in nodes.items():
-        iface   = node['iface_idx']
-        color   = IFACE_COLORS[iface]
-        is_seed = (cname == root)
-        lat, lon = pos[cname]
-        kw = dict(
-            s          = 350 if is_seed else 35,
-            color      = color,
-            marker     = '*' if is_seed else 'o',
-            edgecolors = 'k',
-            linewidths = 1.0 if is_seed else 0.3,
-            alpha      = 0.95,
-            zorder     = 8 if is_seed else 6,
-        )
-        if HAS_CARTOPY:
-            ax.scatter(lon, lat, transform=pc, **kw)
-        else:
-            ax.scatter(lon, lat, **kw)
+    # Draw nodes grouped by level for correct z-order
+    node_counts = defaultdict(int)
+    for pa, ch in edges:
+        node_counts[ch] += 1
+    node_counts[l0_name] = 1
 
+    for lv in range(n_ifaces):
+        level_nodes = [n for n in nodes if iface_level(n) == lv and n in loc_map]
+        if not level_nodes:
+            continue
+        col = colors[min(lv, len(colors) - 1)]
+        is_l0 = (lv == 0)
+        lats_lv = [loc_map[n][0] for n in level_nodes]
+        lons_lv = [loc_map[n][1] for n in level_nodes]
+        sizes   = [300 if is_l0 else max(20, 15 * node_counts.get(n, 1))
+                   for n in level_nodes]
+        ax.scatter(lons_lv, lats_lv,
+                   s=sizes, c=[col] * len(level_nodes),
+                   marker='*' if is_l0 else 'o',
+                   edgecolors='black' if is_l0 else 'none',
+                   linewidths=0.8 if is_l0 else 0,
+                   transform=ccrs.PlateCarree(),
+                   zorder=6 if is_l0 else 4 + lv,
+                   label=f'λ{lv}  {ifaces[lv]:.0f} hPa  (n={len(level_nodes)})')
 
-# ── main figure ───────────────────────────────────────────────────────────────
-
-def plot_tree(ic_dir: Path, plot_dir: Path, state_B: float,
-              root_config: str = None, rank: int = None):
-    """
-    Build and render the shooting tree for one (IC, root) pair.
-
-    Parameters
-    ----------
-    rank : int or None
-        When provided (and > 0), prepended to the output filename as
-        'rank{rank:02d}_' so that top-K runs don't overwrite each other.
-    """
-    date_str = ic_dir.name   # e.g. '2022-08-21T00Z' — keep full name to avoid 00Z/12Z collisions
-
-    # ── select root if not specified ──────────────────────────────────────────
-    cached_genealogy = None
-    if root_config is None:
-        genealogy, stateB = _load_genealogy_for_ic(ic_dir, state_B)
-        if genealogy is None:
-            print(f'  No logs found in {ic_dir}')
-            return None
-        scores = _score_lambda0s(genealogy, stateB)
-        if not scores:
-            print(f'  No λ₀ roots scored in {ic_dir}')
-            return None
-        root_config = max(scores, key=scores.get)
-        print(f'  Best root: {root_config}  ({scores[root_config]} B-descendants)')
-        cached_genealogy = genealogy   # reuse — avoids a second log parse
-
-    # ── build tree ────────────────────────────────────────────────────────────
-    print(f'Building tree: {ic_dir.name} / {root_config}')
-    nodes, root = build_tree(ic_dir, root_config, state_B,
-                             genealogy=cached_genealogy)
-
-    if not nodes:
-        print('  Tree build failed — no nodes with lat/lon.')
-        return None
-
-    n_per = [sum(1 for n in nodes.values() if n['iface_idx'] == i)
-             for i in range(N_IFACES)]
-
-    # ── figure ────────────────────────────────────────────────────────────────
-    fig = plt.figure(figsize=(12, 10))
-    ax  = make_atlantic_axes(fig, nodes=nodes, pad=6.0)
-    _draw_tree(ax, nodes, root)
-
-    # legend
-    handles = [
-        Line2D([0], [0], marker='*', color='w',
-               markerfacecolor=IFACE_COLORS[0], markersize=16,
-               markeredgecolor='k', markeredgewidth=0.8,
-               label=f'λ₀  {INTERFACE_PRESSURES[0]} hPa  — seed  (n={n_per[0]})'),
-    ]
-    for i in range(1, N_IFACES):
-        if n_per[i] > 0:
-            handles.append(
-                Line2D([0], [0], marker='o', color='w',
-                       markerfacecolor=IFACE_COLORS[i], markersize=9,
-                       markeredgecolor='k', markeredgewidth=0.5,
-                       label=f'λ{i}  {INTERFACE_PRESSURES[i]} hPa  (n={n_per[i]})')
-            )
-    ax.legend(handles=handles, fontsize=9, loc='lower left',
-              framealpha=0.92, title='Interface level', title_fontsize=10)
-
-    n_l1 = n_per[1] if len(n_per) > 1 else 0
+    ax.legend(fontsize=9, loc='lower left', framealpha=0.9)
     ax.set_title(
-        f'FFS shooting tree — IC {date_str}\n'
-        f'λ₀ seed → {n_l1} λ₁ branches → {len(nodes) - 1} total descendants',
-        fontsize=12, fontweight='bold',
-    )
+        f'FFS shooting tree  —  IC {date_str}\n'
+        f'λ₀ seed → {child_count[l0_name]} λ₁ branches → {n_lambda4} total λ₄ descendants',
+        fontsize=11, fontweight='bold')
 
-    rank_prefix = f'rank{rank:02d}_' if rank is not None else ''
-    out = plot_dir / f'ffs_tree_{rank_prefix}{date_str}_{root}.png'
+    out = plot_dir / f'ffs_tree_rank{rank:02d}_{date_str}_{l0_name}.png'
     plt.savefig(out, dpi=150, bbox_inches='tight')
     plt.close()
-    print(f'  Saved → {out}')
-    return out
+    print(f'  Saved: {out}')
 
 
-# ── CLI ───────────────────────────────────────────────────────────────────────
+# ── main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(
-        description='FFS shooting tree — full genealogical tree from a single λ₀ seed'
-    )
-    parser.add_argument('--ffs_config', required=True,
-                        help='FFS config file (ffs.yml) — source of interfaces and state_B')
-    parser.add_argument('--ic_dir',     default=None,
-                        help='Single IC directory (e.g. results/2022-08-21T00Z)')
-    parser.add_argument('--ffs_csv',    default=None,
-                        help='CSV with time_label column (scan multiple ICs)')
-    parser.add_argument('--output_dir', default=None,
-                        help='Parent directory of all IC directories')
-    parser.add_argument('--plot_dir',   default='./plots')
-    parser.add_argument('--root',       default=None,
-                        help='Manually specify λ₀ config name to use as tree root')
-    parser.add_argument('--rank',       action='store_true',
-                        help='Print ranked table of all λ₀ roots by B-descendants, then exit')
-    parser.add_argument('--top_k',      type=int, default=1,
-                        help='Number of top-ranked (IC, λ₀) pairs to plot (default: 1)')
-    parser.add_argument('--workers',    type=int, default=min(8, os.cpu_count() or 1),
-                        help='Parallel workers for multi-IC log scanning (CSV mode)')
-    args = parser.parse_args()
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--ffs_config',  required=True)
+    ap.add_argument('--ic_dir',      required=True)
+    ap.add_argument('--plot_dir',    default='./plots')
+    ap.add_argument('--top_n',       type=int,   default=5)
+    ap.add_argument('--scan_n',      type=int,   default=30,
+                    help='Candidates to scan before applying spread filter')
+    ap.add_argument('--min_spread',  type=float, default=1.5,
+                    help='Min std-dev (degrees) of λ4 lat+lon to accept a seed')
+    ap.add_argument('--workers',     type=int,   default=16)
+    ap.add_argument('--seed_lat_min', type=float, default=None,
+                    help='Minimum latitude of λ0 seed to consider')
+    ap.add_argument('--seed_lat_max', type=float, default=None,
+                    help='Maximum latitude of λ0 seed to consider')
+    ap.add_argument('--seed_lon_min', type=float, default=None,
+                    help='Minimum longitude of λ0 seed to consider (degrees, negative=W)')
+    ap.add_argument('--seed_lon_max', type=float, default=None,
+                    help='Maximum longitude of λ0 seed to consider (degrees, negative=W)')
+    args = ap.parse_args()
 
-    # ── Load config and initialise interface constants ────────────────────────
-    with open(args.ffs_config) as f:
-        ffs_config = yaml.safe_load(f)
-    _init_from_config(ffs_config)
-    state_B = float(ffs_config['state_B'])
-    print(f'Interfaces: {INTERFACE_PRESSURES}  state_B={state_B}')
-
+    ic_dir   = Path(args.ic_dir)
     plot_dir = Path(args.plot_dir)
     plot_dir.mkdir(parents=True, exist_ok=True)
+    date_str = ic_dir.name
 
-    # ── single IC mode ───────────────────────────────────────────────────────
-    if args.ic_dir:
-        ic_dir = Path(args.ic_dir)
-        if args.rank:
-            rank_lambda0s_for_ic(ic_dir, state_B)
-            return
+    with open(args.ffs_config) as f:
+        cfg = yaml.safe_load(f)
+    ifaces  = cfg['interfaces'].copy()
+    state_B = float(cfg['state_B'])
+    ifaces.append(state_B)   # ifaces = [1000.0, 987.2, 984.7, 981.2, 975.0]
+    n_ifaces = len(ifaces)   # = 5, so range(5) → levels 0..4
 
-        if args.root:
-            # Explicit root — just plot it (rank prefix omitted)
-            plot_tree(ic_dir, plot_dir, state_B, root_config=args.root)
+    print(f'Loading genealogy for {date_str}...')
+    entries   = load_all_logs(ic_dir / 'logs')
+    genealogy = build_genealogy(entries)
+    print(f'  {len(genealogy)} parent configs')
+
+    scores = score_lambda0s_lambda4only(genealogy)
+
+    # ── Load locations for ALL scored seeds upfront so we can compute
+    #    the geographic spread of λ4 descendants and sort by spread × count.
+    #    Pure-count ranking rewards "squashed" seeds where a super-favorable
+    #    spot lets trajectories cross all interfaces without moving; spread ×
+    #    count rewards seeds whose descendants fan out into an organic cascade.
+    all_seed_nodes = {}
+    for l0_name in scores:
+        nodes, _ = collect_tree_nodes(genealogy, l0_name)
+        all_seed_nodes[l0_name] = nodes
+
+    # Load all λ4 locations for every scored seed
+    all_lv4 = set()
+    for nodes in all_seed_nodes.values():
+        all_lv4.update(n for n in nodes if n.startswith('lambda4_'))
+    # Also load λ0 seed locations (needed for track-distance scoring)
+    all_lv4.update(scores.keys())
+
+    with ThreadPoolExecutor(max_workers=args.workers) as ex_pre:
+        pre_locs = dict(ex_pre.map(load_loc, [(ic_dir, n) for n in all_lv4]))
+
+    def _spread_score(l0_name):
+        nodes = all_seed_nodes.get(l0_name, set())
+        lv4 = [n for n in nodes if n.startswith('lambda4_') and n in pre_locs]
+        if len(lv4) < 2:
+            return 0.0
+        lats = [pre_locs[n][0] for n in lv4]
+        lons = [pre_locs[n][1] for n in lv4]
+        spread = float(np.std(lats) + np.std(lons))
+        # Also require the centroid of λ4 to be displaced from the seed
+        # (filters squashed trees where everything stays near the origin)
+        seed_loc = pre_locs.get(l0_name)
+        if seed_loc is not None:
+            centroid_lat = float(np.mean(lats))
+            centroid_lon = float(np.mean(lons))
+            track_dist = np.sqrt((centroid_lat - seed_loc[0])**2 +
+                                 (centroid_lon - seed_loc[1])**2)
         else:
-            # Auto-select top-K roots within this IC
-            genealogy, stateB = _load_genealogy_for_ic(ic_dir, state_B)
-            if genealogy is None:
-                print(f'No logs found in {ic_dir}')
-                return
-            scores = _score_lambda0s(genealogy, stateB)
-            if not scores:
-                print(f'No λ₀ roots scored in {ic_dir}')
-                return
-            ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-            top_k  = min(args.top_k, len(ranked))
-            print(f'Plotting top {top_k} of {len(ranked)} λ₀ roots '
-                  f'(--top_k={args.top_k})')
-            use_rank_prefix = top_k > 1
-            for k, (root, sc) in enumerate(ranked[:top_k], 1):
-                print(f'\nRank {k}: {root}  ({sc} B-descendants)')
-                plot_tree(ic_dir, plot_dir, state_B,
-                          root_config=root,
-                          rank=k if use_rank_prefix else None)
-        return
+            track_dist = 0.0
+        return spread * np.log1p(track_dist)  # favour spread + displacement
 
-    # ── multi-IC mode ────────────────────────────────────────────────────────
-    if not (args.ffs_csv and args.output_dir):
-        parser.error('Provide --ic_dir  OR  both --ffs_csv and --output_dir')
+    composite_scores = {
+        name: _spread_score(name) * np.log1p(count)
+        for name, count in scores.items()
+    }
+    ranked = sorted(composite_scores.items(), key=lambda x: x[1], reverse=True)
+    # Keep the original λ4 count accessible for printing/title
+    count_map = scores
+    print(f'  {len(ranked)} λ₀ seeds scored by spread × cascade distance')
 
-    import pandas as pd
-    df      = pd.read_csv(args.ffs_csv)
-    out_dir = Path(args.output_dir)
-    ic_dirs = [out_dir / tl for tl in df['time_label'].tolist()
-               if (out_dir / tl).exists()]
+    # ── Seed-location filter: load λ0 locations first if a bounding box is given
+    seed_box = (args.seed_lat_min, args.seed_lat_max,
+                args.seed_lon_min, args.seed_lon_max)
+    if any(v is not None for v in seed_box):
+        print(f'  Applying seed box filter: '
+              f'lat=[{args.seed_lat_min},{args.seed_lat_max}] '
+              f'lon=[{args.seed_lon_min},{args.seed_lon_max}]')
+        seed_names = [n for n, _ in ranked]
+        with ThreadPoolExecutor(max_workers=args.workers) as ex:
+            seed_locs = dict(ex.map(load_loc, [(ic_dir, n) for n in seed_names]))
+        def in_box(name):
+            loc = seed_locs.get(name)
+            if loc is None:
+                return False
+            lat, lon = loc
+            if args.seed_lat_min is not None and lat < args.seed_lat_min:
+                return False
+            if args.seed_lat_max is not None and lat > args.seed_lat_max:
+                return False
+            if args.seed_lon_min is not None and lon < args.seed_lon_min:
+                return False
+            if args.seed_lon_max is not None and lon > args.seed_lon_max:
+                return False
+            return True
+        n_before = len(ranked)
+        ranked = [(n, s) for n, s in ranked if in_box(n)]
+        print(f'  {len(ranked)}/{n_before} seeds remain after box filter')
 
-    if not ic_dirs:
-        print('No IC directories found.')
-        return
+    # Scan up to scan_n candidates; collect their nodes for bulk location loading
+    candidates = ranked[:args.scan_n]
+    all_needed = set()
+    candidate_trees = []
+    for l0_name, n_lambda4 in candidates:
+        nodes, edges = collect_tree_nodes(genealogy, l0_name)
+        candidate_trees.append((l0_name, n_lambda4, nodes, edges))
+        all_needed.update(nodes)
 
-    print(f'Scanning {len(ic_dirs)} ICs  ({args.workers} workers)  '
-          f'top_k={args.top_k} …')
-    top_results = find_top_examples(ic_dirs, state_B,
-                                    workers=args.workers,
-                                    top_k=args.top_k)
+    print(f'  Loading {len(all_needed)} node locations (scanning {len(candidates)} candidates)...')
+    with ThreadPoolExecutor(max_workers=args.workers) as ex:
+        results = list(ex.map(load_loc, [(ic_dir, c) for c in all_needed]))
+    loc_map = {c: loc for c, loc in results if loc is not None}
+    print(f'  {len(loc_map)} locations loaded')
 
-    if not top_results:
-        print('No usable IC found.')
-        return
+    # Apply geographic-spread filter: require λ4 nodes to span > min_spread degrees
+    def lambda4_spread(nodes):
+        lv4 = [n for n in nodes if n.startswith('lambda4_') and n in loc_map]
+        if len(lv4) < 2:
+            return 0.0
+        lats = [loc_map[n][0] for n in lv4]
+        lons = [loc_map[n][1] for n in lv4]
+        return float(np.std(lats) + np.std(lons))
 
-    use_rank_prefix = args.top_k > 1
-    for k, (ic_dir, root, score) in enumerate(top_results, 1):
-        print(f'\nRank {k}: {ic_dir.name}  root={root}  B-descendants={score}')
-        plot_tree(ic_dir, plot_dir, state_B,
-                  root_config=root,
-                  rank=k if use_rank_prefix else None)
+    trees = []
+    rank = 1
+    for l0_name, n_lambda4, nodes, edges in candidate_trees:
+        sp = lambda4_spread(nodes)
+        status = 'OK' if sp >= args.min_spread else f'SKIP (spread={sp:.2f}°)'
+        print(f'  {l0_name}  λ₄={n_lambda4}  spread={sp:.2f}°  → {status}')
+        if sp < args.min_spread:
+            continue
+        trees.append((rank, l0_name, n_lambda4, nodes, edges))
+        rank += 1
+        if len(trees) >= args.top_n:
+            break
+
+    if not trees:
+        print('  WARNING: no seeds passed the spread filter — lowering threshold to 0')
+        for i, (l0_name, n_lambda4, nodes, edges) in enumerate(candidate_trees[:args.top_n], 1):
+            trees.append((i, l0_name, n_lambda4, nodes, edges))
+
+    print(f'\n  Plotting {len(trees)} seeds:')
+    for rank, l0_name, n_lambda4, nodes, edges in trees:
+        print(f'  rank{rank:02d}: {l0_name}  ({n_lambda4} λ₄ descendants)')
+
+    for rank, l0_name, n_lambda4, nodes, edges in trees:
+        print(f'Plotting rank{rank:02d}: {l0_name}')
+        plot_tree(l0_name, rank, nodes, edges, loc_map, ifaces, n_ifaces,
+                  date_str, n_lambda4, plot_dir)
 
 
 if __name__ == '__main__':

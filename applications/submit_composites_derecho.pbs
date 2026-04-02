@@ -1,0 +1,96 @@
+#!/bin/bash
+#PBS -N ffs_composites
+#PBS -A NAML0001
+#PBS -q main
+#PBS -l select=1:ncpus=64:ngpus=1:mem=128GB
+#PBS -l walltime=03:00:00
+#PBS -j oe
+#PBS -o /glade/derecho/scratch/schreck/FFS/logs/composites_derecho.log
+
+# ============================================================
+# PBS job (derecho): physics composites for 3 case-study ICs.
+#
+# Runs on derecho because torch (needed to unpickle FFS config
+# objects) was compiled for derecho's CUDA drivers.
+# No GPU computation needed — just unpickling and numpy.
+#
+# Submit from a derecho login node:
+#   qsub submit_composites_derecho.pbs
+# Or via peer-scheduling from casper:
+#   qsub -q @desched1 submit_composites_derecho.pbs
+# ============================================================
+
+set -euo pipefail
+
+echo "=== FFS Physics Composites Job (derecho) ==="
+echo "Host: $(hostname)"
+echo "Date: $(date)"
+echo ""
+
+# ── Environment ──────────────────────────────────────────────
+module load ncarenv/24.12 gcc/12.4.0 ncarcompilers cray-mpich/8.1.29 \
+            cuda/12.3.2 conda/latest cudnn/9.2.0.82-12 mkl/2025.0.1
+
+conda activate /glade/work/schreck/conda-envs/torch28-nccl221
+
+export PYTHONPATH=/glade/work/schreck/repos/miles-credit-main:${PYTHONPATH:-}
+export PYTHONPATH=/glade/work/schreck/repos/miles-tails:${PYTHONPATH}
+
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+
+# ── Paths ─────────────────────────────────────────────────────
+APPS=/glade/work/schreck/repos/miles-tails/applications
+FFS_SCRATCH=/glade/derecho/scratch/schreck/FFS
+FFS_CONFIG_FULL=${FFS_SCRATCH}/ffs_composites.yml
+MODEL_CONFIG=${FFS_SCRATCH}/model.yml
+RESULTS=${FFS_SCRATCH}/results_mar18
+PLOT_DIR=${RESULTS}/plots/physics_composites
+
+mkdir -p ${PLOT_DIR}
+mkdir -p /glade/derecho/scratch/schreck/FFS/logs
+
+# ── Write a temporary FFS config for 3 case-study ICs only ──
+python - <<'PYEOF'
+import yaml, pathlib
+
+src = pathlib.Path('/glade/derecho/scratch/schreck/FFS/ffs.yml')
+with open(src) as f:
+    cfg = yaml.safe_load(f)
+
+cfg['forecast_start_times'] = [
+    '2022-09-02 00:00:00',   # Earl
+    '2022-09-09 12:00:00',   # Active / Fiona environment
+    '2022-09-22 00:00:00',   # Ian precursor
+]
+
+out = pathlib.Path('/glade/derecho/scratch/schreck/FFS/ffs_composites.yml')
+with open(out, 'w') as f:
+    yaml.dump(cfg, f, default_flow_style=False)
+
+print(f"Wrote {out} with {len(cfg['forecast_start_times'])} ICs")
+PYEOF
+
+echo ""
+echo "=== Running plot_physics_composites.py ==="
+echo "  ICs: Earl (09-02), Active (09-09), Ian pre (09-22)"
+echo "  Mode: reactive_only"
+echo "  Workers: 32"
+echo "  Output: ${PLOT_DIR}"
+echo ""
+
+cd ${FFS_SCRATCH}
+
+python ${APPS}/plot_physics_composites.py \
+    --model_config  ${MODEL_CONFIG} \
+    --ffs_config    ${FFS_CONFIG_FULL} \
+    --output_dir    ${RESULTS}/physics_cache \
+    --plot_dir      ${PLOT_DIR} \
+    --workers       32 \
+    --box_deg       12 \
+    --reactive_only
+
+echo ""
+echo "=== Done. Plots in: ${PLOT_DIR} ==="
+ls -la ${PLOT_DIR}/*.png 2>/dev/null | wc -l && echo "PNGs generated" || echo "WARNING: no PNGs found"

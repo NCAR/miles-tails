@@ -131,6 +131,7 @@ class HurricaneGenesisFFS:
         self.interface_configs: Dict[int, List[InterfaceConfig]] = {
             i: [] for i in range(len(self.interfaces))
         }
+        self.interface_config_paths: Dict[int, List[str]] = {}  # file paths for lazy loading
         
         # Statistics
         self.flux_estimate = None
@@ -259,7 +260,7 @@ class HurricaneGenesisFFS:
     
     def calculate_mslp_wrapper(self, y_pred_phys, batch, simple_mslp=False):
         """Calculate MSLP from model output."""
-        datetime_str = datetime.fromtimestamp(batch["datetime"][0].item()).strftime('%Y-%m-%d %H:%M:%S')
+        datetime_str = datetime.utcfromtimestamp(batch["datetime"][0].item()).strftime('%Y-%m-%d %H:%M:%S')
         
         if simple_mslp:
             surface_pressure_pa = y_pred_phys[0, 64, 0].cpu().numpy()
@@ -295,7 +296,7 @@ class HurricaneGenesisFFS:
     
     def _compute_pressure_interp(self, y_phys, batch):
         """Compute full pressure interpolation for CPS."""
-        datetime_str = datetime.fromtimestamp(
+        datetime_str = datetime.utcfromtimestamp(
             batch["datetime"][0].item()
         ).strftime('%Y-%m-%d %H:%M:%S')
         
@@ -406,7 +407,7 @@ class HurricaneGenesisFFS:
             if self.visualize_mslp:
                 datetime_str = None
                 if batch and "datetime" in batch:
-                    dt = datetime.fromtimestamp(batch["datetime"][0].item())
+                    dt = datetime.utcfromtimestamp(batch["datetime"][0].item())
                     datetime_str = dt.strftime('%Y-%m-%d %H:%M UTC')
                 self._plot_mslp(mslp_hpa, basin_mask, datetime_str, lat, lon, min_mslp, 
                             show_marker=False)
@@ -522,7 +523,7 @@ class HurricaneGenesisFFS:
             if self.visualize_mslp:
                 datetime_str = None
                 if batch and "datetime" in batch:
-                    dt = datetime.fromtimestamp(batch["datetime"][0].item())
+                    dt = datetime.utcfromtimestamp(batch["datetime"][0].item())
                     datetime_str = dt.strftime('%Y-%m-%d %H:%M UTC')
                 self._plot_mslp(mslp_hpa, basin_mask, datetime_str, lat, lon, min_mslp,
                             show_marker=False)
@@ -617,7 +618,7 @@ class HurricaneGenesisFFS:
         
         config_name += '_' + ''.join(random.choices(string.ascii_uppercase, k=2))
         
-        restart_dt = datetime.fromtimestamp(batch["datetime"][0].item()) + timedelta(hours=6)
+        restart_dt = datetime.utcfromtimestamp(batch["datetime"][0].item()) + timedelta(hours=6)
         
         crossing = InterfaceConfig(
             input_state=state,
@@ -635,7 +636,7 @@ class HurricaneGenesisFFS:
         )
         
         crossing._feature_idx = feat_idx
-        crossing._datetime_obj = datetime.fromtimestamp(batch["datetime"][0].item())
+        crossing._datetime_obj = datetime.utcfromtimestamp(batch["datetime"][0].item())
         crossing._y_phys = y_phys_with_mslp.cpu().clone()
         
         mslp_channel_idx = 71
@@ -991,6 +992,63 @@ class HurricaneGenesisFFS:
                             del self.tracked_storms[storm_id]
                             continue
 
+                        # Geographic bounds — applied every step for post-λ0 storms,
+                        # identical to shoot mode (lines ~864-968).
+                        if storm.get('crossed_lambda0', False):
+                            _slat, _slon = storm['location']
+                            _lats = self.latlons.latitude.values
+                            _lons = np.where(
+                                self.latlons.longitude.values > 180,
+                                self.latlons.longitude.values - 360,
+                                self.latlons.longitude.values
+                            )
+                            _li = np.argmin(np.abs(_lats - _slat))
+                            _lj = np.argmin(np.abs(_lons - _slon))
+                            _hard = False
+                            _soft = False   # triggers CPS check, mirrors shoot outside_normal_bounds
+                            if _slat > 60.0:
+                                _hard = True
+                            elif _slon > -10.0:
+                                _hard = True
+                            elif _slat > 45.0 and _slon > -35.0:
+                                _hard = True
+                            elif _slat > 30.0 and self.land_sea_mask[_li, _lj] > 0.5:
+                                _hard = True
+                            elif _slat > 50.0:
+                                _soft = True
+                            elif _slat < 12.0 and self.land_sea_mask[_li, _lj] > 0.5:
+                                _soft = True
+                            elif _slon < -90.0 and self.land_sea_mask[_li, _lj] > 0.5:
+                                _soft = True
+                            if _hard:
+                                print(f"  → Storm {storm_id} outside geographic bounds"
+                                      f" ({_slat:.1f}°N, {abs(_slon):.1f}°W) - removing")
+                                del self.tracked_storms[storm_id]
+                                if storm_id in self.storm_track_history:
+                                    del self.storm_track_history[storm_id]
+                                continue
+                            if _soft and self.use_cps:
+                                try:
+                                    if pressure_interp is None:
+                                        pressure_interp = self._compute_pressure_interp(y_phys, batch)
+                                    _is_ET, _ = self._check_cps(
+                                        pressure_interp, storm['location'],
+                                        storm['mslp'], storm_id, stage='mature'
+                                    )
+                                    if _is_ET:
+                                        print(f"  → Storm {storm_id} extratropical outside"
+                                              f" normal bounds ({_slat:.1f}°N) - removing")
+                                        del self.tracked_storms[storm_id]
+                                        if storm_id in self.storm_track_history:
+                                            del self.storm_track_history[storm_id]
+                                        continue
+                                except Exception as _e:
+                                    print(f"  ⚠ CPS check failed at bounds: {_e}")
+                                    del self.tracked_storms[storm_id]
+                                    if storm_id in self.storm_track_history:
+                                        del self.storm_track_history[storm_id]
+                                    continue
+
                         # Check for λ₀ crossing FIRST (before B-state)
                         if not storm['saved'] and storm['mslp'] < lambda_0:
                             storm_lat, storm_lon = storm['location']
@@ -1096,7 +1154,7 @@ class HurricaneGenesisFFS:
                                     # Log CPS values
                                     cps_log_path = self.flux_dir / 'cps_values.txt'
                                     with open(cps_log_path, 'a') as f:
-                                        timestamp = datetime.fromtimestamp(batch["datetime"][0].item()).strftime('%Y-%m-%d %H:%M:%S')
+                                        timestamp = datetime.utcfromtimestamp(batch["datetime"][0].item()).strftime('%Y-%m-%d %H:%M:%S')
                                         f.write(f"\n{'='*60}\n")
                                         f.write(f"Storm {storm_id} λ₀ crossing at step {step}\n")
                                         f.write(f"Time: {timestamp}\n")
@@ -1128,12 +1186,13 @@ class HurricaneGenesisFFS:
                             crossings.append(crossing)
                             storm['saved'] = True
                             storm['crossed_lambda0'] = True
+                            storm['current_iface'] = 0   # track virtual interface for CPS alignment
                             print(f"  → Storm {storm_id} crossed λ₀: {storm['mslp']:.1f} hPa")
                             
                             if self.visualize_mslp:
                                 datetime_str = None
                                 if batch and "datetime" in batch:
-                                    dt = datetime.fromtimestamp(batch["datetime"][0].item())
+                                    dt = datetime.utcfromtimestamp(batch["datetime"][0].item())
                                     datetime_str = dt.strftime('%Y-%m-%d %H:%M UTC')
                                 
                                 mslp_channel_idx = 71
@@ -1150,8 +1209,71 @@ class HurricaneGenesisFFS:
                                 )
                                 plt.pause(1.0)
 
+                        # Virtual intermediate interface CPS — mirrors shoot mode.
+                        # Shoot mode checks mature CPS at every interface crossing.
+                        # We replicate that here so flux and shoot apply the same
+                        # warm-core filter before a storm is eligible for B-state.
+                        if storm.get('crossed_lambda0', False) and self.use_cps:
+                            _cur_iface = storm.get('current_iface', 0)
+                            _cps_rejected = False
+                            for _vi in range(_cur_iface + 1, len(self.interfaces)):
+                                if storm['mslp'] < self.interfaces[_vi]:
+                                    try:
+                                        if pressure_interp is None:
+                                            pressure_interp = self._compute_pressure_interp(y_phys, batch)
+                                        _is_ET, _cps = self._check_cps(
+                                            pressure_interp, storm['location'],
+                                            storm['mslp'], storm_id, stage='mature'
+                                        )
+                                        if _is_ET:
+                                            print(f"  → Storm {storm_id} extratropical at virtual"
+                                                  f" λ{_vi} ({storm['location'][0]:.1f}°N,"
+                                                  f" {abs(storm['location'][1]):.1f}°W): rejecting")
+                                            del self.tracked_storms[storm_id]
+                                            if storm_id in self.storm_track_history:
+                                                del self.storm_track_history[storm_id]
+                                            _cps_rejected = True
+                                            break
+                                        else:
+                                            storm['current_iface'] = _vi
+                                    except Exception as _e:
+                                        print(f"  ⚠ CPS check failed at virtual λ{_vi}: {_e}")
+                                        del self.tracked_storms[storm_id]
+                                        if storm_id in self.storm_track_history:
+                                            del self.storm_track_history[storm_id]
+                                        _cps_rejected = True
+                                        break
+                                else:
+                                    break
+                            if _cps_rejected:
+                                continue
+
                         # Check for B-state (only if storm successfully crossed λ₀)
                         if storm.get('crossed_lambda0', False) and storm['mslp'] < self.state_B_threshold:
+                            # Geographic bounds check — same hard limits as shoot mode.
+                            # Storms that have drifted outside the Atlantic tropics
+                            # (e.g., into European longitudes, high-latitude extratropics,
+                            # or across Central America into the Pacific) are not valid
+                            # Atlantic hurricane genesis events.
+                            storm_lat, storm_lon = storm['location']
+                            _geo_reject = False
+                            if storm_lat > 60.0:
+                                _geo_reject = True
+                            elif storm_lon > -10.0:
+                                _geo_reject = True
+                            elif storm_lat > 45.0 and storm_lon > -35.0:
+                                _geo_reject = True
+                            elif not (self.basin['lat_min'] <= storm_lat <= self.basin['lat_max'] and
+                                      self.basin['lon_min'] <= storm_lon <= self.basin['lon_max']):
+                                _geo_reject = True
+                            if _geo_reject:
+                                print(f"  → Storm {storm_id} outside geographic bounds at B-state "
+                                      f"({storm_lat:.1f}°N, {storm_lon:.1f}°E) - NOT SAVED")
+                                del self.tracked_storms[storm_id]
+                                if storm_id in self.storm_track_history:
+                                    del self.storm_track_history[storm_id]
+                                continue
+
                             # CPS check before saving B-state
                             if self.use_cps:
                                 try:
@@ -1170,7 +1292,7 @@ class HurricaneGenesisFFS:
                                     # Log CPS values
                                     cps_log_path = self.stateB_dir / 'cps_values.txt'
                                     with open(cps_log_path, 'a') as f:
-                                        timestamp = datetime.fromtimestamp(batch["datetime"][0].item()).strftime('%Y-%m-%d %H:%M:%S')
+                                        timestamp = datetime.utcfromtimestamp(batch["datetime"][0].item()).strftime('%Y-%m-%d %H:%M:%S')
                                         f.write(f"\n{'='*60}\n")
                                         f.write(f"Storm {storm_id} B-state at step {step}\n")
                                         f.write(f"Time: {timestamp}\n")
@@ -1230,7 +1352,7 @@ class HurricaneGenesisFFS:
                                 cps_log_path = self.ic_base_dir / str(next_idx) / 'cps_values.txt'
                                 cps_log_path.parent.mkdir(parents=True, exist_ok=True)
                                 with open(cps_log_path, 'a') as f:
-                                    timestamp = datetime.fromtimestamp(batch["datetime"][0].item()).strftime('%Y-%m-%d %H:%M:%S')
+                                    timestamp = datetime.utcfromtimestamp(batch["datetime"][0].item()).strftime('%Y-%m-%d %H:%M:%S')
                                     f.write(f"\n{'='*60}\n")
                                     f.write(f"Interface crossing λ{current_interface}→λ{next_idx} at step {step}\n")
                                     f.write(f"Time: {timestamp}\n")
@@ -1272,7 +1394,7 @@ class HurricaneGenesisFFS:
                         if self.visualize_mslp and location:
                             datetime_str = None
                             if batch and "datetime" in batch:
-                                dt = datetime.fromtimestamp(batch["datetime"][0].item())
+                                dt = datetime.utcfromtimestamp(batch["datetime"][0].item())
                                 datetime_str = dt.strftime('%Y-%m-%d %H:%M UTC')
                             
                             mslp_channel_idx = 71
@@ -1308,7 +1430,7 @@ class HurricaneGenesisFFS:
                     if self.visualize_mslp and location and mode == 'shoot':
                         datetime_str = None
                         if batch and "datetime" in batch:
-                            dt = datetime.fromtimestamp(batch["datetime"][0].item())
+                            dt = datetime.utcfromtimestamp(batch["datetime"][0].item())
                             datetime_str = dt.strftime('%Y-%m-%d %H:%M UTC')
                         
                         mslp_channel_idx = 71
@@ -1402,12 +1524,29 @@ class HurricaneGenesisFFS:
         
         logger.close()
     
+    @staticmethod
+    def _snap_to_6hourly(dt):
+        """Snap datetime to nearest 6-hourly ERA5 boundary (0, 6, 12, 18h).
+
+        Handles old pkl files whose restart_datetime was saved with
+        datetime.fromtimestamp (local time) instead of utcfromtimestamp,
+        causing an off-by-(timezone-offset) error.
+        """
+        minutes = dt.hour * 60 + dt.minute + dt.second / 60
+        rounded_minutes = round(minutes / 360) * 360  # 360 min = 6 h
+        if rounded_minutes >= 1440:
+            return (dt + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        return dt.replace(hour=rounded_minutes // 60, minute=rounded_minutes % 60,
+                          second=0, microsecond=0)
+
     def shoot_trajectory(self, config, interface_idx):
         """Shoot single trajectory."""
         restart_time = config.restart_datetime
+        start_dt = self._snap_to_6hourly(restart_time + timedelta(hours=6))
+        end_dt = restart_time + timedelta(days=self.shoot_length_days)
         forecast_times = [[
-            (restart_time + timedelta(hours=6)).strftime('%Y-%m-%d %H:%M:%S'),
-            (restart_time + timedelta(days=self.shoot_length_days)).strftime('%Y-%m-%d %H:%M:%S')
+            start_dt.strftime('%Y-%m-%d %H:%M:%S'),
+            end_dt.strftime('%Y-%m-%d %H:%M:%S')
         ]]
         
         restart_dataset = Predict_Dataset_Batcher(
@@ -1434,30 +1573,22 @@ class HurricaneGenesisFFS:
                           1 = shoot from λ₁ to λ₂, etc.
             n_trials: Target number of successful crossings to next interface
         """
-        # Load configs to shoot FROM
-        # For interface_idx=0: read from flux/ (already in interface_configs[0])
-        # For interface_idx>0: load from previous interface directory
-        if interface_idx == 0:
-            loaded_configs = self.interface_configs.get(0, [])
-            source_pattern = "flux/lambda0_config_*.pkl"
+        # Get pool of config file paths — load one at a time during shooting
+        if interface_idx in self.interface_config_paths:
+            config_paths = self.interface_config_paths[interface_idx]
+        elif interface_idx == 0:
+            config_paths = [str(p) for p in self.flux_dir.glob('lambda0_config_*.pkl')]
         else:
-            # Load from directory {interface_idx}
             source_dir = self.ic_base_dir / str(interface_idx)
-            source_pattern = f"lambda{interface_idx}_config_*.pkl"
-            config_files = list(source_dir.glob(source_pattern))
-            loaded_configs = []
-            for cfg_file in config_files:
-                with open(cfg_file, 'rb') as f:
-                    loaded_configs.append(pickle.load(f))
-            self.interface_configs[interface_idx] = loaded_configs
-        
+            config_paths = [str(p) for p in source_dir.glob(f'lambda{interface_idx}_config_*.pkl')]
+
         lambda_label = interface_idx
         next_interface = interface_idx + 1
-        
+
         print(f"\nSHOOTING from λ_{lambda_label} ({self.interfaces[lambda_label]} hPa) → λ_{next_interface}\n")
-        print(f"Available configs: {len(loaded_configs)}")
-        
-        if len(loaded_configs) == 0:
+        print(f"Available configs: {len(config_paths)}")
+
+        if len(config_paths) == 0:
             print("⚠ No configs available")
             return
         
@@ -1488,8 +1619,44 @@ class HurricaneGenesisFFS:
                 break
             
             attempts += 1
-            config = np.random.choice(loaded_configs)
-            
+            config_path = random.choice(config_paths)
+            with open(config_path, 'rb') as _f:
+                config = pickle.load(_f)
+
+            # Pre-check: if config MSLP is already below the next interface threshold
+            # (rapid intensification crossed it at save time), just save it there and
+            # move on — no rollout needed.
+            if config.mslp_value < self.interfaces[next_interface]:
+                _new_name = (f"lambda{next_interface}_config_"
+                             f"{len(list(save_dir.glob(f'lambda{next_interface}_config_*.pkl')))+1:04d}"
+                             f"_{''.join(random.choices(string.ascii_uppercase, k=2))}")
+                _saved = copy.copy(config)
+                _saved.interface_idx = next_interface
+                _saved.config_name = _new_name
+                with open(save_dir / f"{_new_name}.pkl", 'wb') as _f:
+                    pickle.dump(_saved, _f)
+                try:
+                    self._save_mslp_figure(_saved, save_dir)
+                except Exception as e:
+                    print(f"  ✗ ERROR saving PNG for {_new_name}: {e}")
+                print(f"  → Config {config.config_name} already at {config.mslp_value:.1f} hPa"
+                      f" (< λ{next_interface}={self.interfaces[next_interface]:.1f} hPa),"
+                      f" saved as {_new_name}")
+                logger.log_shooting_attempt(
+                    next_interface, attempts, config.config_name,
+                    {
+                        'status': 'success',
+                        'crossings': [_saved],
+                        'failure_reason': None,
+                        'failure_cps': None,
+                        'final_mslp': float(config.mslp_value),
+                        'mslp_trajectory': [float(config.mslp_value)],
+                    },
+                    _new_name
+                )
+                successes += 1
+                continue
+
             # Shoot with interface_idx as START interface
             result = self.shoot_trajectory(config, interface_idx)
             
@@ -1524,12 +1691,7 @@ class HurricaneGenesisFFS:
         """Run full FFS algorithm."""
         self.generate_flux(initial_loader, n_flux_trials)
         
-        flux_configs = list(self.flux_dir.glob('lambda0_config_*.pkl'))
-        loaded = []
-        for cfg_file in flux_configs:
-            with open(cfg_file, 'rb') as f:
-                loaded.append(pickle.load(f))
-        self.interface_configs[0] = loaded
+        self.interface_config_paths[0] = [str(p) for p in self.flux_dir.glob('lambda0_config_*.pkl')]
         
         for i in range(len(self.interfaces) - 1):
             self.shoot_from_interface(i, n_shoot_trials)

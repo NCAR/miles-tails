@@ -1,0 +1,57 @@
+#!/bin/bash
+#PBS -N ffs_trees
+#PBS -A NAML0001
+#PBS -q main
+#PBS -l select=1:ncpus=64:mem=64GB
+#PBS -l walltime=01:00:00
+#PBS -j oe
+#PBS -o /glade/derecho/scratch/schreck/FFS/logs/ffs_trees_derecho.log
+
+# ============================================================
+# PBS job (derecho): regenerate FFS shooting tree figures.
+# Must run on derecho because pkl files contain objects from
+# hurricane_genesis_ffs.py which requires torch (derecho GPU).
+#
+# Submit: qsub submit_ffs_trees_derecho.pbs
+# ============================================================
+
+set -euo pipefail
+
+echo "=== FFS Tree Regeneration Job (derecho) ==="
+echo "Date: $(date)"
+
+module load ncarenv/24.12 gcc/12.4.0 ncarcompilers cray-mpich/8.1.29 \
+            cuda/12.3.2 conda/latest cudnn/9.2.0.82-12 mkl/2025.0.1
+
+conda activate /glade/work/schreck/conda-envs/torch28-nccl221
+
+export PYTHONPATH=/glade/work/schreck/repos/miles-credit-main:${PYTHONPATH:-}
+export PYTHONPATH=/glade/work/schreck/repos/miles-tails:${PYTHONPATH}
+export OMP_NUM_THREADS=1
+
+APPS=/glade/work/schreck/repos/miles-tails/applications
+FFS_SCRATCH=/glade/derecho/scratch/schreck/FFS
+FFS_CONFIG=${FFS_SCRATCH}/ffs.yml
+RESULTS=${FFS_SCRATCH}/results_mar18
+PLOT_DIR=${RESULTS}/plots/ffs_trees
+
+mkdir -p ${PLOT_DIR}
+
+cd ${FFS_SCRATCH}
+
+for IC in 2022-09-02T00Z 2022-09-09T12Z 2022-09-22T00Z; do
+    echo ""
+    echo "=== Processing ${IC} ==="
+    python ${APPS}/plot_ffs_tree.py \
+        --ffs_config  ${FFS_CONFIG} \
+        --ic_dir      ${RESULTS}/${IC} \
+        --plot_dir    ${PLOT_DIR} \
+        --top_n       5 \
+        --scan_n      30 \
+        --min_spread  1.5 \
+        --workers     32
+done
+
+echo ""
+echo "=== Done. Output in: ${PLOT_DIR} ==="
+ls -la ${PLOT_DIR}/*.png 2>/dev/null | wc -l && echo "PNGs generated"

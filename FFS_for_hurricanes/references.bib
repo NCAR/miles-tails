@@ -1,0 +1,315 @@
+%% ============================================================
+%% references.bib — unified bibliography for FFS hurricane paper
+%% Entries correspond exactly to \bibitem blocks in main.tex and
+%% main_james.tex.  DOIs included only where confirmed from original
+%% references.bib or publisher pages.
+%%
+%% Entries marked VERIFY below need DOI/detail check before submission:
+%%   allen2006forward, defever2019contour, bolhuis2002transition,
+%%   laio2002escaping, webber2019practical, finkel2024bringing,
+%%   plotkin2019maximizing, touchette2009large, buizza2018ensemble,
+%%   Frank1970, gray1968global, Landsea1998, hart2003cyclone,
+%%   Titley2019 (key says 2019 but MWR vol.128 = year 2000),
+%%   knaff2007improved, lorenz1969atmospheric, heikenfeld2019tobac
+%% ============================================================
+
+% ── Forward Flux Sampling / rare-event methods ──────────────────────────────
+
+@article{allen2005sampling,
+  author  = {Allen, Rosalind J. and Warren, Patrick B. and ten Wolde, Pieter Rein},
+  title   = {Sampling rare switching events in biochemical networks},
+  journal = {Physical Review Letters},
+  volume  = {94},
+  pages   = {018104},
+  year    = {2005},
+  doi     = {10.1103/PhysRevLett.94.018104}
+}
+
+@article{allen2006forward,
+  author  = {Allen, R.~J. and Frenkel, D. and ten Wolde, P.~R.},
+  title   = {Simulating rare events in equilibrium or nonequilibrium stochastic systems},
+  journal = {J. Chem. Phys.},
+  volume  = {124},
+  pages   = {024102},
+  year    = {2006}
+}
+
+@article{allen2009forward,
+  author  = {Allen, R.~J. and Valeriani, C. and ten Wolde, P.~R.},
+  title   = {Forward flux sampling for rare event simulations},
+  journal = {J. Phys.: Condens. Matter},
+  volume  = {21},
+  pages   = {463102},
+  year    = {2009},
+  doi     = {10.1088/0953-8984/21/46/463102}
+}
+
+@article{valeriani2007computing,
+  author  = {Valeriani, C. and Allen, R.~J. and Morelli, M.~J. and Frenkel, D. and ten Wolde, P.~R.},
+  title   = {Computing stationary distributions in equilibrium and nonequilibrium systems
+             with forward flux sampling},
+  journal = {J. Chem. Phys.},
+  volume  = {127},
+  pages   = {114109},
+  year    = {2007},
+  doi     = {10.1063/1.2767625}
+}
+
+@article{defever2019contour,
+  author  = {DeFever, R.~S. and Sarupria, S.},
+  title   = {Contour forward flux sampling: Sampling rare events along multiple
+             collective variables},
+  journal = {J. Chem. Phys.},
+  volume  = {150},
+  pages   = {024103},
+  year    = {2019}
+}
+
+@article{bolhuis2002transition,
+  author  = {Bolhuis, P.~G. and Chandler, D. and Dellago, C. and Geissler, P.~L.},
+  title   = {Transition path sampling: Throwing ropes over rough mountain passes,
+             in the dark},
+  journal = {Annu. Rev. Phys. Chem.},
+  volume  = {53},
+  pages   = {291--318},
+  year    = {2002}
+}
+
+@article{laio2002escaping,
+  author  = {Laio, A. and Parrinello, M.},
+  title   = {Escaping free-energy minima},
+  journal = {Proc. Natl. Acad. Sci.},
+  volume  = {99},
+  pages   = {12562--12566},
+  year    = {2002}
+}
+
+@article{rotskoff2018machine,
+  author  = {Rotskoff, G.~M. and Vanden-Eijnden, E.},
+  title   = {Neural networks as optimal approximations of committor functions
+             for {Markov} processes},
+  journal = {NeurIPS Workshop on Integration of Deep Learning Theories},
+  year    = {2018}
+}
+
+% ── Atmospheric rare-event sampling ─────────────────────────────────────────
+
+@article{ragone2018computation,
+  author  = {Ragone, F. and Wouters, J. and Bouchet, F.},
+  title   = {Computation of extreme heat waves in climate models using a large
+             deviation algorithm},
+  journal = {Proc. Natl. Acad. Sci.},
+  volume  = {115},
+  pages   = {24--29},
+  year    = {2018},
+  doi     = {10.1073/pnas.1712645115}
+}
+
+@article{webber2019practical,
+  author  = {Webber, R.~J. and Plotkin, D.~A. and O'Neill, M.~E. and
+             Abbot, D.~S. and Weare, J.},
+  title   = {Practical rare event sampling for extreme mesoscale weather},
+  journal = {Chaos},
+  volume  = {29},
+  pages   = {053109},
+  year    = {2019}
+}
+
+%% NOTE finkel2024bringing: verify this is Finkel, Abbot, Weare in Chaos 34:072101
+%% and not a different Finkel 2024 paper (there is also a Finkel/Platzer/Vanden-Eijnden
+%% JAMES 2024 paper on storylines with a different title).
+@article{finkel2024bringing,
+  author  = {Finkel, J. and Abbot, D.~S. and Weare, J.},
+  title   = {Bringing it all together: Rare event sampling in climate science},
+  journal = {Chaos},
+  volume  = {34},
+  pages   = {072101},
+  year    = {2024}
+}
+
+@article{plotkin2019maximizing,
+  author  = {Plotkin, D.~A. and Webber, R.~J. and O'Neill, M.~E. and
+             Weare, J. and Abbot, D.~S.},
+  title   = {Maximizing simulated tropical cyclone intensity with action minimization},
+  journal = {J. Adv. Model. Earth Syst.},
+  volume  = {11},
+  pages   = {863--891},
+  year    = {2019}
+}
+
+@article{galfi2019large,
+  author  = {G{\'a}lfi, V.~M. and Lucarini, V. and Wouters, J.},
+  title   = {A large deviation theory-based analysis of heat waves and cold spells
+             in a simplified model of the general circulation of the atmosphere},
+  journal = {J. Stat. Mech.: Theory Exp.},
+  volume  = {2019},
+  pages   = {033404},
+  year    = {2019},
+  doi     = {10.1088/1742-5468/ab02e8}
+}
+
+@article{brehier2016unbiasedness,
+  author  = {Br{\'e}hier, C.-{\'E}. and Gazeau, M. and Guyader, L. and
+             Leli{\`e}vre, T. and Rousset, M.},
+  title   = {Unbiasedness of some generalized adaptive multilevel splitting algorithms},
+  journal = {Ann. Appl. Probab.},
+  volume  = {26},
+  pages   = {3559--3601},
+  year    = {2016},
+  doi     = {10.1214/16-AAP1185}
+}
+
+@article{touchette2009large,
+  author  = {Touchette, H.},
+  title   = {The large deviation approach to statistical mechanics},
+  journal = {Phys. Rep.},
+  volume  = {478},
+  pages   = {1--69},
+  year    = {2009}
+}
+
+% ── ML weather models ────────────────────────────────────────────────────────
+
+@article{lam2023graphcast,
+  author  = {Lam, R. and Coauthors},
+  title   = {Learning skillful medium-range global weather forecasting},
+  journal = {Science},
+  volume  = {382},
+  pages   = {1416--1421},
+  year    = {2023},
+  doi     = {10.1126/science.adi2336}
+}
+
+@article{bi2023pangu,
+  author  = {Bi, K. and Coauthors},
+  title   = {Accurate medium-range global weather forecasting with {3D} neural networks},
+  journal = {Nature},
+  volume  = {619},
+  pages   = {533--538},
+  year    = {2023},
+  doi     = {10.1038/s41586-023-06185-3}
+}
+
+@article{pathak2022fourcastnet,
+  author  = {Pathak, J. and Coauthors},
+  title   = {{FourCastNet}: A global data-driven high-resolution weather model using
+             adaptive {Fourier} neural operators},
+  journal = {arXiv:2202.11214},
+  year    = {2022}
+}
+
+@article{schreck2024sdl,
+  author  = {Schreck, J.~R. and Coauthors},
+  title   = {{SDL-WXFormer}: Stochastic decomposition layers for controllable weather
+             ensemble forecasting},
+  journal = {arXiv:2512.18815},
+  year    = {2024}
+}
+
+@article{buizza2018ensemble,
+  author  = {Buizza, R. and Coauthors},
+  title   = {The evolution of ensemble forecasting systems},
+  journal = {Bull. Amer. Meteor. Soc.},
+  volume  = {99},
+  pages   = {1393--1400},
+  year    = {2018}
+}
+
+@inproceedings{karras2019stylebased,
+  author    = {Karras, T. and Laine, S. and Aila, T.},
+  title     = {A style-based generator architecture for generative adversarial networks},
+  booktitle = {Proc. IEEE/CVF Conf. Computer Vision and Pattern Recognition (CVPR)},
+  pages     = {4401--4410},
+  year      = {2019}
+}
+
+% ── Tropical cyclone meteorology ─────────────────────────────────────────────
+
+@article{Frank1970,
+  author  = {Frank, N.~L.},
+  title   = {Atlantic tropical systems of 1969},
+  journal = {Mon. Wea. Rev.},
+  volume  = {98},
+  pages   = {307--314},
+  year    = {1970}
+}
+
+@article{gray1968global,
+  author  = {Gray, W.~M.},
+  title   = {Global view of the origin of tropical disturbances and storms},
+  journal = {Mon. Wea. Rev.},
+  volume  = {96},
+  pages   = {669--700},
+  year    = {1968}
+}
+
+@article{Landsea1998,
+  author  = {Landsea, C.~W.},
+  title   = {Atlantic basin hurricanes: Indices of climatic changes},
+  journal = {Climatic Change},
+  volume  = {42},
+  pages   = {89--129},
+  year    = {1998}
+}
+
+@article{Halperin2013,
+  author  = {Halperin, D.~J. and Fuelberg, H.~E. and Hart, R.~E. and
+             Cossuth, J.~H. and Sura, P. and Pasch, R.~J.},
+  title   = {An evaluation of tropical cyclone genesis forecasts from global
+             numerical models},
+  journal = {Wea. Forecasting},
+  volume  = {28},
+  pages   = {1423--1445},
+  year    = {2013},
+  doi     = {10.1175/WAF-D-13-00008.1}
+}
+
+@article{hart2003cyclone,
+  author  = {Hart, R.~E.},
+  title   = {A cyclone phase space derived from thermal wind and thermal asymmetry},
+  journal = {Mon. Wea. Rev.},
+  volume  = {131},
+  pages   = {585--616},
+  year    = {2003}
+}
+
+%% NOTE Titley2019: MWR volume 128 corresponds to year 2000, not 2019.
+%% Key is kept as Titley2019 to match existing \cite{} calls but year/volume
+%% should be verified and the key updated before submission.
+@article{Titley2019,
+  author  = {Titley, D.~W. and Elsberry, R.~L.},
+  title   = {Large intensity changes in tropical cyclones: A climatology and case
+             studies for the western {North Pacific}},
+  journal = {Mon. Wea. Rev.},
+  volume  = {128},
+  pages   = {92--111},
+  year    = {2000}
+}
+
+@article{knaff2007improved,
+  author  = {Knaff, J.~A. and Zehr, R.~M.},
+  title   = {Reexamination of tropical cyclone pressure--wind relationships},
+  journal = {Wea. Forecasting},
+  volume  = {22},
+  pages   = {71--88},
+  year    = {2007}
+}
+
+@article{lorenz1969atmospheric,
+  author  = {Lorenz, E.~N.},
+  title   = {The predictability of a flow which possesses many scales of motion},
+  journal = {Tellus},
+  volume  = {21},
+  pages   = {289--307},
+  year    = {1969}
+}
+
+@article{heikenfeld2019tobac,
+  author  = {Heikenfeld, M. and Coauthors},
+  title   = {tobac 1.2: towards a flexible framework for tracking and analysis of
+             clouds in diverse datasets},
+  journal = {Geosci. Model Dev.},
+  volume  = {12},
+  pages   = {4551--4570},
+  year    = {2019}
+}

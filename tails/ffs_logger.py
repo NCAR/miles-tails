@@ -299,8 +299,22 @@ class FFSLogger:
     
     def _write_entry(self, entry: Dict):
         """Write entry to log file."""
+        import numpy as np
+
+        class _NumpyEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if isinstance(obj, np.integer):
+                    return int(obj)
+                if isinstance(obj, np.floating):
+                    return float(obj)
+                if isinstance(obj, np.bool_):
+                    return bool(obj)
+                if isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                return super().default(obj)
+
         with open(self.log_file, 'a') as f:
-            f.write(json.dumps(entry) + '\n')
+            f.write(json.dumps(entry, cls=_NumpyEncoder) + '\n')
     
     def build_genealogy_tree(self) -> Dict:
         """Build complete genealogy tree from log file."""

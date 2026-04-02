@@ -1,0 +1,98 @@
+#!/bin/bash
+#PBS -N ffs_trees
+#PBS -A NAML0001
+#PBS -q nvgpu
+#PBS -l select=1:ncpus=16:ngpus=1:mem=64GB
+#PBS -l walltime=01:00:00
+#PBS -j oe
+#PBS -o /glade/derecho/scratch/schreck/FFS/logs/ffs_trees.log
+
+# ============================================================
+# Regenerate FFS shooting tree figures for 3 case-study ICs.
+# Per-IC seed bounding boxes filter out spurious Gulf/off-track
+# storms so that only the relevant genesis region is shown.
+#
+# Bounding boxes (lon negative=W):
+#   Earl (09-02):   main Atlantic development area, exclude Gulf
+#   Active (09-09): open Atlantic, peak activity region
+#   Ian pre (09-22): Caribbean + western Atlantic (Ian's path)
+#
+# Submit: qsub submit_ffs_trees.pbs
+# ============================================================
+
+set -euo pipefail
+
+echo "=== FFS Tree Regeneration Job ==="
+echo "Date: $(date)"
+
+source ~/.bashrc 2>/dev/null || true
+conda activate credit-casper
+
+export OMP_NUM_THREADS=1
+
+APPS=/glade/work/schreck/repos/miles-tails/applications
+FFS_SCRATCH=/glade/derecho/scratch/schreck/FFS
+FFS_CONFIG=${FFS_SCRATCH}/ffs.yml
+RESULTS=${FFS_SCRATCH}/results_mar18
+PLOT_DIR=${RESULTS}/plots/ffs_trees
+
+mkdir -p ${PLOT_DIR}
+mkdir -p /glade/derecho/scratch/schreck/FFS/logs
+
+cd ${FFS_SCRATCH}
+
+# ── Earl (09-02): eastern/central Atlantic, exclude Gulf of Mexico
+#    Earl formed near 14°N, 55°W and moved NW. Exclude lon < -80 (Gulf).
+echo ""
+echo "=== Processing 2022-09-02T00Z (Earl) ==="
+python ${APPS}/plot_ffs_tree.py \
+    --ffs_config   ${FFS_CONFIG} \
+    --ic_dir       ${RESULTS}/2022-09-02T00Z \
+    --plot_dir     ${PLOT_DIR} \
+    --top_n        5 \
+    --scan_n       60 \
+    --min_spread   1.5 \
+    --workers      16 \
+    --seed_lat_min 8 \
+    --seed_lat_max 30 \
+    --seed_lon_min -80 \
+    --seed_lon_max -15
+
+# ── Active period (09-09): open Atlantic, peak-activity environment
+#    Fiona precursor; main development zone, exclude Gulf
+echo ""
+echo "=== Processing 2022-09-09T12Z (Active) ==="
+python ${APPS}/plot_ffs_tree.py \
+    --ffs_config   ${FFS_CONFIG} \
+    --ic_dir       ${RESULTS}/2022-09-09T12Z \
+    --plot_dir     ${PLOT_DIR} \
+    --top_n        5 \
+    --scan_n       60 \
+    --min_spread   1.5 \
+    --workers      16 \
+    --seed_lat_min 8 \
+    --seed_lat_max 30 \
+    --seed_lon_min -80 \
+    --seed_lon_max -15
+
+# ── Ian precursor (09-22): Caribbean + western Atlantic
+#    Ian was over the Caribbean on 09-22, entering Gulf later.
+#    Include Caribbean (lon down to -90) but restrict lat to tropics.
+echo ""
+echo "=== Processing 2022-09-22T00Z (Ian precursor) ==="
+python ${APPS}/plot_ffs_tree.py \
+    --ffs_config   ${FFS_CONFIG} \
+    --ic_dir       ${RESULTS}/2022-09-22T00Z \
+    --plot_dir     ${PLOT_DIR} \
+    --top_n        5 \
+    --scan_n       60 \
+    --min_spread   1.0 \
+    --workers      16 \
+    --seed_lat_min 8 \
+    --seed_lat_max 28 \
+    --seed_lon_min -90 \
+    --seed_lon_max -55
+
+echo ""
+echo "=== Done. Output in: ${PLOT_DIR} ==="
+ls -la ${PLOT_DIR}/*.png 2>/dev/null | wc -l && echo "PNGs generated"

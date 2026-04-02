@@ -1,20 +1,19 @@
 #!/usr/bin/env python
 """
-plot_reactive_trajectories.py — reactive trajectory tracks on the Atlantic map.
+Genesis cone plot — reactive trajectory tracks on the Atlantic map.
 
-For every reactive trajectory (λ₀ → state_B), loads each pkl in the
+For every reactive trajectory (λ0 → state_B), loads each pkl in the
 pathway chain, extracts feature_location (lat, lon) + MSLP, and plots
-the ensemble of tracks.
+the ensemble of tracks.  The spread of tracks at each interface crossing
+forms the cone.
 
 Parallelised at the IC level: one worker per IC directory.
-Interfaces and state_B are read from ffs.yml — no hardcoded pressures.
 
 Usage:
-    python plot_reactive_trajectories.py \
-        --ffs_config ffs.yml \
-        --ffs_csv    results/ffs_statistics_all_ics.csv \
-        --output_dir results \
-        --plot_dir   results/plots \
+    python plot_genesis_cone.py \
+        --ffs_csv    results_feb14/ffs_statistics_all_ics.csv \
+        --output_dir results_feb14 \
+        --plot_dir   results_feb14/plots \
         --workers    16
 """
 
@@ -29,16 +28,16 @@ import json
 import pickle
 import argparse
 import warnings
-import yaml
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+import matplotlib.cm as cm
 from matplotlib.gridspec import GridSpec
 from pathlib import Path
 from datetime import datetime, timedelta
-from multiprocessing import Pool, cpu_count
-from concurrent.futures import ThreadPoolExecutor
 from functools import partial
+from multiprocessing import Pool, cpu_count
 from tqdm import tqdm
 
 warnings.filterwarnings('ignore')
@@ -51,28 +50,18 @@ except ImportError:
     HAS_CARTOPY = False
     print('cartopy not found — falling back to plain lat/lon axes')
 
-# ── Module-level config — overwritten from ffs.yml in main() ──────────────────
-# These are placeholders; all code uses them after main() initialises them.
-INTERFACE_PRESSURES: list      = []
-N_IFACES:            int       = 0
-IFACE_COLORS:        object    = None   # np.ndarray after init
+# ── Constants ─────────────────────────────────────────────────────────────────
+
+INTERFACE_PRESSURES = [1000, 988, 980, 975, 970, 965]
+N_IFACES            = len(INTERFACE_PRESSURES)
+DT_HOURS            = 6.0
+
+# Color each interface level: yellow→orange→dark red (readable on blue ocean)
+IFACE_COLORS = plt.cm.YlOrRd(np.linspace(0.25, 0.95, N_IFACES))
 
 # Track line style
-TRACK_COLOR    = '#333333'
-LW_MIN, LW_MAX = 0.4, 3.5
-DT_HOURS       = 6.0
-
-
-def _init_from_config(ffs_config: dict):
-    """Set module-level interface constants from the loaded ffs.yml dict."""
-    global INTERFACE_PRESSURES, N_IFACES, IFACE_COLORS
-    ifaces  = ffs_config['interfaces'].copy()
-    state_B = float(ffs_config['state_B'])
-    if ifaces[-1] != state_B:
-        ifaces.append(state_B)
-    INTERFACE_PRESSURES = ifaces
-    N_IFACES            = len(ifaces)
-    IFACE_COLORS        = plt.cm.YlOrRd(np.linspace(0.25, 0.95, N_IFACES))
+TRACK_COLOR  = '#333333'   # dark charcoal — contrasts against blue ocean and warm dots
+LW_MIN, LW_MAX = 0.4, 3.5  # linewidth range: thin (few branches) → thick (many)
 
 
 # ── pkl helpers ───────────────────────────────────────────────────────────────
@@ -110,15 +99,11 @@ def load_ic_tracks(ic_dir: Path) -> list:
           'ic_time'  : str,
           'traj_id'  : int,
           'path_type': str,
-          'cluster'  : int,
           'points'   : [{'lat', 'lon', 'mslp', 'iface_idx', 'cal_time'}, ...]
-                        ordered λ₀ → state_B
+                        ordered λ0 → state_B
         }
     Points with missing feature_location are skipped; tracks with fewer
     than 2 valid points are dropped.
-
-    All pkls across every pathway are loaded in parallel (ThreadPoolExecutor)
-    to avoid hundreds of sequential disk reads.
     """
     json_path = ic_dir / 'reactive_trajectories' / 'reactive_trajectories.json'
     if not json_path.exists():
@@ -130,29 +115,10 @@ def load_ic_tracks(ic_dir: Path) -> list:
     except Exception:
         return []
 
-    ic_time   = data.get('ic_time', ic_dir.name)
-    raw_trajs = data.get('reactive_trajectories', [])
+    ic_time = data.get('ic_time', ic_dir.name)
+    tracks  = []
 
-    # ── Collect every (traj_idx, step_idx, config_name) we need to load ──────
-    load_items = []   # (traj_idx, step_idx, config_name)
-    for t_idx, traj in enumerate(raw_trajs):
-        for s_idx, config_name in enumerate(traj.get('pathway', [])):
-            load_items.append((t_idx, s_idx, config_name))
-
-    # ── Parallel pkl load (I/O-bound — threads are fine inside a subprocess) ─
-    def _load_one(item):
-        t_idx, s_idx, cname = item
-        return t_idx, s_idx, _load_pkl(_pkl_path(ic_dir, cname))
-
-    n_threads = min(32, max(1, len(load_items)))
-    loaded = {}   # (traj_idx, step_idx) -> cfg
-    with ThreadPoolExecutor(max_workers=n_threads) as ex:
-        for t_idx, s_idx, cfg in ex.map(_load_one, load_items):
-            loaded[(t_idx, s_idx)] = cfg
-
-    # ── Assemble tracks from pre-loaded cfgs ──────────────────────────────────
-    tracks = []
-    for t_idx, traj in enumerate(raw_trajs):
+    for traj in data.get('reactive_trajectories', []):
         pathway    = traj.get('pathway', [])
         path_len   = traj.get('pathway_length', len(pathway))
         final_mslp = traj.get('final_mslp', INTERFACE_PRESSURES[-1])
@@ -166,8 +132,9 @@ def load_ic_tracks(ic_dir: Path) -> list:
             path_type = 'partial'
 
         points = []
-        for s_idx in range(len(pathway)):
-            cfg = loaded.get((t_idx, s_idx))
+        for config_name in pathway:
+            pkl_path = _pkl_path(ic_dir, config_name)
+            cfg      = _load_pkl(pkl_path)
             if cfg is None:
                 continue
 
@@ -175,16 +142,14 @@ def load_ic_tracks(ic_dir: Path) -> list:
             if loc is None:
                 continue
 
+            # feature_location is (lat, lon)
             try:
                 lat, lon = float(loc[0]), float(loc[1])
             except (TypeError, IndexError):
                 continue
 
-            # Drop points south of 10°N and west of 45°W (spurious SA storms)
-            if lat < 10.0 and lon < -45.0:
-                continue
-
             iface_idx = getattr(cfg, 'interface_idx', -1)
+            # interface_idx == -1 means state_B
             if iface_idx == -1:
                 iface_idx = N_IFACES - 1
 
@@ -199,6 +164,7 @@ def load_ic_tracks(ic_dir: Path) -> list:
         if len(points) < 2:
             continue
 
+        # Sort by interface index so λ0 is first
         points.sort(key=lambda p: p['iface_idx'])
 
         tracks.append({
@@ -275,13 +241,14 @@ def _draw_heatmap_panel(ax, tracks):
     Right panel: cluster-weighted 2D crossing-density heatmap +
     per-interface transition flow arrows (λᵢ → λᵢ₊₁, direction-normalised).
 
-    Unlike a KDE approach, binned histograms preserve bimodal spatial
-    structure (Gulf-bound vs. Atlantic-seaboard-bound populations appear
-    as separate density peaks rather than one merged blob).
+    Unlike the KDE approach, binned histograms preserve bimodal spatial
+    structure — e.g. Gulf-bound vs. Atlantic-seaboard-bound populations
+    appear as separate density peaks rather than one merged blob.
 
     Arrows show direction of movement between consecutive interfaces,
     coloured by the originating interface, alpha weighted by cluster_size.
-    Arrow length is normalised to unit vectors — direction is the story.
+    Arrow length is normalised to unit vectors so direction is the story,
+    not magnitude (cluster_size is already encoded in dot size).
     """
     if not tracks:
         return
@@ -292,6 +259,7 @@ def _draw_heatmap_panel(ax, tracks):
     max_cluster = max(t['cluster'] for t in tracks)
 
     # ── Background: combined crossing-density heatmap (2° bins) ─────────────
+    # Coarser than the 1° data grid — reduces noise while preserving structure.
     BIN      = 2.0
     lon_bins = np.arange(-102,  -8, BIN)
     lat_bins = np.arange(   3,  69, BIN)
@@ -328,6 +296,8 @@ def _draw_heatmap_panel(ax, tracks):
                    zorder=6, **pkw)
 
     # ── Transition flow arrows: λᵢ → λᵢ₊₁, direction-normalised ────────────
+    # Unit vectors show which way storms tend to move — Gulf-bound (WNW) vs.
+    # Atlantic-seaboard-bound (NNE) populations become immediately distinct.
     for iface_idx in range(N_IFACES - 1):
         lons_s, lats_s, us, vs, wts = [], [], [], [], []
 
@@ -340,11 +310,11 @@ def _draw_heatmap_panel(ax, tracks):
             dlon = float(p1['lon'] - p0['lon'])
             dlat = float(p1['lat'] - p0['lat'])
             mag  = np.hypot(dlon, dlat)
-            if mag < 0.01:
+            if mag < 0.01:          # stationary — skip trivial arrows
                 continue
             lons_s.append(p0['lon'])
             lats_s.append(p0['lat'])
-            us.append(dlon / mag)
+            us.append(dlon / mag)   # unit vector — direction only
             vs.append(dlat / mag)
             wts.append(track['cluster'])
 
@@ -360,7 +330,8 @@ def _draw_heatmap_panel(ax, tracks):
             np.array(lons_s), np.array(lats_s),
             np.array(us),     np.array(vs),
             color=color, alpha=alpha,
-            scale=35, width=0.0025,
+            scale=35,        # increase to shorten arrows; decrease to lengthen
+            width=0.0025,
             headwidth=4, headlength=5, headaxislength=4,
             **qkw
         )
@@ -370,17 +341,14 @@ def _draw_heatmap_panel(ax, tracks):
 
 def plot_day(ic_time: str, tracks: list, plot_dir: Path):
     """
-    Side-by-side reactive trajectory plot for a single IC date.
+    Side-by-side cone plot for a single IC date.
 
     Left  — spaghetti tracks, linewidth ∝ cluster_size, dots colored by interface depth.
-    Right — cluster-weighted 2D histogram + transition flow arrows.
+    Right — cluster-weighted KDE contours per interface (solid=50%, dashed=90%).
     """
     from matplotlib.lines import Line2D
 
-    # Include hour to avoid 00Z/12Z filename collisions:
-    # '2022-08-21 00:00:00' → '2022-08-21T00Z'
-    _t       = str(ic_time)
-    date_str = _t[:10] + 'T' + _t[11:13] + 'Z'
+    date_str = str(ic_time).split(' ')[0][:10]
     n        = len(tracks)
 
     fig = plt.figure(figsize=(26, 10))
@@ -403,23 +371,18 @@ def plot_day(ic_time: str, tracks: list, plot_dir: Path):
         alpha = 0.30 + 0.40 * (lw - LW_MIN) / (LW_MAX - LW_MIN)
         plot_track(ax1, track['points'], color=TRACK_COLOR, alpha=alpha, lw=lw)
 
-    # Batch scatter calls by interface — one ax.scatter() per interface level
-    # instead of one per point, which is O(tracks × steps) and very slow.
-    from collections import defaultdict
-    pts_by_iface = defaultdict(list)
     for track in tracks:
         for pt in track['points']:
-            pts_by_iface[min(pt['iface_idx'], N_IFACES - 1)].append(pt)
-    kw = dict(s=18, alpha=0.85, zorder=5, edgecolors='k', linewidths=0.3)
-    for idx, pts in pts_by_iface.items():
-        lons = [p['lon'] for p in pts]
-        lats = [p['lat'] for p in pts]
-        if HAS_CARTOPY:
-            ax1.scatter(lons, lats, color=IFACE_COLORS[idx],
-                        transform=ccrs.PlateCarree(), **kw)
-        else:
-            ax1.scatter(lons, lats, color=IFACE_COLORS[idx], **kw)
+            idx = min(pt['iface_idx'], N_IFACES - 1)
+            c   = IFACE_COLORS[idx]
+            kw  = dict(s=18, alpha=0.85, zorder=5, edgecolors='k', linewidths=0.3)
+            if HAS_CARTOPY:
+                ax1.scatter(pt['lon'], pt['lat'], color=c,
+                            transform=ccrs.PlateCarree(), **kw)
+            else:
+                ax1.scatter(pt['lon'], pt['lat'], color=c, **kw)
 
+    # Branching count legend
     c_mid = int(np.sqrt(c_min * c_max))
     seen, lw_handles = set(), []
     for c, label in [(c_min, 'few'), (c_mid, 'moderate'), (c_max, 'many')]:
@@ -447,6 +410,7 @@ def plot_day(ic_time: str, tracks: list, plot_dir: Path):
                   f'2° histogram (cluster-weighted)  |  arrows: λᵢ→λᵢ₊₁ direction',
                   fontsize=12, fontweight='bold')
 
+    # ── Interface depth legend (right panel) ─────────────────────────────────
     iface_handles = [
         Line2D([0], [0], marker='o', color='w',
                markerfacecolor=IFACE_COLORS[i], markersize=8,
@@ -456,7 +420,7 @@ def plot_day(ic_time: str, tracks: list, plot_dir: Path):
     ]
     iface_handles += [
         Line2D([0], [0], marker='o', color='w', markerfacecolor='grey',
-               markersize=6, markeredgecolor='k', markeredgewidth=0.4,
+               markersize=6,  markeredgecolor='k', markeredgewidth=0.4,
                label='dot size ∝ cluster count'),
         Line2D([0], [0], color='grey', lw=0, marker=(3, 0, 0), markersize=9,
                label='→ transition direction'),
@@ -465,28 +429,10 @@ def plot_day(ic_time: str, tracks: list, plot_dir: Path):
                framealpha=0.9, title='Interface depth', title_fontsize=9)
 
     plt.tight_layout()
-    out = plot_dir / f'reactive_trajectories_{date_str}.png'
+    out = plot_dir / f'cone_{date_str}.png'
     plt.savefig(out, dpi=150, bbox_inches='tight')
     plt.close()
     return out
-
-
-# ── Combined parallel worker ──────────────────────────────────────────────────
-
-def _load_and_plot(args: tuple) -> list:
-    """
-    Single worker: load tracks for one IC then immediately render the figure.
-    Runs entirely inside the subprocess — matplotlib is process-safe.
-    Returns the list of tracks for summary stats (or [] on failure/skip).
-    """
-    ic_dir, rt_dir, skip_plots = args
-    tracks = load_ic_tracks(ic_dir)
-    if not tracks:
-        return []
-    if not skip_plots:
-        ic_time = tracks[0]['ic_time']
-        plot_day(ic_time, tracks, rt_dir)
-    return tracks
 
 
 # ── Summary ───────────────────────────────────────────────────────────────────
@@ -497,7 +443,7 @@ def print_summary(all_tracks):
         print('No tracks loaded.')
         return
     print(f'\n{"="*55}')
-    print(f'REACTIVE TRAJECTORY SUMMARY  ({n} trajectories)')
+    print(f'CONE TRACK SUMMARY  ({n} reactive trajectories)')
     print(f'{"="*55}')
     for pt in ['full', 'partial', 'direct_B']:
         cnt = sum(1 for t in all_tracks if t['path_type'] == pt)
@@ -509,67 +455,61 @@ def print_summary(all_tracks):
     print(f'\n  Lat range: {min(lats):.1f}°N – {max(lats):.1f}°N')
     print(f'  Lon range: {min(lons):.1f}°  – {max(lons):.1f}°')
 
+    # Points per trajectory
     n_pts = [len(t['points']) for t in all_tracks]
     print(f'  Points/track: mean={np.mean(n_pts):.1f}  '
           f'min={np.min(n_pts)}  max={np.max(n_pts)}')
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+# ── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Reactive trajectory tracks + density map from FFS output'
+        description='Genesis cone plot from reactive trajectory pkl files'
     )
-    parser.add_argument('--ffs_config', required=True,
-                        help='FFS config file (ffs.yml) — source of interfaces and state_B')
     parser.add_argument('--ffs_csv',    required=True,
-                        help='FFS statistics CSV (used for IC time_labels)')
+                        help='FFS statistics CSV (used for time_labels)')
     parser.add_argument('--output_dir', required=True,
                         help='FFS output directory containing IC subdirectories')
     parser.add_argument('--plot_dir',   default='./plots')
     parser.add_argument('--workers',    type=int, default=min(8, cpu_count()))
-    parser.add_argument('--no_plot',    action='store_true',
-                        help='Skip figure creation (load tracks and print summary only)')
     args = parser.parse_args()
-
-    # ── Load config and initialise interface constants ────────────────────────
-    with open(args.ffs_config) as f:
-        ffs_config = yaml.safe_load(f)
-    _init_from_config(ffs_config)
-    print(f'Interfaces: {INTERFACE_PRESSURES}  (N={N_IFACES})')
 
     plot_dir = Path(args.plot_dir)
     plot_dir.mkdir(parents=True, exist_ok=True)
 
-    df      = pd.read_csv(args.ffs_csv)
-    out_dir = Path(args.output_dir)
-    ic_dirs = [out_dir / tl for tl in df['time_label'].tolist()
-               if (out_dir / tl).exists()]
+    # Get IC directories from CSV time_labels
+    df        = pd.read_csv(args.ffs_csv)
+    out_dir   = Path(args.output_dir)
+    ic_dirs   = [out_dir / tl for tl in df['time_label'].tolist()
+                 if (out_dir / tl).exists()]
     print(f'Found {len(ic_dirs)} IC directories')
 
-    n_workers   = min(args.workers, len(ic_dirs))
-    skip_plots  = args.no_plot
-    worker_args = [(ic_dir, plot_dir, skip_plots) for ic_dir in ic_dirs]
+    cone_dir = plot_dir / 'cones'
+    cone_dir.mkdir(exist_ok=True)
 
-    verb = 'Loading tracks' if skip_plots else 'Loading + plotting'
-    print(f'{verb} with {n_workers} workers...')
+    # Load one IC, plot and save immediately — no waiting until the end
+    n_workers  = min(args.workers, len(ic_dirs))
+    all_tracks = []   # kept only for summary stats
+    n_saved    = 0
 
-    all_tracks = []
+    print(f'Loading and plotting with {n_workers} workers...')
     with Pool(processes=n_workers) as pool:
         for tracks in tqdm(
-            pool.imap_unordered(_load_and_plot, worker_args),
+            pool.imap_unordered(load_ic_tracks, ic_dirs),
             total=len(ic_dirs),
             desc='ICs',
             unit='IC',
             dynamic_ncols=True,
         ):
+            if not tracks:
+                continue
             all_tracks.extend(tracks)
+            ic_time = tracks[0]['ic_time']
+            plot_day(ic_time, tracks, cone_dir)
+            n_saved += 1
 
-    if skip_plots:
-        print('\n(plots skipped — --no_plot flag set)')
-    else:
-        n_saved = sum(1 for t in all_tracks if t)   # non-empty ICs
-        print(f'\n{len(ic_dirs)} ICs processed, plots saved to {plot_dir}/')
+    print(f'\n{n_saved} cone plots saved to {cone_dir}/')
     print_summary(all_tracks)
 
 

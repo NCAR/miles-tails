@@ -399,7 +399,7 @@ def main():
     n_ifaces = len(ifaces)
     print(f'Interfaces: {ifaces}  state_B={state_B}')
 
-    plot_dir = Path(args.plot_dir) / 'committor_maps'
+    plot_dir = Path(args.plot_dir)
     plot_dir.mkdir(parents=True, exist_ok=True)
 
     df      = pd.read_csv(args.ffs_csv)

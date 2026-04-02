@@ -27,6 +27,38 @@ from datetime import datetime
 from tails.ffs_logger import FFSLogger
 
 
+class _StubUnpickler(pickle.Unpickler):
+    """Fast unpickler that stubs out torch tensors so we skip loading large arrays."""
+    def find_class(self, module, name):
+        if 'torch' in module or name in ('Tensor', 'storage', 'LongStorage',
+                                          '_rebuild_tensor_v2', 'FloatStorage'):
+            return lambda *args, **kwargs: None
+        return super().find_class(module, name)
+
+
+def _load_stateB_location(pkl_path: Path):
+    """Return (lat, lon) of a stateB event without loading the full tensor."""
+    try:
+        with open(pkl_path, 'rb') as f:
+            obj = _StubUnpickler(f).load()
+        return getattr(obj, 'feature_location', None)
+    except Exception:
+        return None
+
+
+def _stateB_in_basin(config_name: str, stateB_dir: Path, basin: dict) -> bool:
+    """Return True if the stateB pkl's feature_location is within the basin."""
+    pkl = stateB_dir / f'{config_name}.pkl'
+    if not pkl.exists():
+        return True  # can't verify — don't exclude
+    loc = _load_stateB_location(pkl)
+    if loc is None:
+        return True
+    lat, lon = loc
+    return (basin['lat_min'] <= lat <= basin['lat_max'] and
+            basin['lon_min'] <= lon <= basin['lon_max'])
+
+
 def format_time_for_path(time_str: str) -> str:
     """Convert '2022-08-21 00:00:00' to '2022-08-21T00Z' format."""
     dt = datetime.strptime(time_str, '%Y-%m-%d %H:%M:%S')
@@ -69,35 +101,52 @@ def compute_flux_from_configs(flux_configs: list) -> dict:
     }
 
 
-def compute_flux_from_logs(entries: list) -> dict:
-    """Compute flux from flux generation log entries."""
+def compute_flux_from_logs(entries: list, stateB_dir: Path = None,
+                           basin: dict = None) -> dict:
+    """Compute flux from flux generation log entries.
+
+    If stateB_dir and basin are provided, only stateB events whose pkl
+    feature_location falls within the basin are counted toward the direct
+    formation rate (out-of-basin deepening events are physically spurious).
+    """
     total_crossings = 0
     total_timesteps = 0
     n_trajectories = 0
     direct_B_formations = 0
-    
+    direct_B_out_of_basin = 0
+
     for entry in entries:
         if entry.get('phase') != 'flux_generation':
             continue
-        
+
         n_trajectories += 1
         configs = entry.get('configs_saved', [])
         # Only count λ₀ crossings for flux rate (not stateB configs)
         total_crossings += sum(1 for c in configs if c.startswith('lambda0_'))
 
-        # Count B-events from configs_saved (not is_direct_B flag, which is wrong in old logs)
-        direct_B_formations += sum(1 for c in configs if c.startswith('stateB_'))
-        
+        # Count B-events; optionally filter to in-basin only
+        for c in configs:
+            if not c.startswith('stateB_'):
+                continue
+            if stateB_dir is not None and basin is not None:
+                if _stateB_in_basin(c, stateB_dir, basin):
+                    direct_B_formations += 1
+                else:
+                    direct_B_out_of_basin += 1
+            else:
+                direct_B_formations += 1
+
         total_timesteps += entry.get('num_timesteps', 0)
-    
+
     total_time_days = total_timesteps * 6.0 / 24.0
     flux = total_crossings / total_time_days if total_time_days > 0 else 0.0
     direct_rate = direct_B_formations / total_time_days if total_time_days > 0 else 0.0
-    
+
     return {
         'trajectories': n_trajectories,
         'crossings': total_crossings,
         'direct_B_formations': direct_B_formations,
+        'direct_B_out_of_basin': direct_B_out_of_basin,
         'total_timesteps': total_timesteps,
         'total_time_days': total_time_days,
         'flux': flux,
@@ -411,6 +460,7 @@ def save_statistics_to_csv(ic_time, time_label, flux_stats, stats, transition_pr
         'flux_trajectories': flux_stats['trajectories'],
         'flux_lambda0_crossings': flux_stats['crossings'],
         'flux_direct_B_formations': flux_stats['direct_B_formations'],
+        'flux_direct_B_out_of_basin': flux_stats.get('direct_B_out_of_basin', 0),
         'flux_total_timesteps': flux_stats['total_timesteps'],
         'flux_total_time_days': flux_stats['total_time_days'],
         'flux_rate_per_day': flux_stats['flux'],
@@ -484,8 +534,10 @@ def save_statistics_to_csv(ic_time, time_label, flux_stats, stats, transition_pr
 def main():
     parser = argparse.ArgumentParser(description='Analyze FFS logs')
     parser.add_argument('config_file', type=str, help='FFS config file (ffs.yml)')
-    parser.add_argument('--trace_all', action='store_true', 
+    parser.add_argument('--trace_all', action='store_true',
                        help='Trace all pathways to state B')
+    parser.add_argument('--no_plot', action='store_true',
+                       help='Skip pathway PNG figure generation (only write statistics CSV)')
     parser.add_argument('--target_interface', type=int, default=None,
                        help='Trace pathways to specific interface (e.g., 1 for λ₁, 2 for λ₂)')
     
@@ -499,6 +551,8 @@ def main():
     state_A = ffs_config['state_A']
     state_B = ffs_config['state_B']
     forecast_times = ffs_config['forecast_start_times']
+    basin = ffs_config.get('basin', {'lat_min': 10.0, 'lat_max': 45.0,
+                                      'lon_min': -98.0, 'lon_max': -20.0})
 
     interfaces = ffs_config['interfaces'].copy()
     if interfaces[-1] != state_B:
@@ -543,14 +597,16 @@ def main():
         entries = load_all_logs(logs_dir)
         logger.info(f"Loaded {len(entries)} total log entries")
         
-        flux_stats = compute_flux_from_logs(entries)
-        
+        stateB_dir = ic_dir / 'stateB'
+        flux_stats = compute_flux_from_logs(entries, stateB_dir=stateB_dir, basin=basin)
+
         logger.info("="*80)
         logger.info("FLUX GENERATION STATISTICS")
         logger.info("="*80)
         logger.info(f"Trajectories run: {flux_stats['trajectories']}")
         logger.info(f"λ₀ crossings: {flux_stats['crossings']}")
-        logger.info(f"Direct B formations: {flux_stats['direct_B_formations']}")
+        logger.info(f"Direct B formations (in-basin): {flux_stats['direct_B_formations']}")
+        logger.info(f"Direct B formations (out-of-basin, excluded): {flux_stats['direct_B_out_of_basin']}")
         logger.info(f"Total timesteps: {flux_stats['total_timesteps']}")
         logger.info(f"Total time: {flux_stats['total_time_days']:.1f} days")
         logger.info(f"FFS Flux Rate: Φ₀ = {flux_stats['flux']:.6f} crossings/day")
@@ -592,9 +648,10 @@ def main():
                         mslp = step['mslp_value']
                         logger.info(f"  {j}. {step_config} (λ_{lambda_label}, MSLP={mslp:.1f} hPa)")
 
-                fig_path = pathway_figs_dir / f"pathway_{i+1:03d}.png"
-                plot_pathway_images(pathway, ic_dir, fig_path, target_label='STATE B')
-                logger.info(f"  Pathway figure saved: {fig_path}")
+                if not args.no_plot:
+                    fig_path = pathway_figs_dir / f"pathway_{i+1:03d}.png"
+                    plot_pathway_images(pathway, ic_dir, fig_path, target_label='STATE B')
+                    logger.info(f"  Pathway figure saved: {fig_path}")
         
         if args.target_interface is not None:
             target_idx = args.target_interface
@@ -636,10 +693,11 @@ def main():
                             mslp = step.get('mslp_value', 0.0)
                             logger.info(f"  {j}. {step_config} (λ_{lambda_label}, MSLP={mslp:.1f} hPa)")
                     
-                    fig_path = pathway_figs_dir / f"pathway_{i+1:03d}.png"
-                    plot_pathway_images(pathway, ic_dir, fig_path, 
-                                      target_label=f'λ_{target_lambda_label}')
-                    logger.info(f"  Pathway figure saved: {fig_path}")
+                    if not args.no_plot:
+                        fig_path = pathway_figs_dir / f"pathway_{i+1:03d}.png"
+                        plot_pathway_images(pathway, ic_dir, fig_path,
+                                          target_label=f'λ_{target_lambda_label}')
+                        logger.info(f"  Pathway figure saved: {fig_path}")
         
         stats = compute_statistics(entries)
 
