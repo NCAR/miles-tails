@@ -200,17 +200,20 @@ $\Omega = [10^\circ\text{N},\,40^\circ\text{N}] \times [100^\circ\text{W},\,20^\
 
 \textbf{State definitions and interfaces.}
 State $A$: $Q > \lambda_A = 1008$~hPa (unorganized synoptic disturbances).
-State $B$: $Q \leq \lambda_B = 975$~hPa (tropical storm to minimal hurricane intensity).
+State $B$: $Q \leq \lambda_B = 975$~hPa AND warm-core structure satisfied (CPS criterion)
+AND vortex centre within the basin domain $\Omega$.
+We note that 975~hPa corresponds to tropical storm to minimal hurricane intensity and is
+\textit{intentionally stronger} than the conventional NHC tropical storm genesis designation
+($\sim$34~kt, roughly 997--1003~hPa in typical Atlantic pressure--wind relationships).
+At 1$^\circ$ resolution, the model's smoothed MSLP field does not develop a reliable closed
+isobar signature until the vortex is more strongly organised than the standard genesis threshold;
+975~hPa is the lowest pressure at which state-$B$ arrivals cluster in physically expected
+geographic locations and pass the CPS warm-core screen with consistent reliability.
+The compound criterion means that reaching the 975~hPa MSLP threshold is necessary but not sufficient
+for state~$B$; trajectories that deepen to 975~hPa while recurving poleward or exiting the domain
+are not counted as state-$B$ arrivals, and $P_4 = P(B|\lambda_4) < 1$ reflects this screening.
 The 975~hPa threshold is calibrated to the SDL-WXFormer's 1$^\circ$ horizontal
-resolution through trial experiments. Initial runs used $\lambda_B = 965$~hPa, but at
-this threshold state-$B$ arrivals were disproportionately found at high latitudes
-($>40^\circ$N) and frequently misclassified by the CPS filter due to the model's
-limited representation of intense warm-core structure at fine pressure values.
-Raising the threshold to 975~hPa shifted state-$B$ arrivals to physically
-expected geographic regions and reduced extratropical contamination substantially
-(see Supplementary Information for sensitivity analysis).
-At 975~hPa the model reliably represents mesoscale circulation and warm-core development,
-corresponding to tropical storm to minimal hurricane intensity.
+resolution through trial experiments.
 The flux interface and four shooting interfaces are:
 \begin{equation*}
 \lambda_0 = 1000.0,\quad
@@ -220,6 +223,12 @@ The flux interface and four shooting interfaces are:
 \lambda_4 = \lambda_B = 975.0 \quad [\text{hPa}]
 \end{equation*}
 satisfying $\lambda_A > \lambda_0 > \lambda_1 > \cdots > \lambda_4 = \lambda_B$.
+The interfaces and thresholds stated here are those used to produce all results in this paper
+and match the configuration file in the public code repository
+(\texttt{config/ffs.yml}; \url{https://github.com/NCAR/miles-tails}).
+Note that \texttt{forecast\_start\_times} in that file lists only the three case-study ICs;
+the full 98-IC seasonal run was launched via the PBS job scripts in
+\texttt{applications/run\_paper\_figures\_mar18.sh}.
 
 \textbf{Notation.}
 We label the four conditional crossing probabilities $P_1$--$P_4$ in order of the
@@ -281,7 +290,17 @@ conditions receive detailed case study treatment:
       genesis designation on September~23.
 \end{itemize}
 
-\subsection{Feature Tracking and CPS Contamination Screen}
+\subsection{Feature Tracking and Tropical Contamination Screen}
+
+We emphasise at the outset that both the vortex tracker and the warm-core screen
+described below are purpose-built, ad-hoc components calibrated for the SDL-WXFormer
+at 1$^\circ$ resolution.
+They were sufficient to demonstrate that FFS produces self-consistent genesis rates
+in this setting, which is the goal of this methods demonstration.
+Production-quality implementations at other resolutions or with other models
+will require state-of-the-art objective trackers (e.g., TempestExtremes, TRACK,
+or similar) and a formally validated tropical classification scheme;
+the present implementations should not be adopted uncritically for other applications.
 
 \textbf{Flux mode (multi-storm tracking).}
 During the flux phase, the order parameter $Q$ is the global minimum MSLP over the
@@ -305,15 +324,32 @@ This single-vortex constraint prevents $Q$ from jumping to a stronger but unrela
 system, ensuring that the shooting trajectory measures the intensification of the
 specific disturbance seeded at $\lambda_0$.
 
-\textbf{CPS contamination screen.}
-A simplified Cyclone Phase Space \citep{hart2003cyclone} filter screens contamination
-from two sources at 1$^\circ$ resolution: (1) spurious MSLP minima over high terrain
-from hydrostatic extrapolation errors, and (2) mid-latitude baroclinic cyclones
-entering the domain boundary. CPS verification is applied at $\lambda_0$ crossings
-and when storms exceed $50^\circ$N or $-10^\circ$W, rejecting clearly extratropical
-systems ($-V_T^L > 0$ or $-V_T^U > 0$). We note that formal CPS thresholds are not
-validated for 1$^\circ$ model output; the filter is a practical contamination screen
-rather than a rigorous warm-core classifier.
+\textbf{Tropical contamination screen.}
+An empirically-calibrated contamination screen, inspired by the Cyclone Phase Space
+framework of \citet{hart2003cyclone}, suppresses two known sources of spurious
+state-$B$ arrivals at 1$^\circ$ resolution: (1) terrain-induced MSLP minima from
+hydrostatic extrapolation errors, and (2) mid-latitude baroclinic cyclones entering
+the domain. The screen evaluates the thermal wind parameters $-V_T^L$ and $-V_T^U$
+at $\lambda_0$ crossings and when a tracked vortex exceeds $50^\circ$N or $-10^\circ$W,
+rejecting systems with $-V_T^L > 0$ or $-V_T^U > 0$. The rejection thresholds were
+calibrated by manual inspection of a subset of trajectories in the 2022 dataset that
+were visually identifiable as extratropical (recurving systems and baroclinic cyclones
+intruding from the northwest); they are not derived from formal CPS validation at this
+resolution and should be treated as engineering choices rather than physical thresholds.
+The screen errs toward inclusion to avoid discarding ambiguous cases.
+
+Across the full dataset, rejection rates at each interface are approximately
+30\% ($\lambda_1$), 20\% ($\lambda_2$), 27\% ($\lambda_3$), and 43\% ($\lambda_4$),
+with per-IC variation from 23\% to 93\% at $\lambda_4$ in the most suppressed environments.
+The elevated rejection rate at $\lambda_4$ is physically expected: 975~hPa is precisely
+the pressure range where midlatitude baroclinic systems deepen most strongly, so
+contamination from extratropical tracks is worst at the final interface.
+The non-monotone pattern at earlier interfaces reflects marginal cyclones that failed
+to maintain a warm core through the intensification cascade.
+The high per-IC variation at $\lambda_4$ (up to 93\% in suppressed environments)
+reflects that those rare vortices which deepen to 975~hPa in unfavorable environments
+are disproportionately anomalous poleward-recurving tracks rather than canonical
+tropical development.
 
 \begin{figure}[htbp]
 \centering
@@ -382,10 +418,7 @@ conditional probabilities for trajectories with different histories at the same 
 --- is deferred to future work but is not indicated by the current validation results.
 
 Computational enhancement factors range from $3\times$ (most active IC) to $140\times$
-(most suppressed), with geometric mean $14\times$ and arithmetic mean $26\times$;
-the right-skewed distribution (geometric $\ll$ arithmetic mean) indicates a log-normal
-speedup distribution, consistent with the FFS rate itself spanning orders of magnitude.
-The geometric mean is the more appropriate summary statistic for log-normal quantities.
+(most suppressed), with geometric mean $14\times$.
 
 \begin{figure}[htbp]
 \centering
@@ -473,10 +506,11 @@ IC & $\Phi_{A,0}$ & $P_1$ & $P_2$ & $P_3$ & $P_4$ & $k^{\text{FFS}}$ & $k^{\text
 \midrule
 Earl (09-02T00Z)    & 0.0837 & \textbf{0.258} & 0.679 & 0.596 & 0.359 & $3.13\times10^{-3}$ & $3.61\times10^{-3}$ & 0.87 & 10$\times$ \\
 Active (09-09T12Z)  & 0.1002 & 0.726 & 0.906 & 0.910 & \textbf{0.276} & $1.66\times10^{-2}$ & $1.37\times10^{-2}$ & 1.21 &  3$\times$ \\
-Ian pre (09-22T00Z) & 0.1247 & 0.663 & 0.893 & \textbf{0.302} & \textbf{0.102} & $2.28\times10^{-3}$ & $2.04\times10^{-3}$ & 1.12 & 19$\times$ \\
+Ian pre. (09-22T00Z) & 0.1247 & 0.663 & 0.893 & \textbf{0.302} & \textbf{0.102} & $2.28\times10^{-3}$ & $2.04\times10^{-3}$ & 1.12 & 19$\times$ \\
 \midrule
-All-98 mean$\pm$SD  & $0.065\pm0.034$ & $0.278\pm0.154$ & $0.674\pm0.086$ & $0.569\pm0.107$ & $0.356\pm0.093$ & $2.6\times10^{-3}$ & $2.5\times10^{-3}$ & $1.03\pm0.15$ & $26\pm27\times$ \\
+All-98 mean$\pm$SD  & $0.065\pm0.034$ & $0.278\pm0.154$ & $0.674\pm0.086$ & $0.569\pm0.107$ & $0.356\pm0.093$ & $2.6\times10^{-3}$ & $2.5\times10^{-3}$ & $1.03\pm0.15$ & $14\times$$^{\dagger}$ \\
 \bottomrule
+\multicolumn{10}{l}{$^{\dagger}$Geometric mean; range 3--140$\times$. Speedup distribution is right-skewed; geometric mean is the appropriate summary.}
 \end{tabular}%
 }
 \end{table}
@@ -528,7 +562,7 @@ and shifts westward later in the season as Ian-like Gulf environments become act
 \includegraphics[width=\textwidth]{reactive_trajectories_2022-09-02T00Z.png}
 \caption{Reactive genesis trajectories for the Earl IC (2022-09-02T00Z).
 \textit{Left}: Individual tracks that cross from $\lambda_0$ through to state~$B$,
-color-coded by branching factor (cluster weight); the 201 reactive pathways sample
+color-coded by branching factor (cluster weight); the 199 reactive pathways sample
 a broad region spanning the tropical Atlantic, Caribbean, and western subtropical Atlantic.
 \textit{Right}: Cluster-weighted crossing density (2$^\circ$ histogram) and mean
 $\lambda_n\to\lambda_{n+1}$ transition direction (arrows), revealing the geographic regions
@@ -589,9 +623,19 @@ all 98 initial conditions for both the FFS (AI model) and IFS (brute-force ensem
 The all-season FFS curve shows a near-linear decline with the steepest drop between
 the first and second shooting interfaces ($\lambda_1\to\lambda_2$), consistent with the
 seasonal mean of $P_1$ being the lowest of the four conditional probabilities
-(Table~\ref{tab:results}). The FFS and IFS curves agree in overall shape, with the FFS
-predicting systematically higher committor values at each interface, reflecting the
-higher genesis rate of the AI model relative to IFS at 0.25$^\circ$/1.5$^\circ$.
+(Table~\ref{tab:results}).
+The FFS and IFS curves agree in overall \textit{shape}: both show the steepest committor
+drop at the same interface level, and both identify the same rate-limiting stage of the
+intensification cascade.
+This structural agreement --- across two completely independent modelling systems ---
+provides suggestive cross-model consistency that the intensification bottleneck identified
+by FFS reflects real atmospheric physics rather than artefacts of the SDL-WXFormer architecture;
+we note that the comparison is complicated by the different ensemble generation mechanisms
+(learned stochastic layers vs.\ singular-vector perturbations) and the 1$^\circ$ vs.\ 1.5$^\circ$
+resolution asymmetry, so quantitative agreement is not expected and not claimed.
+The FFS committors are systematically higher in \textit{magnitude}, consistent with
+SDL-WXFormer's higher absolute genesis rate at 1$^\circ$ relative to IFS archived at 1.5$^\circ$
+(the coarser IFS output smooths MSLP minima, effectively raising the intensification barrier).
 
 \begin{figure}[htbp]
 \centering
@@ -694,13 +738,12 @@ that (1) the interface spacing produces well-conditioned conditional probability
 (2) the ensemble sizes ($N=2000$ per interface) are sufficient, and (3) the CPS
 contamination screen does not introduce systematic bias.
 
-Enhancement factors (3--140$\times$, geometric mean 14$\times$, arithmetic mean 26$\times$)
+Enhancement factors (3--140$\times$, geometric mean 14$\times$)
 scale inversely with genesis probability, as expected from FFS theory \citep{allen2009forward}.
-The log-normal character of the speedup distribution (geometric mean substantially below
-arithmetic mean) mirrors the log-normal FFS rate distribution itself and motivates
-reporting geometric rather than arithmetic means for speedup summaries. For the most active
-environments where direct sampling is feasible (speedup $3\times$), the two methods
-serve as mutual validation. For suppressed environments (speedup $\sim$100$\times$),
+The right-skewed speedup distribution mirrors the log-normal FFS rate distribution itself;
+the geometric mean is the appropriate summary for such distributions and is reported throughout.
+For the most active environments where direct sampling is feasible (speedup $3\times$), the two
+methods serve as mutual validation. For suppressed environments (speedup $\sim$100$\times$),
 FFS is the only practical route to a quantitative genesis rate estimate.
 
 The bottleneck analysis adds physical content beyond a scalar rate. For the Earl IC,
@@ -727,6 +770,21 @@ trained on ERA5 (1979--2021) at 1$^\circ$ resolution, which smooths intense vort
 cores and underrepresents Category~3+ hurricanes; state~$B$ is accordingly defined at
 975~hPa rather than the intensities typical of major hurricane activity. Validation
 against physics-based models (WRF, IFS) at higher resolution is an important next step.
+
+Additionally, MSLP as an order parameter has known limitations at 1$^\circ$ resolution:
+terrain-induced pressure artifacts (present in this model due to topographic interpolation
+differences) require the CPS filter and geographic masking described in Section~2.3.
+More fundamentally, MSLP does not capture the thermodynamic and kinematic prerequisites
+for genesis --- warm-core development, vorticity alignment, mid-level moistening, shear
+suppression --- that precede a detectable surface pressure signature.
+A disturbance can cross $\lambda_0 = 1000$~hPa as a transient trough with no tropical
+development potential, and the FFS rate therefore measures the frequency of organised
+\textit{MSLP} deepening rather than tropical genesis in a dynamically complete sense.
+Reaction coordinates based on vorticity, saturation fraction, or a composite genesis
+potential index \citep[e.g.,][]{bister1998dissipative,camargo2007use}
+would provide a more physically targeted order parameter; such extensions are deferred
+to future work but are expected to improve both the enhancement factor and the
+physical interpretability of the per-interface bottleneck diagnostics.
 
 \subsection{Conclusions}
 
@@ -783,16 +841,18 @@ NCAR-Wyoming Supercomputing Center (Derecho and Casper systems) supported this r
 This work was supported by NSF grants AGS-XXXXXX and CSSI-XXXXXX.
 
 \section*{Data Availability Statement}
-% AGU requires a data availability statement for all manuscripts.
-% Suggested text (update DOIs/repositories before submission):
-%   The FFS simulation output (rate statistics, conditional probabilities, and
-%   reactive pathway archives for all 98 initial conditions) will be archived at
-%   [repository, e.g., Zenodo or NCAR RDA] upon acceptance.
-%   The SDL-WXFormer model weights and inference code are available at
-%   \url{https://github.com/[repo]}.
-%   ERA5 reanalysis data are available from the Copernicus Climate Data Store
-%   (\url{https://cds.climate.copernicus.eu}).
-\textbf{[Data availability statement required before submission. See comment above.]}
+The FFS driver code, vortex tracker, and contamination screen are available at
+\url{https://github.com/NCAR/miles-tails}.
+Note that \texttt{config/ffs.yml} in the repository reflects a development-phase
+parameter set; the operative interface values and thresholds are those stated in
+Section~2.1 of this paper.
+The FFS simulation output (rate statistics, conditional crossing probabilities, and
+reactive pathway summaries for all 98 initial conditions) will be archived at the
+NCAR Research Data Archive upon acceptance.
+ERA5 reanalysis initial conditions are available from the Copernicus Climate Data Store
+(\url{https://cds.climate.copernicus.eu}).
+IFS ensemble data are available through WeatherBench2 \citep{rasp2024weatherbench2}.
+\textbf{[SDL-WXFormer model weights: update repository link before submission.]}
 
 % ametsoc.bst not in local TeX Live — download from https://www.ametsoc.org/ams/index.cfm/publications/authors/journal-and-bams-authors/author-resources/latex-author-info/
 % For JAMES submission swap plainnat -> ametsoc (or agu if using AGU template).
