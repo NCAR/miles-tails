@@ -263,7 +263,7 @@ def plot_conditional_prob_distributions(df: pd.DataFrame, plot_dir: Path) -> Non
                         r'$P_4$'+'\n'+r'$\lambda_3{\to}\lambda_B$'],
                        fontsize=10)
     ax.set_ylabel('Conditional crossing probability', fontsize=11)
-    ax.set_ylim(-0.03, 1.12)
+    ax.set_ylim(-0.03, 1.08)
     ax.set_title('Conditional Probability Distributions Across All 98 ICs\n'
                  'Violin = full distribution; box = quartiles; '
                  'markers = case studies', fontsize=10)
@@ -274,7 +274,7 @@ def plot_conditional_prob_distributions(df: pd.DataFrame, plot_dir: Path) -> Non
     for i, (pos, col) in enumerate(zip(positions, P_COLS)):
         m = df[col].mean()
         s = df[col].std()
-        ax.text(pos, 1.04, f'{m:.2f}±{s:.2f}',
+        ax.text(pos, 0.97, f'{m:.2f}±{s:.2f}',
                 ha='center', va='bottom', fontsize=10, color='#333')
 
     plt.tight_layout()

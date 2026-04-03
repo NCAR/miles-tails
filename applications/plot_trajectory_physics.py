@@ -117,7 +117,7 @@ def _setup_atlantic_ax(ax):
 
 def _draw_track_panel(ax, all_steps, up_to_idx):
     """
-    Draw an Atlantic basin map for one column.
+    Draw a zoomed map for one column, centred on the storm track.
     - Full future track shown as light grey dashed line for context.
     - Track from step 0 to up_to_idx drawn as solid colored line.
     - Current step (up_to_idx) highlighted with a large marker.
@@ -132,7 +132,30 @@ def _draw_track_panel(ax, all_steps, up_to_idx):
     cmap   = plt.get_cmap('plasma_r', len(all_steps))
     colors = [cmap(i) for i in range(len(all_steps))]
 
-    _setup_atlantic_ax(ax)
+    # Compute zoomed extent around the track, capped at 60°W on the east
+    pad = 5
+    lon_min = max(-100, min(all_lons) - pad)
+    lon_max = min(-60,  max(all_lons) + pad)
+    lat_min = max(5,    min(all_lats) - pad)
+    lat_max = min(65,   max(all_lats) + pad)
+
+    if HAS_CARTOPY:
+        transform = ccrs.PlateCarree()
+        ax.set_extent([lon_min, lon_max, lat_min, lat_max], crs=transform)
+        ax.add_feature(cfeature.LAND.with_scale('50m'),
+                       facecolor='#e8e8e8', zorder=2)
+        ax.add_feature(cfeature.OCEAN.with_scale('50m'),
+                       facecolor='#d0e8f5', zorder=1)
+        ax.add_feature(cfeature.COASTLINE.with_scale('50m'),
+                       linewidth=0.6, zorder=3)
+        ax.add_feature(cfeature.STATES.with_scale('50m'),
+                       linewidth=0.3, alpha=0.4, zorder=3)
+        ax.gridlines(draw_labels=False, linewidth=0.4, alpha=0.3,
+                     linestyle='--', zorder=4)
+    else:
+        ax.set_xlim(lon_min, lon_max)
+        ax.set_ylim(lat_min, lat_max)
+        ax.grid(True, alpha=0.3)
 
     kw = dict(transform=ccrs.PlateCarree()) if HAS_CARTOPY else {}
 

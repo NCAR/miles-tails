@@ -596,9 +596,9 @@ northwestward into the Gulf of Mexico, directly anticipating Ian's observed path
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.32\textwidth]{ffs_tree_rank05_2022-09-02T00Z_lambda0_config_0175_JR.png}\hfill
-\includegraphics[width=0.32\textwidth]{ffs_tree_rank04_2022-09-09T12Z_lambda0_config_0545_MZ.png}\hfill
-\includegraphics[width=0.32\textwidth]{ffs_tree_rank02_2022-09-22T00Z_lambda0_config_0917_OV.png}
+\includegraphics[height=5cm]{ffs_tree_rank05_2022-09-02T00Z_lambda0_config_0175_JR.png}\hfill
+\includegraphics[height=5cm]{ffs_tree_rank04_2022-09-09T12Z_lambda0_config_0545_MZ.png}\hfill
+\includegraphics[height=5cm]{ffs_tree_rank02_2022-09-22T00Z_lambda0_config_0917_OV.png}
 \caption{FFS shooting trees for the three case-study ICs (initialisation dates shown;
 each simulation runs 15 days forward, so each node represents a different future
 lead time within that window, not the IC date itself).
@@ -686,8 +686,9 @@ and not included in the genesis rate calculation.}
 
 \subsection{Storm-Centred Physics Composites}
 
-Figure~\ref{fig:composites} shows storm-centred composites of vorticity, relative humidity,
-and warm-core anomaly, composited across all reactive pathways for each case-study IC.
+Figures~\ref{fig:composites_earl}--\ref{fig:composites_ian} show storm-centred composites
+of vorticity, relative humidity, and warm-core anomaly, composited across all reactive
+pathways for each case-study IC.
 By averaging over all configurations that successfully reach state~$B$, these composites
 reveal the mean thermodynamic and kinematic environment that supports genesis, smoothing
 out pathway-to-pathway variability to expose the underlying physical signal.
@@ -704,24 +705,36 @@ to the Fiona and Ian composites, directly reflecting the lower $P_1$ value for E
 (Table~\ref{tab:results}) and confirming that the conditional probability bottleneck
 has a physically interpretable composite signature.
 
-\begin{figure}[p]
+\begin{figure}[htbp]
 \centering
-\includegraphics[width=0.58\textwidth]{2022-09-02T00Z_composites.png}\\[1pt]
-\includegraphics[width=0.58\textwidth]{2022-09-09T12Z_composites.png}\\[1pt]
-\includegraphics[width=0.58\textwidth]{2022-09-22T00Z_composites.png}
-\caption{Storm-centred physics composites along reactive pathways for each case-study IC.
-\textit{Top}: Earl IC (2022-09-02T00Z).
-\textit{Middle}: Fiona precursor IC (2022-09-09T12Z).
-\textit{Bottom}: Ian precursor IC (2022-09-22T00Z).
-Within each panel, columns show interfaces $\lambda_0$ through state~$B$; sample sizes
+\includegraphics[width=\textwidth]{2022-09-02T00Z_composites.png}
+\caption{Storm-centred physics composites along reactive pathways for the Earl IC
+(2022-09-02T00Z). Columns show interfaces $\lambda_0$ through state~$B$; sample sizes
 $n$ in each column header. Rows show: (1) 850-hPa relative vorticity $\zeta_{850}$
 ($10^{-5}$~s$^{-1}$); (2) 700-hPa relative humidity RH$_{700}$ (\%);
 (3) 500-hPa warm-core anomaly $T'_{500}$ (K).
-The Earl composites show weaker vorticity and warm-core development at $\lambda_1$
-relative to the Fiona and Ian composites, consistent with Earl's lower $P_1$ value
-and the identification of initial organisation as the rate-limiting bottleneck for
-that environment.}
-\label{fig:composites}
+The weaker vorticity and warm-core organisation at $\lambda_1$ reflects Earl's
+lower $P_1$ value and identifies initial organisation as the rate-limiting bottleneck.}
+\label{fig:composites_earl}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{2022-09-09T12Z_composites.png}
+\caption{As in Fig.~\ref{fig:composites_earl} but for the Fiona precursor IC
+(2022-09-09T12Z). Stronger vorticity and warm-core development at early interfaces
+compared to Earl reflects the more favourable large-scale environment and higher $P_1$.}
+\label{fig:composites_fiona}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{2022-09-22T00Z_composites.png}
+\caption{As in Fig.~\ref{fig:composites_earl} but for the Ian precursor IC
+(2022-09-22T00Z). The $T'_{500}$ amplitude at state~$B$ is comparable across all three
+ICs despite their differing genesis rates, suggesting a physically similar final
+intensification pathway once the vortex reaches the near-hurricane threshold.}
+\label{fig:composites_ian}
 \end{figure}
 
 \section{Discussion and Conclusions}
