@@ -25,6 +25,7 @@
 \usepackage{setspace}
 \onehalfspacing
 \usepackage{lineno}
+\usepackage{xcolor}
 %% ---- End placeholder ----
 
 \title{Forward Flux Sampling for Tropical Cyclogenesis in a Neural Weather Emulator}
@@ -86,7 +87,7 @@ Applied to 98 Atlantic basin initial conditions spanning August~21 -- October~8,
 FFS resolves genesis rates spanning nearly three orders of magnitude
 ($2.6\times10^{-5}$ to $1.7\times10^{-2}$ events~day$^{-1}$),
 capturing a clear seasonal cycle consistent with observed 2022 Atlantic activity.
-Internal validation --- comparing FFS rates to independent direct-sampling rates from the
+A self-consistency check --- comparing FFS rates to independent direct-sampling rates from the
 same flux trajectories --- yields a mean ratio of $1.03 \pm 0.15$ (range 0.71--1.52)
 across all 98 initial conditions, confirming self-consistent implementation of the
 conditional probability factorization within this model.
@@ -212,6 +213,27 @@ before returning to $A$. The order parameter $Q(\mathbf{x})$ is the minimum
 sea-level pressure (MSLP) within the Atlantic basin domain
 $\Omega = [10^\circ\text{N},\,40^\circ\text{N}] \times [100^\circ\text{W},\,20^\circ\text{W}]$.
 
+\textbf{Order parameter justification.}
+MSLP is the community-standard metric for tropical cyclone intensity and is used
+operationally by NHC, JTWC, and all major forecast centers to define genesis and
+track intensity throughout a storm's lifecycle.
+It has well-understood properties at 1$^\circ$ resolution (see state-$B$ threshold
+discussion below), and is robustly trackable without requiring multi-variable composites
+that would introduce additional calibration uncertainty.
+We acknowledge that MSLP is a downstream integrator of the thermodynamic and kinematic
+conditions that enable genesis, rather than a direct measure of those precursors.
+However, for the purpose of defining the FFS interfaces and measuring crossing probabilities,
+MSLP's role as a monotone descriptor of vortex organization is well suited: the seasonal
+cycle resolved by the FFS rates (Figure~\ref{fig:rates}) is physically coherent, and the
+geographic distribution of state-$B$ arrivals (Figure~\ref{fig:stateb_geo}) clusters in
+the observed Atlantic main development region.
+Future implementations could extend the order parameter to incorporate low-level vorticity,
+mid-tropospheric moisture, or a composite genesis potential index
+\citep[e.g.,][]{bister1998dissipative,camargo2007use};
+such extensions are expected to sharpen the physical interpretability of
+per-interface bottleneck diagnostics but are not required to demonstrate that FFS
+produces internally consistent rate estimates, which is the goal of this paper.
+
 \textbf{State definitions and interfaces.}
 State $A$: $Q > \lambda_A = 1008$~hPa (unorganized synoptic disturbances).
 State $B$: $Q \leq \lambda_B = 975$~hPa AND warm-core structure satisfied (CPS criterion)
@@ -271,7 +293,7 @@ $\lambda_0$ crossings (requiring return to state $A$ between consecutive crossin
 accumulated to $N_{\text{cross}} = 2000$ per initial condition, yielding Poisson
 uncertainty $\sigma_\Phi/\Phi \approx 2.2\%$ --- well below across-IC variability.
 State-$B$ arrivals during flux generation provide an independent direct-sampling rate
-$k^{\text{direct}} = N_{\text{direct}}/T_{\text{total}}$ that serves as internal validation.
+$k^{\text{direct}} = N_{\text{direct}}/T_{\text{total}}$ that serves as a self-consistency check.
 
 \textbf{Shooting.}
 Configurations saved at $\lambda_0$ seed shooting trajectories toward each successive
@@ -380,7 +402,7 @@ $P(\lambda_{i+1}|\lambda_i)$. The genesis rate is $k = \Phi_{A,0}\prod_i P(\lamb
 
 \section{Results}
 
-\subsection{Seasonal Genesis Rates and Internal Validation}
+\subsection{Seasonal Genesis Rates and Self-Consistency Check}
 
 Figure~\ref{fig:rates} shows FFS genesis rates across all 98 initial conditions.
 The full seasonal cycle spans nearly three orders of magnitude,
@@ -398,7 +420,7 @@ The IFS figures confirm that strong MSLP deepening occurs in the model at a
 plausible frequency; quantitative rate comparisons between the two systems
 are deferred to future work with matched configurations.
 
-The primary internal validation is the agreement between $k^{\text{FFS}}$ and the
+The primary self-consistency check is the agreement between $k^{\text{FFS}}$ and the
 independent direct-sampling rate $k^{\text{direct}}$ (Figure~\ref{fig:rate_scatter}).
 These estimates are derived from entirely separate components of the same simulation:
 $k^{\text{FFS}}$ is a product of flux and shooting probabilities, while $k^{\text{direct}}$
@@ -413,23 +435,49 @@ Critically, this agreement holds across three orders of magnitude of genesis pro
 which would be expected only if (1) the interface spacing produces well-conditioned
 probability estimates, (2) the ensemble sizes are adequate, and (3) the CPS screen
 does not introduce systematic bias.
-We interpret this agreement as self-consistency validation within the SDL-WXFormer
-framework; it does not constitute verification against observed climatology.
+We interpret this agreement as confirming the correct implementation of the conditional
+probability factorization within the SDL-WXFormer framework.
+It is important to note what this check does and does not establish.
+It confirms that the FFS bookkeeping arithmetic is internally consistent: the product
+$\Phi_{A,0}\prod P_i$ recovers the same rate that direct state-$B$ counting yields.
+It does \emph{not} constitute verification against observed climatology, nor does it
+validate the Markov assumption (see below), nor does it guarantee that the absolute
+rate values are unbiased with respect to the real atmosphere.
 
 \textbf{Markovianity.}
 FFS requires Markovian dynamics: a trajectory's future behaviour must depend only
 on its current state, not on its history prior to the most recent interface crossing.
-We test this implicitly through the self-consistency validation: if significant
+We test this implicitly through the self-consistency check: if significant
 memory effects were present across interfaces, the FFS product $\Phi_{A,0}\prod P_i$
 would systematically over- or under-estimate $k^{\text{direct}}$ (which contains no
 interface-level conditioning). The near-unity ratio across 98 ICs constitutes an
-empirical trajectory-level test — the most direct available within this framework.
+empirical trajectory-level test --- the most direct available within this framework.
 We note that the observed anti-correlation between $P_1$ and $P_4$ across ICs
 (environments favorable for initial organisation tend to have suppressed final-stage
 probabilities) reflects \textit{cross-IC} atmospheric variability, not within-trajectory
-memory, and does not violate Markovianity. A more rigorous test --- comparing
-conditional probabilities for trajectories with different histories at the same interface
---- is deferred to future work but is not indicated by the current validation results.
+memory, and does not violate Markovianity.
+It is important to be precise about the limits of this implicit test.
+The self-consistency check can detect Markov violations that produce
+\emph{systematic} bias in the factorized rate relative to the direct count ---
+for example, if conditioning on a particular interface level consistently selects
+trajectories with anomalous histories that cause the product $\prod P_i$ to deviate
+from the unconditional rate.
+What the self-consistency check cannot detect is a Markov violation that biases
+$k^{\text{FFS}}$ and $k^{\text{direct}}$ \emph{in the same direction}: if the SDL-WXFormer's
+stochastic layers produce trajectories with correlated memory across interfaces
+(e.g., a persistent large-scale environment that simultaneously makes all $P_i$
+easier to cross), both estimates would be inflated together and their ratio would
+remain near unity while the absolute rate is wrong.
+Such a scenario would require an explicit committor analysis --- checking whether
+$P(B|\lambda_i)$ is a function of $Q$ alone, independent of trajectory history ---
+which is beyond the scope of the present methods demonstration.
+The physical plausibility of approximate Markovianity in this setting rests on the
+observation that the SDL-WXFormer's stochastic layers generate independent noise
+at each 6-hour timestep, so the primary source of memory is the resolved atmospheric
+state itself (which is captured in the model's state vector).
+A more rigorous test --- comparing conditional probabilities for trajectories with
+different histories at the same interface --- is deferred to future work but is not
+indicated by the current results.
 
 Computational enhancement factors range from $3\times$ (most active IC) to $140\times$
 (most suppressed), with geometric mean $14\times$.
@@ -812,7 +860,7 @@ physical interpretability of the per-interface bottleneck diagnostics.
 
 Forward Flux Sampling resolves Atlantic tropical cyclogenesis rates spanning three orders
 of magnitude from 98 atmospheric initial conditions in a fast neural weather emulator,
-with internal validation confirming FFS and direct-sampling rates agree within 3\%.
+with a self-consistency check confirming FFS and direct-sampling rates agree within 3\%.
 Computational enhancement of 3--140$\times$ (geometric mean $14\times$) makes FFS
 practical across the full range of synoptic environments. Physically, the method reveals
 that the rate-limiting step in genesis varies by regime: initial tropical organization
