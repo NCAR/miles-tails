@@ -156,15 +156,21 @@ def plot_tree(l0_name, rank, nodes, edges, loc_map, ifaces, n_ifaces,
     cmap   = plt.cm.YlOrRd
     colors = [cmap(0.15 + 0.8 * i / max(n_ifaces - 1, 1)) for i in range(n_ifaces)]
 
-    proj = ccrs.PlateCarree()
-    fig, ax = plt.subplots(figsize=(12, 8), subplot_kw=dict(projection=proj))
+    clon = (extent[0] + extent[1]) / 2
+    clat = (extent[2] + extent[3]) / 2
+    proj = ccrs.LambertConformal(central_longitude=clon, central_latitude=clat,
+                                  standard_parallels=(25, 50))
+    fig, ax = plt.subplots(figsize=(7, 6), subplot_kw=dict(projection=proj))
     ax.set_extent(extent, crs=ccrs.PlateCarree())
-    ax.add_feature(cfeature.LAND,      facecolor='#e8e4d9', zorder=0)
-    ax.add_feature(cfeature.OCEAN,     facecolor='#c9dff0', zorder=0)
-    ax.add_feature(cfeature.COASTLINE, linewidth=0.6, edgecolor='#555', zorder=1)
-    ax.add_feature(cfeature.BORDERS,   linewidth=0.3, edgecolor='#888', zorder=1)
-    ax.gridlines(draw_labels=True, linewidth=0.4, color='gray',
-                 alpha=0.5, linestyle='--', zorder=1)
+    ax.add_feature(cfeature.LAND.with_scale('50m'),      facecolor='#e8e4d9', zorder=0)
+    ax.add_feature(cfeature.OCEAN.with_scale('50m'),     facecolor='#c9dff0', zorder=0)
+    ax.add_feature(cfeature.COASTLINE.with_scale('50m'), linewidth=0.6, edgecolor='#555', zorder=1)
+    ax.add_feature(cfeature.BORDERS.with_scale('50m'),   linewidth=0.3, edgecolor='#888', zorder=1)
+    ax.add_feature(cfeature.STATES.with_scale('50m'),    linewidth=0.2, edgecolor='#aaa', zorder=1)
+    gl = ax.gridlines(draw_labels=True, linewidth=0.4, color='gray',
+                      alpha=0.5, linestyle='--', zorder=1)
+    gl.top_labels = False
+    gl.right_labels = False
 
     # Count how many times each node appears as a parent (branching weight)
     child_count = defaultdict(int)
