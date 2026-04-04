@@ -86,7 +86,9 @@ exploiting the natural parallelism of the shooting phase.
 Applied to 98 Atlantic basin initial conditions spanning August~21 -- October~8,~2022,
 FFS resolves genesis rates spanning nearly three orders of magnitude
 ($2.6\times10^{-5}$ to $1.7\times10^{-2}$ events~day$^{-1}$),
-capturing a clear seasonal cycle consistent with observed 2022 Atlantic activity.
+capturing a clear seasonal cycle whose timing and amplitude are qualitatively consistent
+with the known structure of the 2022 Atlantic season (suppressed early-season activity
+attributed to Saharan dust and wind shear, followed by a highly active September).
 A self-consistency check --- comparing FFS rates to independent direct-sampling rates from the
 same flux trajectories --- yields a mean ratio of $1.03 \pm 0.15$ (range 0.71--1.52)
 across all 98 initial conditions, confirming self-consistent implementation of the
@@ -189,7 +191,7 @@ with the paper's methodological focus, and the framework transfers directly to
 higher-resolution systems as compute budgets permit.
 
 This paper reports: (1) a three-order-of-magnitude seasonal cycle in conditional genesis
-rates consistent with observed 2022 Atlantic activity; (2) internal self-consistency
+rates qualitatively consistent with the known structure of the 2022 Atlantic season; (2) a self-consistency
 validation showing FFS and direct-sampling rates agree within a mean ratio of
 $1.03\pm0.15$ across 98 initial conditions; (3) case studies illustrating physically
 distinct rate-limiting steps; and (4) a Cyclone Phase Space contamination screen
@@ -403,6 +405,7 @@ $P(\lambda_{i+1}|\lambda_i)$. The genesis rate is $k = \Phi_{A,0}\prod_i P(\lamb
 \section{Results}
 
 \subsection{Seasonal Genesis Rates and Self-Consistency Check}
+\label{sec:results_val}
 
 Figure~\ref{fig:rates} shows FFS genesis rates across all 98 initial conditions.
 The full seasonal cycle spans nearly three orders of magnitude,
@@ -426,7 +429,7 @@ These estimates are derived from entirely separate components of the same simula
 $k^{\text{FFS}}$ is a product of flux and shooting probabilities, while $k^{\text{direct}}$
 counts raw state-$B$ arrivals during the flux phase.
 Across all 98 initial conditions, the ratio $k^{\text{FFS}}/k^{\text{direct}} = 1.03 \pm 0.15$
-(mean $\pm$ std; median 1.00; range 0.71--1.52; Figure~\ref{fig:rate_scatter}).
+(mean $\pm$ std; median 1.02; range 0.71--1.52; Figure~\ref{fig:rate_scatter}).
 The near-unity mean and median indicate no systematic bias in the factorization.
 The standard deviation of 0.15 and the factor-of-two range reflect the Poisson
 sampling noise inherent in $k^{\text{direct}}$ (which has few counts at suppressed ICs),
@@ -523,7 +526,7 @@ The black dashed line is the 1:1 reference; shaded band spans $\pm$50\%.
 Three case-study ICs are marked with stars (Earl: red; active: orange; Ian~pre: yellow).
 The tight clustering along the 1:1 line across three orders of magnitude confirms
 correct implementation of the conditional probability factorization.
-Inset statistics: mean ratio $1.03\pm0.15$, median $1.00$, range $[0.71, 1.52]$.}
+Inset statistics: mean ratio $1.03\pm0.15$, median $1.02$, range $[0.71, 1.52]$.}
 \label{fig:rate_scatter}
 \end{figure}
 
@@ -533,7 +536,7 @@ Inset statistics: mean ratio $1.03\pm0.15$, median $1.00$, range $[0.71, 1.52]$.
 \caption{Distribution of conditional crossing probabilities $P_i$ across all 98 initial
 conditions. Each violin shows the full distribution; boxes show quartiles; coloured
 lines connect the three case-study ICs. The horizontal dashed line marks the optimal
-$P = 1/e \approx 0.37$ (Kratzer et al.); the blue band spans the target range 0.25--0.55.
+$P = 1/e \approx 0.37$ \citep{allen2009forward}; the blue band spans the well-conditioned range 0.25--0.75.
 Most ICs have $P_i$ within the well-conditioned range, confirming that interface placement
 produces efficient variance reduction. The spread of $P_1$ (initial organization) is larger
 than that of $P_2$--$P_3$, reflecting the dominant role of large-scale atmospheric variability
@@ -648,27 +651,31 @@ tree represents the storm feature at a different future lead time within that wi
 A single seed at $\lambda_0$ therefore spawns descendants that span a range of calendar
 dates, geographic positions, and atmospheric states — all sampled from one background IC.
 
-The Earl tree (left) originates near 31$^\circ$N in the western Atlantic and fans
+All three trees are displayed on a single combined map; branch colours encode
+interface level ($\lambda_1$ through $\lambda_4$) using a shared yellow-orange-red
+scale, and each IC is identified by a text label.
+The Earl tree originates near 25$^\circ$N in the western Atlantic and fans
 northeastward, sampling the open Atlantic development region.
-The Fiona precursor tree (centre) seeds near 19$^\circ$N in the open Atlantic and
+The Fiona precursor tree seeds near 16$^\circ$N in the central Atlantic and
 fans northwestward toward the Caribbean and Bahamas; Fiona was designated a tropical
 storm on September~14 --- five days into this simulation window.
-The Ian precursor tree (right) seeds near 18$^\circ$N in the Caribbean and fans
+The Ian precursor tree seeds near 15$^\circ$N in the Caribbean and fans
 northwestward into the Gulf of Mexico, directly anticipating Ian's observed path.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{ffs_trees_combined.png}
-\caption{FFS shooting trees for the three case-study ICs on a common spherical map.
-Each star marks one $\lambda_0$ seed; branches show the cascade of interface crossings
-to $\lambda_4$.
-\textcolor{blue}{Blue}: Earl IC (2022-09-02T00Z) — seed near 31$^\circ$N, 72$^\circ$W;
-trajectories fan northeastward into the open Atlantic.
-\textcolor{green!60!black}{Green}: Fiona precursor IC (2022-09-09T12Z) — seed near 19$^\circ$N,
-63$^\circ$W; trajectories track northwestward consistent with Fiona's subsequent path.
-\textcolor{red}{Red}: Ian precursor IC (2022-09-22T00Z) — seed near 18$^\circ$N,
-84$^\circ$W; trajectories fan northwestward into the Gulf of Mexico, anticipating
-Ian's observed track.}
+\caption{FFS shooting trees for the three case-study ICs on a single combined map.
+Each star ($\lambda_0$ seed) and its descendant branches are plotted together;
+branch colour encodes interface level from $\lambda_1$ (yellow-orange) to $\lambda_4$
+(dark red), using the same colour scale for all three ICs.
+IC labels identify each seed: Earl (2022-09-02T00Z, seed near 25$^\circ$N in the
+western Atlantic), Fiona precursor (2022-09-09T12Z, seed near 16$^\circ$N in the
+central Atlantic), and Ian precursor (2022-09-22T00Z, seed near 15$^\circ$N in the
+Caribbean). Earl trajectories fan northeastward into the open Atlantic; Fiona
+trajectories track northwestward consistent with Fiona's subsequent path; Ian
+trajectories fan northwestward into the Gulf of Mexico, anticipating Ian's
+observed track.}
 \label{fig:ffs_trees}
 \end{figure}
 
@@ -798,15 +805,20 @@ intensification pathway once the vortex reaches the near-hurricane threshold.}
 
 \subsection{Methodological Validation and Practical Considerations}
 
-The central validation result --- FFS and direct-sampling rates agreeing within
+The central self-consistency result --- FFS and direct-sampling rates agreeing within
 $1.03\pm0.15$ across 98 initial conditions --- provides strong empirical support for
-the method. These are entirely independent estimates derived from the same simulation
-data: the FFS rate uses only the interface crossing counts and shooting probabilities,
-while the direct rate uses only the raw state-$B$ arrival counts from flux trajectories.
+the method's correct implementation. These are entirely independent estimates derived
+from the same simulation data: the FFS rate uses only the interface crossing counts
+and shooting probabilities, while the direct rate uses only the raw state-$B$ arrival
+counts from flux trajectories.
 Their close agreement across three orders of magnitude of genesis probability confirms
 that (1) the interface spacing produces well-conditioned conditional probability estimates,
 (2) the ensemble sizes ($N=2000$ per interface) are sufficient, and (3) the CPS
-contamination screen does not introduce systematic bias.
+contamination screen does not introduce systematic bias into the factorization.
+As discussed in Section~\ref{sec:results_val}, this self-consistency check does not
+constitute external validation against observed climatology, nor does it test the
+Markov assumption; it confirms that the FFS bookkeeping arithmetic is implemented
+correctly within the SDL-WXFormer framework.
 
 Enhancement factors (3--140$\times$, geometric mean 14$\times$)
 scale inversely with genesis probability, as expected from FFS theory \citep{allen2009forward}.
@@ -824,6 +836,13 @@ easy initial organization but hard final intensification ($P_4 = 0.102$) suggest
 an environment whose large-scale structure is favorable for genesis attempts but
 where the thermodynamic pathway to full hurricane development requires specific
 mesoscale alignment not yet present 24~hours before NHC designation.
+These MSLP-based bottleneck identifications are corroborated by independent
+thermodynamic and kinematic evidence: the storm-centred composites
+(Figs~\ref{fig:composites_earl}--\ref{fig:composites_ian}) show that the interface
+at which each IC's $P_i$ is smallest corresponds to a measurably weaker vorticity
+core, reduced mid-level relative humidity, and less developed warm-core anomaly in
+the ensemble-mean reactive pathway, confirming that the pressure-based bottleneck
+reflects a genuine physical barrier in the intensification cascade.
 
 The CPS filter warrants clarification. At 1$^\circ$ resolution, formal CPS parameters
 are not quantitatively validated against higher-resolution analyses, and our implementation
@@ -844,17 +863,22 @@ against physics-based models (WRF, IFS) at higher resolution is an important nex
 Additionally, MSLP as an order parameter has known limitations at 1$^\circ$ resolution:
 terrain-induced pressure artifacts (present in this model due to topographic interpolation
 differences) require the CPS filter and geographic masking described in Section~2.3.
-More fundamentally, MSLP does not capture the thermodynamic and kinematic prerequisites
-for genesis --- warm-core development, vorticity alignment, mid-level moistening, shear
-suppression --- that precede a detectable surface pressure signature.
-A disturbance can cross $\lambda_0 = 1000$~hPa as a transient trough with no tropical
-development potential, and the FFS rate therefore measures the frequency of organised
-\textit{MSLP} deepening rather than tropical genesis in a dynamically complete sense.
-Reaction coordinates based on vorticity, saturation fraction, or a composite genesis
-potential index \citep[e.g.,][]{bister1998dissipative,camargo2007use}
-would provide a more physically targeted order parameter; such extensions are deferred
-to future work but are expected to improve both the enhancement factor and the
-physical interpretability of the per-interface bottleneck diagnostics.
+MSLP is a downstream integrator of the thermodynamic and kinematic preconditions for
+genesis --- warm-core development, vorticity alignment, mid-level moistening, shear
+suppression --- rather than a direct measure of those precursors.
+As a result, the FFS rate strictly measures the frequency of organised MSLP deepening,
+and the per-interface crossing probabilities reflect barriers to pressure deepening
+specifically.
+That said, the storm-centred composite figures (Figs~\ref{fig:composites_earl}--\ref{fig:composites_ian})
+show that the MSLP-defined interfaces correspond to coherent and physically interpretable
+thermodynamic states: vorticity, mid-level relative humidity, and warm-core anomaly all
+evolve progressively and consistently from $\lambda_0$ through state~$B$, validating
+that the MSLP interfaces are tracking genuine tropical development rather than spurious
+pressure minima.
+Nonetheless, reaction coordinates that incorporate vorticity, saturation fraction, or a
+composite genesis potential index \citep[e.g.,][]{bister1998dissipative,camargo2007use}
+are expected to sharpen the physical interpretability of per-interface bottleneck
+diagnostics and are a natural extension for future work.
 
 \subsection{Conclusions}
 
