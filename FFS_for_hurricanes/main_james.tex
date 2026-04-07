@@ -109,7 +109,7 @@ Tropical cyclone genesis represents one of the most consequential rare events in
 atmospheric science. Approximately 10--15\% of Atlantic tropical disturbances develop
 into named systems \citep{Frank1970,Landsea1998}, but discriminating developing from
 non-developing cases challenges deterministic and ensemble approaches alike
-\citep{Titley2019,Halperin2013}. The challenge is not merely predictive: it is
+\citep{Titley2000,Halperin2013}. The challenge is not merely predictive: it is
 statistical. For a genesis event with probability $p \sim 10^{-3}$ per day, direct
 Monte Carlo estimation of the genesis rate to 20\% relative uncertainty requires
 $\mathcal{O}(10^4)$ ensemble trajectories per initial condition --- far beyond
@@ -166,7 +166,7 @@ parameterizations, and inherit the dynamical attractor of their training reanaly
 This speed advantage is decisive for FFS, which requires $\mathcal{O}(10^4)$ trajectories
 per initial condition. Recent work has begun exploiting this combination for
 subseasonal-to-seasonal extreme event forecasting \citep{mu2025skillful} and importance
-sampling of weather extremes \citep{lancelin2025ai}. The SDL-WXFormer \citep{schreck2024sdl}
+sampling of weather extremes \citep{lancelin2025ai}. The SDL-WXFormer \citep{schreck2025sdl}
 employed here extends the standard deterministic emulator with stochastic decomposition
 layers calibrated to ERA5 ensemble statistics, providing the trajectory diversity
 the FFS shooting phase requires.
@@ -310,7 +310,7 @@ from each factor:
 
 \subsection{SDL-WXFormer and Experimental Setup}
 
-SDL-WXFormer \citep{schreck2024sdl} is a vision transformer trained on ERA5 reanalysis
+SDL-WXFormer \citep{schreck2025sdl} is a vision transformer trained on ERA5 reanalysis
 (1979--2021) at 1$^\circ$ resolution, 6-hour timesteps, predicting 69 pressure-level
 and 8 surface variables. Stochastic decomposition layers inject learned, state-dependent
 noise enabling calibrated ensemble generation. Each 10-day forecast requires
