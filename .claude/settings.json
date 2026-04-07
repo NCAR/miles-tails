@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); file=$(echo \"$input\" | python3 -c \"import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('file_path',''))\" 2>/dev/null); if [[ \"$file\" == *.tex ]]; then dir=$(dirname \"$file\"); base=$(basename \"$file\"); cd \"$dir\" && echo \"--- pdflatex: $base ---\" && pdflatex -interaction=nonstopmode \"$base\" 2>&1 | grep -E '(^!|Citation.*undefined|Reference.*undefined|Error)' || true; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
