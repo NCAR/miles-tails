@@ -132,10 +132,10 @@ def _draw_track_panel(ax, all_steps, up_to_idx):
     cmap   = plt.get_cmap('plasma_r', len(all_steps))
     colors = [cmap(i) for i in range(len(all_steps))]
 
-    # Compute zoomed extent around the track, capped at 60°W on the east
-    pad = 5
+    # Compute zoomed extent around the track, capped at 50°W on the east
+    pad = 15
     lon_min = max(-100, min(all_lons) - pad)
-    lon_max = min(-60,  max(all_lons) + pad)
+    lon_max = min(-50,  max(all_lons) + pad)
     lat_min = max(5,    min(all_lats) - pad)
     lat_max = min(65,   max(all_lats) + pad)
 

@@ -66,13 +66,37 @@ def pkl_path(ic_dir, cname):
         return None
 
 
+class _SafeObj:
+    """Minimal stand-in for FFS state objects when the full tails/credit stack
+    cannot be imported (e.g. NumPy/numba version mismatch).  Only __setstate__
+    is needed so pickle can reconstruct the attribute dictionary."""
+    def __init__(self, *a, **kw): pass
+    def __setstate__(self, state):
+        if isinstance(state, dict):
+            self.__dict__.update(state)
+
+class _SafeUnpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        return _SafeObj
+
+
 def load_loc(args):
     ic_dir, cname = args
     p = pkl_path(ic_dir, cname)
     if p is None or not p.exists():
         return cname, None
     try:
-        obj = pickle.load(open(p, 'rb'))
+        with open(p, 'rb') as fh:
+            obj = pickle.load(fh)
+    except Exception:
+        # Fallback: bypass broken imports with a safe unpickler that only
+        # extracts the attribute dict (feature_location, etc.)
+        try:
+            with open(p, 'rb') as fh:
+                obj = _SafeUnpickler(fh).load()
+        except Exception:
+            return cname, None
+    try:
         loc = obj.feature_location
         return cname, (float(loc[0]), float(loc[1]))
     except Exception:
@@ -219,7 +243,7 @@ def plot_tree(l0_name, rank, nodes, edges, loc_map, ifaces, n_ifaces,
                    zorder=6 if is_l0 else 4 + lv,
                    label=f'λ{lv}  {ifaces[lv]:.0f} hPa  (n={len(level_nodes)})')
 
-    ax.legend(fontsize=9, loc='lower left', framealpha=0.9)
+    ax.legend(fontsize=9, loc='lower right', framealpha=0.9)
     ax.set_title(
         f'FFS shooting tree  —  IC {date_str}\n'
         f'λ₀ seed → {child_count[l0_name]} λ₁ branches → {n_lambda4} total λ₄ descendants',
@@ -231,12 +255,124 @@ def plot_tree(l0_name, rank, nodes, edges, loc_map, ifaces, n_ifaces,
     print(f'  Saved: {out}')
 
 
+# ── combined three-IC figure ─────────────────────────────────────────────────
+
+IC_LABELS = {
+    '2022-09-02T00Z': 'Earl',
+    '2022-09-09T12Z': 'Fiona',
+    '2022-09-14T00Z': 'Fiona',
+    '2022-09-22T00Z': 'Ian',
+    '2022-09-23T00Z': 'Ian',
+    '2022-09-20T00Z': 'Ian',
+}
+
+# (dlon, dlat) offset for each IC's text label
+IC_LABEL_OFFSETS = {
+    '2022-09-02T00Z': (2.5, 3.5),   # Earl at ~18N -55W → text upper-right
+    '2022-09-09T12Z': (-4.0, 3.5),  # Fiona at ~19N -62.5W → text upper-left
+    '2022-09-14T00Z': (-4.0, 3.5),  # Fiona alt IC
+    '2022-09-22T00Z': (1.5, 1.5),   # Ian
+    '2022-09-20T00Z': (1.5, 1.5),   # Ian alt IC
+    '2022-09-23T00Z': (1.5, 1.5),   # Ian alt IC
+}
+
+def plot_combined_trees(ic_data, ifaces, n_ifaces, plot_dir):
+    """
+    ic_data: list of (date_str, l0_name, nodes, edges, loc_map)
+    All three ICs plotted on one wide LambertConformal map.
+    Uses the same YlOrRd-by-interface colour scheme as individual trees.
+    """
+    cmap   = plt.cm.YlOrRd
+    colors = [cmap(0.15 + 0.8 * i / max(n_ifaces - 1, 1)) for i in range(n_ifaces)]
+
+    extent = [-105, -50, 8, 52]
+    clon, clat = -77.5, 30.0
+    proj = ccrs.LambertConformal(central_longitude=clon, central_latitude=clat,
+                                  standard_parallels=(25, 50))
+
+    fig, ax = plt.subplots(figsize=(14, 7), subplot_kw=dict(projection=proj))
+    ax.set_extent(extent, crs=ccrs.PlateCarree())
+    ax.add_feature(cfeature.LAND.with_scale('50m'),      facecolor='#e8e4d9', zorder=0)
+    ax.add_feature(cfeature.OCEAN.with_scale('50m'),     facecolor='#c9dff0', zorder=0)
+    ax.add_feature(cfeature.COASTLINE.with_scale('50m'), linewidth=0.6, edgecolor='#555', zorder=1)
+    ax.add_feature(cfeature.BORDERS.with_scale('50m'),   linewidth=0.3, edgecolor='#888', zorder=1)
+    ax.add_feature(cfeature.STATES.with_scale('50m'),    linewidth=0.2, edgecolor='#aaa', zorder=1)
+    gl = ax.gridlines(draw_labels=True, linewidth=0.4, color='gray',
+                      alpha=0.5, linestyle='--', zorder=1)
+    gl.top_labels = False
+    gl.right_labels = False
+
+    for date_str, l0_name, nodes, edges, loc_map in ic_data:
+        label = IC_LABELS.get(date_str, date_str)
+
+        # Draw edges coloured by interface level
+        drawn = set()
+        for pa, ch in edges:
+            key = (pa, ch)
+            if key in drawn or pa not in loc_map or ch not in loc_map:
+                continue
+            drawn.add(key)
+            lat0, lon0 = loc_map[pa]
+            lat1, lon1 = loc_map[ch]
+            lv  = iface_level(ch)
+            col = colors[min(lv, len(colors) - 1)]
+            ax.plot([lon0, lon1], [lat0, lat1], '-',
+                    color=col, alpha=0.6, linewidth=0.9,
+                    transform=ccrs.PlateCarree(), zorder=3)
+
+        # Draw nodes by interface level
+        node_counts = defaultdict(int)
+        for pa, ch in edges:
+            node_counts[ch] += 1
+        node_counts[l0_name] = 1
+
+        for lv in range(n_ifaces):
+            level_nodes = [n for n in nodes if iface_level(n) == lv and n in loc_map]
+            if not level_nodes:
+                continue
+            col   = colors[min(lv, len(colors) - 1)]
+            is_l0 = (lv == 0)
+            lats_lv = [loc_map[n][0] for n in level_nodes]
+            lons_lv = [loc_map[n][1] for n in level_nodes]
+            sizes   = [300 if is_l0 else max(20, 15 * node_counts.get(n, 1))
+                       for n in level_nodes]
+            ax.scatter(lons_lv, lats_lv, s=sizes, c=[col] * len(level_nodes),
+                       marker='*' if is_l0 else 'o',
+                       edgecolors='black' if is_l0 else 'none',
+                       linewidths=0.8 if is_l0 else 0,
+                       transform=ccrs.PlateCarree(),
+                       zorder=7 if is_l0 else 4 + lv)
+
+        # Text label near the seed
+        if l0_name in loc_map:
+            slat, slon = loc_map[l0_name]
+            dlon, dlat = IC_LABEL_OFFSETS.get(date_str, (1.5, 1.5))
+            ax.text(slon + dlon, slat + dlat, label, fontsize=12, fontweight='bold',
+                    color='#111', transform=ccrs.PlateCarree(), zorder=8,
+                    bbox=dict(boxstyle='round,pad=0.2', fc='white', ec='none', alpha=0.7))
+
+    # One legend for interface levels
+    legend_handles = [
+        Line2D([0], [0], color=colors[lv], linewidth=2,
+               marker='*' if lv == 0 else 'o', markersize=8 if lv == 0 else 6,
+               markerfacecolor=colors[lv], markeredgecolor='k' if lv == 0 else 'none',
+               label=f'λ{lv}  {ifaces[lv]:.0f} hPa')
+        for lv in range(n_ifaces)
+    ]
+    ax.legend(handles=legend_handles, fontsize=10, loc='lower right', framealpha=0.9)
+
+    out = plot_dir / 'ffs_trees_combined.png'
+    plt.savefig(out, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f'Saved: {out}')
+
+
 # ── main ─────────────────────────────────────────────────────────────────────
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--ffs_config',  required=True)
-    ap.add_argument('--ic_dir',      required=True)
+    ap.add_argument('--ic_dir',      required=False, default=None)
     ap.add_argument('--plot_dir',    default='./plots')
     ap.add_argument('--top_n',       type=int,   default=5)
     ap.add_argument('--scan_n',      type=int,   default=30,
@@ -252,19 +388,45 @@ def main():
                     help='Minimum longitude of λ0 seed to consider (degrees, negative=W)')
     ap.add_argument('--seed_lon_max', type=float, default=None,
                     help='Maximum longitude of λ0 seed to consider (degrees, negative=W)')
+    ap.add_argument('--seed',        type=str,   default=None,
+                    help='Force a specific λ0 config name, skipping ranking')
+    ap.add_argument('--combined',    nargs='+',  default=None,
+                    metavar='IC_DIR:SEED',
+                    help='Combined mode: e.g. --combined dir1:seed1 dir2:seed2 dir3:seed3')
     args = ap.parse_args()
 
-    ic_dir   = Path(args.ic_dir)
     plot_dir = Path(args.plot_dir)
     plot_dir.mkdir(parents=True, exist_ok=True)
-    date_str = ic_dir.name
 
     with open(args.ffs_config) as f:
         cfg = yaml.safe_load(f)
     ifaces  = cfg['interfaces'].copy()
     state_B = float(cfg['state_B'])
-    ifaces.append(state_B)   # ifaces = [1000.0, 987.2, 984.7, 981.2, 975.0]
-    n_ifaces = len(ifaces)   # = 5, so range(5) → levels 0..4
+    ifaces.append(state_B)
+    n_ifaces = len(ifaces)
+
+    # ── Combined mode ─────────────────────────────────────────────────────────
+    if args.combined:
+        ic_data = []
+        for entry in args.combined:
+            ic_dir_c, seed_c = entry.rsplit(':', 1)
+            ic_dir_c = Path(ic_dir_c)
+            date_str_c = ic_dir_c.name
+            print(f'Loading genealogy for {date_str_c}...')
+            entries_c   = load_all_logs(ic_dir_c / 'logs')
+            genealogy_c = build_genealogy(entries_c)
+            nodes_c, edges_c = collect_tree_nodes(genealogy_c, seed_c)
+            all_needed = set(nodes_c)
+            with ThreadPoolExecutor(max_workers=args.workers) as ex:
+                results = list(ex.map(load_loc, [(ic_dir_c, n) for n in all_needed]))
+            loc_map_c = {c: loc for c, loc in results if loc is not None}
+            ic_data.append((date_str_c, seed_c, nodes_c, edges_c, loc_map_c))
+            print(f'  {len(loc_map_c)} locations loaded')
+        plot_combined_trees(ic_data, ifaces, n_ifaces, plot_dir)
+        return
+
+    ic_dir   = Path(args.ic_dir)
+    date_str = ic_dir.name
 
     print(f'Loading genealogy for {date_str}...')
     entries   = load_all_logs(ic_dir / 'logs')
@@ -349,6 +511,22 @@ def main():
         n_before = len(ranked)
         ranked = [(n, s) for n, s in ranked if in_box(n)]
         print(f'  {len(ranked)}/{n_before} seeds remain after box filter')
+
+    # If a specific seed is forced, skip ranking entirely
+    if args.seed:
+        forced = args.seed
+        if forced not in composite_scores:
+            print(f'ERROR: {forced} not found in genealogy')
+            return
+        n_lambda4 = count_map[forced]
+        nodes, edges = collect_tree_nodes(genealogy, forced)
+        all_needed = set(nodes)
+        with ThreadPoolExecutor(max_workers=args.workers) as ex:
+            results = list(ex.map(load_loc, [(ic_dir, c) for c in all_needed]))
+        loc_map = {c: loc for c, loc in results if loc is not None}
+        plot_tree(forced, 1, nodes, edges, loc_map, ifaces, n_ifaces,
+                  date_str, n_lambda4, plot_dir)
+        return
 
     # Scan up to scan_n candidates; collect their nodes for bulk location loading
     candidates = ranked[:args.scan_n]

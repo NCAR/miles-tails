@@ -269,16 +269,24 @@ def make_figure(all_lats, all_lons, all_dates,
                                         if k != 'facecolor'}, color='#1a1a1a')
 
     # ── Storm genesis annotations ─────────────────────────────────────────────
+    # NHC best-track genesis locations
     annotations = [
-        ('Earl\n~Sep 4',   14.0, -55.0),
-        ('Fiona\n~Sep 14', 16.0, -60.0),
-        ('Ian\n~Sep 23',   17.0, -82.0),
+        ('Earl\n~Sep 2',   17.9, -58.6),   # 1800 UTC 2 Sep, 17.9N 58.6W
+        ('Fiona\n~Sep 14', 16.0, -47.9),   # 0600 UTC 14 Sep, 16.0N 47.9W
+        ('Ian\n~Sep 23',   13.7, -68.1),   # 0600 UTC 23 Sep, 13.7N 68.1W
     ]
+    # offsets: (dlon, dlat, ha)
+    ann_offsets = {
+        'Earl\n~Sep 2':   (-3.5,  3.0, 'left'),   # upper-left, arrow points right-down
+        'Fiona\n~Sep 14': ( 2.5,  2.5, 'left'),   # upper-right
+        'Ian\n~Sep 23':   (-9.0,  4.0, 'right'),  # far left, arrow points right-down; clears Earl
+    }
     akw = dict(zorder=10)
     if HAS_CARTOPY:
         akw['transform'] = pc
 
     for label, alat, alon in annotations:
+        dlon, dlat, ha = ann_offsets[label]
         ax.plot(alon, alat, marker='*', markersize=13,
                 color='#cc0000', markeredgecolor='white',
                 markeredgewidth=0.7, zorder=9,
@@ -286,9 +294,9 @@ def make_figure(all_lats, all_lons, all_dates,
         ax.annotate(
             label,
             xy=(alon, alat),
-            xytext=(alon + 2.5, alat + 2.5),
+            xytext=(alon + dlon, alat + dlat),
             fontsize=12, fontweight='bold', color='#cc0000',
-            ha='left', va='bottom',
+            ha=ha, va='center',
             arrowprops=dict(arrowstyle='->', color='#cc0000',
                             lw=0.9, shrinkA=0, shrinkB=3),
             zorder=10,

@@ -32,9 +32,9 @@ from pathlib import Path
 # ── colour palette matching existing paper figures ────────────────────────────
 FFS_COLOR    = '#2166ac'   # blue
 DIRECT_COLOR = '#762a83'   # purple
-CASE_COLORS  = {'Earl':    '#d73027',   # red
-                'Active':  '#fc8d59',   # orange
-                'Ian pre': '#fee090'}   # yellow
+CASE_COLORS  = {'Earl':  '#d73027',   # red
+                'Fiona': '#fc8d59',   # orange
+                'Ian':   '#fee090'}   # yellow
 
 IFACE_COLORS = ['#4393c3', '#2166ac', '#d6604d', '#b2182b']
 IFACE_LABELS = [r'$P(\lambda_1|\lambda_0)$  initial org.',
@@ -45,9 +45,9 @@ P_COLS = ['lambda1_P_forward', 'lambda2_P_forward',
           'lambda3_P_forward', 'lambda4_P_forward']
 
 CASE_ICS = {
-    'Earl':    '2022-09-02 00:00:00',
-    'Active':  '2022-09-09 12:00:00',
-    'Ian pre': '2022-09-22 00:00:00',
+    'Earl':  '2022-09-02 00:00:00',
+    'Fiona': '2022-09-09 12:00:00',
+    'Ian':   '2022-09-22 00:00:00',
 }
 
 plt.rcParams.update({'font.size': 11, 'axes.linewidth': 0.8})

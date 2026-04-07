@@ -98,7 +98,7 @@ $140\times$ (most suppressed), with a geometric mean of $14\times$.
 Three case studies illustrate the physical diagnostics the method provides: the
 rate-limiting step is initial tropical organization for the Earl environment, uniformly
 high crossing probabilities for the Fiona precursor environment, and a compound barrier
-at the final intensification stages for the Ian precursor.
+at the final intensification stages for the Ian environment.
 The methodology is independent of model architecture and extends directly to
 higher-resolution physics-based systems.
 \end{abstract}
@@ -322,9 +322,9 @@ conditions receive detailed case study treatment:
 \begin{itemize}\setlength\itemsep{2pt}
 \item \textbf{2022-09-02T00Z (Earl)}: $\sim$24~hours before Hurricane Earl's official
       tropical-storm genesis on September~3.
-\item \textbf{2022-09-09T12Z (active)}: highest observed FFS genesis rate in the
+\item \textbf{2022-09-09T12Z (Fiona)}: highest observed FFS genesis rate in the
       dataset, within the Fiona precursor environment ($\sim$5 days before Fiona's formation).
-\item \textbf{2022-09-22T00Z (Ian precursor)}: 24~hours before Hurricane Ian's NHC
+\item \textbf{2022-09-22T00Z (Ian)}: 24~hours before Hurricane Ian's NHC
       genesis designation on September~23.
 \end{itemize}
 
@@ -393,12 +393,13 @@ tropical development.
 \centering
 \includegraphics[width=\textwidth]{ffs_schematic.pdf}
 \caption{Schematic of the Forward Flux Sampling algorithm (after \citealt{allen2006forward}).
-\textit{Left panel (flux phase)}: Trajectories from state $A$ (gray, $Q > 1008$~hPa) evolve
-forward in time; decorrelated crossings of $\lambda_0$ (orange circles) are saved.
-Trajectories reaching state $B$ directly are tallied for direct-sampling rate validation.
-\textit{Right panel (shooting phase)}: Trajectories launched from saved $\lambda_i$ configurations
-either return to $A$ (purple; failed) or advance to $\lambda_{i+1}$ (dark blue; success), yielding
-$P(\lambda_{i+1}|\lambda_i)$. The genesis rate is $k = \Phi_{A,0}\prod_i P(\lambda_{i+1}|\lambda_i)$.}
+\textit{Panel (a) --- flux phase}: Gray trajectories evolve forward from state $A$;
+each decorrelated crossing of $\lambda_0$ is recorded (marked $\times$).
+\textit{Panel (b) --- shooting phase}: New trial trajectories are launched from each saved
+$\lambda_i$ configuration (filled circles). Shots that return to state $A$ (arrows labelled $A$)
+are failures; shots that reach $\lambda_{i+1}$ (filled circles on the next interface) are successes,
+yielding the conditional probability $P(\lambda_{i+1}|\lambda_i)$.
+The genesis rate is $k = \Phi_{A,0}\prod_i P(\lambda_{i+1}|\lambda_i)$.}
 \label{fig:schematic}
 \end{figure}
 
@@ -511,7 +512,7 @@ The dashed line marks the all-season mean. $P_1$ (initial organization, $\lambda
 varies most strongly with the seasonal cycle, with a pronounced peak in early September coinciding
 with the Fiona formation environment. $P_4$ (final intensification, $\lambda_4\to B$) is
 the most uniformly suppressed probability, limiting the overall genesis rate even in active periods.
-The three case-study ICs (Earl~09-02, active~09-09, Ian~09-22) are indicated by vertical markers.}
+The three case-study ICs (Earl~09-02, Fiona~09-09, Ian~09-22) are indicated by vertical markers.}
 \label{fig:interface_probs}
 \end{figure}
 
@@ -569,9 +570,9 @@ Bottom row: statistics across all 98 ICs.}
 IC & $\Phi_{A,0}$ & $P_1$ & $P_2$ & $P_3$ & $P_4$ & $k^{\text{FFS}}$ & $k^{\text{direct}}$ & Ratio & Speedup \\
    & (day$^{-1}$) & & & & & (day$^{-1}$) & (day$^{-1}$) & & \\
 \midrule
-Earl (09-02T00Z)    & 0.0837 & \textbf{0.258} & 0.679 & 0.596 & 0.359 & $3.13\times10^{-3}$ & $3.61\times10^{-3}$ & 0.87 & 10$\times$ \\
-Active (09-09T12Z)  & 0.1002 & 0.726 & 0.906 & 0.910 & \textbf{0.276} & $1.66\times10^{-2}$ & $1.37\times10^{-2}$ & 1.21 &  3$\times$ \\
-Ian pre. (09-22T00Z) & 0.1247 & 0.663 & 0.893 & \textbf{0.302} & \textbf{0.102} & $2.28\times10^{-3}$ & $2.04\times10^{-3}$ & 1.12 & 19$\times$ \\
+Earl (09-02T00Z)   & 0.0837 & \textbf{0.258} & 0.679 & 0.596 & 0.359 & $3.13\times10^{-3}$ & $3.61\times10^{-3}$ & 0.87 & 10$\times$ \\
+Fiona (09-09T12Z)  & 0.1002 & 0.726 & 0.906 & 0.910 & \textbf{0.276} & $1.66\times10^{-2}$ & $1.37\times10^{-2}$ & 1.21 &  3$\times$ \\
+Ian (09-22T00Z)    & 0.1247 & 0.663 & 0.893 & \textbf{0.302} & \textbf{0.102} & $2.28\times10^{-3}$ & $2.04\times10^{-3}$ & 1.12 & 19$\times$ \\
 \midrule
 All-98 mean$\pm$SD  & $0.065\pm0.034$ & $0.278\pm0.154$ & $0.674\pm0.086$ & $0.569\pm0.107$ & $0.356\pm0.093$ & $2.6\times10^{-3}$ & $2.5\times10^{-3}$ & $1.03\pm0.15$ & $14\times$$^{\dagger}$ \\
 \bottomrule
@@ -587,7 +588,7 @@ Earl's classification, when the system had established a coherent low-level circ
 but had not yet achieved the sustained convective organization needed to cross the
 first intensification threshold.
 
-For the \textbf{active-period IC} (September~9), all four conditional probabilities
+For the \textbf{Fiona IC} (September~9), all four conditional probabilities
 are elevated ($\geq0.28$), and the product $\prod P_i = 0.166$ is $\sim$4--9$\times$
 larger than the other two cases. The dominant bottleneck shifts to $P_4 = 0.276$
 (final intensification to 975~hPa), reflecting an environment that readily organizes
@@ -596,7 +597,7 @@ The FFS rate ($1.66\times10^{-2}$~day$^{-1}$) is high enough that direct samplin
 is also feasible (speedup $3\times$), providing a strong cross-validation: both methods
 agree to within 21\% for this most-active IC.
 
-The \textbf{Ian precursor IC} presents the most physically interesting pattern.
+The \textbf{Ian IC} presents the most physically interesting pattern.
 $P_1 = 0.663$ and $P_2 = 0.893$ indicate that the environment readily supports initial
 organization through 985~hPa, consistent with the warm, moist, low-shear conditions
 present over the Caribbean and western Atlantic on September~22. But $P_3 = 0.302$
@@ -645,22 +646,24 @@ ensemble of reactive pathways progresses toward state~$B$.
 The geographic spread of $\lambda_4$ descendants reflects the diversity of intensification
 pathways sampled by the FFS from a single starting configuration.
 
-Importantly, the IC date labels (09-02, 09-09, 09-22) are \textit{initialisation} times,
-not genesis dates. Each FFS simulation runs 15 days forward from its IC; each node in the
-tree represents the storm feature at a different future lead time within that window.
+Importantly, the IC date labels are \textit{initialisation} times, not genesis dates.
+Each FFS simulation runs 15 days forward from its IC; each node in the tree represents
+the storm feature at a different future lead time within that window.
 A single seed at $\lambda_0$ therefore spawns descendants that span a range of calendar
-dates, geographic positions, and atmospheric states — all sampled from one background IC.
+dates, geographic positions, and atmospheric states --- all sampled from one background IC.
 
 All three trees are displayed on a single combined map; branch colours encode
 interface level ($\lambda_1$ through $\lambda_4$) using a shared yellow-orange-red
 scale, and each IC is identified by a text label.
-The Earl tree originates near 25$^\circ$N in the western Atlantic and fans
-northeastward, sampling the open Atlantic development region.
-The Fiona precursor tree seeds near 16$^\circ$N in the central Atlantic and
-fans northwestward toward the Caribbean and Bahamas; Fiona was designated a tropical
-storm on September~14 --- five days into this simulation window.
-The Ian precursor tree seeds near 15$^\circ$N in the Caribbean and fans
-northwestward into the Gulf of Mexico, directly anticipating Ian's observed path.
+The Earl tree (2022-09-02T00Z, 18~hours before Earl's genesis) seeds near 18$^\circ$N
+in the eastern Atlantic and fans westward, consistent with Earl's observed
+west-northwest track toward the Leeward Islands.
+The Fiona tree (2022-09-09T12Z, the peak-activity IC within the Fiona precursor
+environment) seeds near 19$^\circ$N in the central Atlantic and fans westward
+into the Caribbean, consistent with Fiona's observed track.
+The Ian tree (2022-09-22T00Z, 24~hours before Ian's NHC genesis designation)
+seeds near 17$^\circ$N in the western Caribbean and fans northwestward into the
+Gulf of Mexico, consistent with Ian's observed track toward Florida.
 
 \begin{figure}[htbp]
 \centering
@@ -669,13 +672,15 @@ northwestward into the Gulf of Mexico, directly anticipating Ian's observed path
 Each star ($\lambda_0$ seed) and its descendant branches are plotted together;
 branch colour encodes interface level from $\lambda_1$ (yellow-orange) to $\lambda_4$
 (dark red), using the same colour scale for all three ICs.
-IC labels identify each seed: Earl (2022-09-02T00Z, seed near 25$^\circ$N in the
-western Atlantic), Fiona precursor (2022-09-09T12Z, seed near 16$^\circ$N in the
-central Atlantic), and Ian precursor (2022-09-22T00Z, seed near 15$^\circ$N in the
-Caribbean). Earl trajectories fan northeastward into the open Atlantic; Fiona
-trajectories track northwestward consistent with Fiona's subsequent path; Ian
-trajectories fan northwestward into the Gulf of Mexico, anticipating Ian's
-observed track.}
+IC labels identify each seed:
+Earl (2022-09-02T00Z, seed near 18$^\circ$N in the eastern Atlantic, 18~hours
+before Earl's genesis),
+Fiona (2022-09-09T12Z, seed near 19$^\circ$N in the central Atlantic),
+and Ian (2022-09-22T00Z, seed near 17$^\circ$N in the western Caribbean).
+Earl trajectories fan westward consistent with Earl's observed west-northwest track;
+Fiona trajectories track westward into the Caribbean consistent with Fiona's
+subsequent path; Ian trajectories fan northwestward into the Gulf of Mexico,
+anticipating Ian's observed track toward Florida.}
 \label{fig:ffs_trees}
 \end{figure}
 
@@ -732,12 +737,13 @@ dynamical processes.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{trajectory_2022-09-02T00Z_pathway26.png}
+\includegraphics[width=\textwidth]{trajectory_2022-09-02T00Z_pathway1079.png}
 \caption{Storm-centred physics along a representative reactive pathway for the Earl IC
-(2022-09-02T00Z, pathway~26), $\lambda_0$ through $\lambda_4$.
+(2022-09-02T00Z, pathway~1079), $\lambda_0$ through $\lambda_4$.
 Each column shows one interface crossing; column headers give the MSLP and storm latitude.
-The vortex tracks northeastward from 25$^\circ$N at $\lambda_0$ to 39$^\circ$N at $\lambda_4$,
-consistent with typical late-summer Atlantic tracks in this environment.
+The vortex originates near 16$^\circ$N in the eastern Atlantic at $\lambda_0$ and tracks
+west-northwestward to 28$^\circ$N at $\lambda_4$, consistent with Earl's observed
+tropical Atlantic genesis and subsequent westward motion.
 \textit{Row 1}: 850-hPa relative vorticity $\zeta_{850}$ ($10^{-5}$~s$^{-1}$).
 \textit{Row 2}: 700-hPa relative humidity RH$_{700}$ (\%).
 \textit{Row 3}: 500-hPa warm-core anomaly $T'_{500}$ (K, relative to 0--30$^\circ$N mean).
@@ -785,7 +791,7 @@ lower $P_1$ value and identifies initial organisation as the rate-limiting bottl
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{2022-09-09T12Z_composites.png}
-\caption{As in Fig.~\ref{fig:composites_earl} but for the Fiona precursor IC
+\caption{As in Fig.~\ref{fig:composites_earl} but for the Fiona IC
 (2022-09-09T12Z). Stronger vorticity and warm-core development at early interfaces
 compared to Earl reflects the more favourable large-scale environment and higher $P_1$.}
 \label{fig:composites_fiona}
@@ -794,7 +800,7 @@ compared to Earl reflects the more favourable large-scale environment and higher
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{2022-09-22T00Z_composites.png}
-\caption{As in Fig.~\ref{fig:composites_earl} but for the Ian precursor IC
+\caption{As in Fig.~\ref{fig:composites_earl} but for the Ian IC
 (2022-09-22T00Z). The $T'_{500}$ amplitude at state~$B$ is comparable across all three
 ICs despite their differing genesis rates, suggesting a physically similar final
 intensification pathway once the vortex reaches the near-hurricane threshold.}
@@ -831,7 +837,7 @@ FFS is the only practical route to a quantitative genesis rate estimate.
 The bottleneck analysis adds physical content beyond a scalar rate. For the Earl IC,
 the rate-limiting step at $\lambda_1$ (initial organization) indicates that the
 environment is resistant to producing organized convection but that once organized,
-the system is likely to reach hurricane strength. For the Ian precursor IC, the
+the system is likely to reach hurricane strength. For the Ian IC, the
 easy initial organization but hard final intensification ($P_4 = 0.102$) suggests
 an environment whose large-scale structure is favorable for genesis attempts but
 where the thermodynamic pathway to full hurricane development requires specific
@@ -889,8 +895,8 @@ Computational enhancement of 3--140$\times$ (geometric mean $14\times$) makes FF
 practical across the full range of synoptic environments. Physically, the method reveals
 that the rate-limiting step in genesis varies by regime: initial tropical organization
 ($P_1$ bottleneck, as in Earl), uniformly elevated crossing probabilities with a terminal
-intensification barrier ($P_4$ bottleneck, as in the active-period IC), or a compound
-barrier at the final intensification stages ($P_3$--$P_4$, as in the Ian precursor).
+intensification barrier ($P_4$ bottleneck, as in the Fiona IC), or a compound
+barrier at the final intensification stages ($P_3$--$P_4$, as in the Ian IC).
 These distinct bottleneck signatures encode mechanistic information about genesis pathway
 dynamics that is invisible to scalar rate estimates from direct sampling.
 
