@@ -1,9 +1,9 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024 - Spack) (preloaded format=pdflatex 2024.12.17)  8 APR 2026 07:32
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024 - Spack) (preloaded format=pdflatex 2024.12.17)  1 APR 2026 13:48
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
-**main_james.tex
-(./main_james.tex
+**main.tex
+(./main.tex
 LaTeX2e <2023-11-01> patch level 1
 L3 programming layer <2024-02-20>
 
@@ -28,13 +28,19 @@ File: size11.clo 2023/05/17 v1.4n Standard LaTeX file (size option)
 \bibindent=\dimen140
 )
 (/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/te
+xmf-dist/tex/latex/base/inputenc.sty
+Package: inputenc 2021/02/14 v1.3d Input encoding file
+\inpenc@prehook=\toks17
+\inpenc@posthook=\toks18
+)
+(/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/te
 xmf-dist/tex/latex/geometry/geometry.sty
 Package: geometry 2020/01/02 v5.9 Page Geometry
 
 (/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/te
 xmf-dist/tex/latex/graphics/keyval.sty
 Package: keyval 2022/05/29 v1.15 key=value parser (DPC)
-\KV@toks@=\toks17
+\KV@toks@=\toks19
 )
 (/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/te
 xmf-dist/tex/generic/iftex/ifvtex.sty
@@ -55,7 +61,7 @@ Package: iftex 2022/02/03 v1.0f TeX engine tests
 \Gm@layoutheight=\dimen146
 \Gm@layouthoffset=\dimen147
 \Gm@layoutvoffset=\dimen148
-\Gm@dimlist=\toks18
+\Gm@dimlist=\toks20
 )
 (/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/te
 xmf-dist/tex/latex/amsmath/amsmath.sty
@@ -71,7 +77,7 @@ Package: amstext 2021/08/26 v2.01 AMS text
 (/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/te
 xmf-dist/tex/latex/amsmath/amsgen.sty
 File: amsgen.sty 1999/11/30 v2.0 generic functions
-\@emptytoks=\toks19
+\@emptytoks=\toks21
 \ex@=\dimen149
 ))
 (/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/te
@@ -113,21 +119,21 @@ LaTeX Info: Redefining \Relbar on input line 971.
 \dotsspace@=\muskip16
 \c@parentequation=\count272
 \dspbrk@lvl=\count273
-\tag@help=\toks20
+\tag@help=\toks22
 \row@=\count274
 \column@=\count275
 \maxfields@=\count276
-\andhelp@=\toks21
+\andhelp@=\toks23
 \eqnshift@=\dimen152
 \alignsep@=\dimen153
 \tagshift@=\dimen154
 \tagwidth@=\dimen155
 \totwidth@=\dimen156
 \lineht@=\dimen157
-\@envbody=\toks22
+\@envbody=\toks24
 \multlinegap=\skip51
 \multlinetaggap=\skip52
-\mathdisplay@stack=\toks23
+\mathdisplay@stack=\toks25
 LaTeX Info: Redefining \[ on input line 2953.
 LaTeX Info: Redefining \] on input line 2954.
 )
@@ -359,30 +365,6 @@ Package: booktabs 2020/01/12 v1.61803398 Publication quality tables
 \@thisrulewidth=\dimen176
 )
 (/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/te
-xmf-dist/tex/latex/setspace/setspace.sty
-Package: setspace 2022/12/04 v6.7b set line spacing
-)
-(/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/te
-xmf-dist/tex/latex/lineno/lineno.sty
-Package: lineno 2023/05/20 line numbers on paragraphs v5.3
-\linenopenalty=\count294
-\output=\toks24
-\linenoprevgraf=\count295
-\linenumbersep=\dimen177
-\linenumberwidth=\dimen178
-\c@linenumber=\count296
-\c@pagewiselinenumber=\count297
-\c@LN@truepage=\count298
-\c@internallinenumber=\count299
-\c@internallinenumbers=\count300
-\quotelinenumbersep=\dimen179
-\bframerule=\dimen180
-\bframesep=\dimen181
-\bframebox=\box53
-\linenoamsmath@ams@eqpen=\count301
-LaTeX Info: Redefining \\ on input line 3180.
-)
-(/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/te
 xmf-dist/tex/latex/xcolor/xcolor.sty
 Package: xcolor 2023/11/15 v3.01 LaTeX color extensions (UK)
 
@@ -405,31 +387,35 @@ Package xcolor Info: Model `Gray' substituted by `gray' on input line 1372.
 Package xcolor Info: Model `wave' substituted by `hsb' on input line 1373.
 )
 (/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/te
+xmf-dist/tex/latex/setspace/setspace.sty
+Package: setspace 2022/12/04 v6.7b set line spacing
+)
+(/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/te
 xmf-dist/tex/latex/l3backend/l3backend-pdftex.def
 File: l3backend-pdftex.def 2024-02-20 L3 backend support: PDF output (pdfTeX)
-\l__color_backend_stack_int=\count302
-\l__pdf_internal_box=\box54
-) (./main_james.aux)
-\openout1 = `main_james.aux'.
+\l__color_backend_stack_int=\count294
+\l__pdf_internal_box=\box53
+) (./main.aux)
+\openout1 = `main.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 69.
-LaTeX Font Info:    ... okay on input line 69.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 69.
-LaTeX Font Info:    ... okay on input line 69.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 69.
-LaTeX Font Info:    ... okay on input line 69.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 69.
-LaTeX Font Info:    ... okay on input line 69.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 69.
-LaTeX Font Info:    ... okay on input line 69.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 69.
-LaTeX Font Info:    ... okay on input line 69.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 69.
-LaTeX Font Info:    ... okay on input line 69.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 69.
-LaTeX Font Info:    ... okay on input line 69.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 69.
-LaTeX Font Info:    ... okay on input line 69.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 49.
+LaTeX Font Info:    ... okay on input line 49.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 49.
+LaTeX Font Info:    ... okay on input line 49.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 49.
+LaTeX Font Info:    ... okay on input line 49.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 49.
+LaTeX Font Info:    ... okay on input line 49.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 49.
+LaTeX Font Info:    ... okay on input line 49.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 49.
+LaTeX Font Info:    ... okay on input line 49.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 49.
+LaTeX Font Info:    ... okay on input line 49.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 49.
+LaTeX Font Info:    ... okay on input line 49.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 49.
+LaTeX Font Info:    ... okay on input line 49.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
@@ -469,17 +455,17 @@ LaTeX Font Info:    ... okay on input line 69.
 (/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/te
 xmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
-\scratchcounter=\count303
-\scratchdimen=\dimen182
-\scratchbox=\box55
-\nofMPsegments=\count304
-\nofMParguments=\count305
-\everyMPshowfont=\toks25
-\MPscratchCnt=\count306
-\MPscratchDim=\dimen183
-\MPnumerator=\count307
-\makeMPintoPDFobject=\count308
-\everyMPtoPDFconversion=\toks26
+\scratchcounter=\count295
+\scratchdimen=\dimen177
+\scratchbox=\box54
+\nofMPsegments=\count296
+\nofMParguments=\count297
+\everyMPshowfont=\toks26
+\MPscratchCnt=\count298
+\MPscratchDim=\dimen178
+\MPnumerator=\count299
+\makeMPintoPDFobject=\count300
+\everyMPtoPDFconversion=\toks27
 )
 (/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/te
 xmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.sty
@@ -492,170 +478,263 @@ xmf-dist/tex/latex/latexconfig/epstopdf-sys.cfg
 File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
-Package hyperref Info: Link coloring OFF on input line 69.
- (./main_james.out)
-(./main_james.out)
+Package hyperref Info: Link coloring OFF on input line 49.
+ (./main.out) (./main.out)
 \@outlinefile=\write3
-\openout3 = `main_james.out'.
+\openout3 = `main.out'.
 
-LaTeX Font Info:    Trying to load font information for U+msa on input line 71.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 52.
 
 
 (/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/te
 xmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 71.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 52.
 
 
 (/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/te
 xmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
-)
-
-Package natbib Warning: Citation `Titley2000' on page 1 undefined on input line
- 112.
-
-[1
+) [1
 
 {/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/te
-xmf-dist/fonts/map/pdftex/updmap/pdftex.map}] [2]
-
-Package natbib Warning: Citation `schreck2025sdl' on page 3 undefined on input 
-line 169.
-
-[3] [4]
-
-Package natbib Warning: Citation `schreck2025sdl' on page 5 undefined on input 
-line 313.
-
-
-Package natbib Warning: Citation `hersbach2020era5' on page 5 undefined on inpu
-t line 314.
-
-[5]
-Overfull \hbox (3.62415pt too wide) in paragraph at lines 334--336
-[]\OT1/cmr/bx/n/10.95 2022-09-22T00Z (Ian)\OT1/cmr/m/n/10.95 : 24 hours be-fore
- Hur-ri-cane Ian's NHC gen-e-sis des-ig-na-tion on Septem-
+xmf-dist/fonts/map/pdftex/updmap/pdftex.map}] [2] [3] [4]
+Overfull \hbox (4.32774pt too wide) in paragraph at lines 120--120
+[]\OT1/cmr/bx/n/14.4 Applicability of For-ward Flux Sam-pling to Neu-ral Weathe
+r Mod-
  []
 
-[6{/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/
+[5] [6]
+Overfull \hbox (0.41623pt too wide) in paragraph at lines 140--141
+\OT1/cmr/m/n/10.95 ERA5 re-anal-y-sis span-ning 1979-2021 at 6-hour tem-po-ral 
+res-o-lu-tion. The model pre-dicts 69 pressure-
+ []
+
+[7{/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/
 texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc}]
-<ffs_schematic.pdf, id=199, 722.7pt x 406.51875pt>
+Overfull \hbox (2.48169pt too wide) in paragraph at lines 162--163
+[]\OT1/cmr/m/n/10.95 This mech-a-nism dif-fers fun-da-men-tally from ther-mal f
+luc-tu-a-tions in molec-u-lar sys-tems. Molecules
+ []
+
+[8] [9] [10] [11]
+Overfull \hbox (5.97534pt too wide) in paragraph at lines 216--217
+[]\OT1/cmr/bx/n/10.95 Neural em-u-la-tors in-herit at-trac-tor struc-ture from 
+train-ing data\OT1/cmr/m/n/10.95 . The SDL-WXFormer
+ []
+
+[12]
+<ffs_schematic.pdf, id=353, 722.7pt x 406.51875pt>
 File: ffs_schematic.pdf Graphic file (type pdf)
 <use ffs_schematic.pdf>
-Package pdftex.def Info: ffs_schematic.pdf  used on input line 401.
-(pdftex.def)             Requested size: 469.75502pt x 264.24025pt.
- [7] [8 <./ffs_schematic.pdf>] [9]
-<rates_plot.png, id=274, 713.064pt x 351.714pt>
-File: rates_plot.png Graphic file (type png)
-<use rates_plot.png>
-Package pdftex.def Info: rates_plot.png  used on input line 498.
-(pdftex.def)             Requested size: 469.75502pt x 231.71335pt.
-<ffs_interface_probs.png, id=276, 1074.8958pt x 586.3506pt>
-File: ffs_interface_probs.png Graphic file (type png)
-<use ffs_interface_probs.png>
-Package pdftex.def Info: ffs_interface_probs.png  used on input line 514.
-(pdftex.def)             Requested size: 469.75502pt x 256.2504pt.
-<ffs_vs_direct_scatter.png, id=277, 418.2024pt x 384.9582pt>
-File: ffs_vs_direct_scatter.png Graphic file (type png)
-<use ffs_vs_direct_scatter.png>
-Package pdftex.def Info: ffs_vs_direct_scatter.png  used on input line 528.
-(pdftex.def)             Requested size: 469.75502pt x 432.4249pt.
-<conditional_prob_distributions.png, id=278, 641.2758pt x 457.71pt>
-File: conditional_prob_distributions.png Graphic file (type png)
-<use conditional_prob_distributions.png>
-Package pdftex.def Info: conditional_prob_distributions.png  used on input line
- 543.
-(pdftex.def)             Requested size: 469.75502pt x 335.29886pt.
- [10 <./rates_plot.png>] [11 <./ffs_interface_probs.png>] [12 <./ffs_vs_direct_
-scatter.png>] [13 <./conditional_prob_distributions.png>]
-<stateb_geography.png, id=309, 1004.553pt x 439.6425pt>
-File: stateb_geography.png Graphic file (type png)
-<use stateb_geography.png>
-Package pdftex.def Info: stateb_geography.png  used on input line 620.
-(pdftex.def)             Requested size: 469.75502pt x 205.58548pt.
-<reactive_trajectories_2022-09-02T00Z.png, id=310, 1500.3252pt x 522.2712pt>
-File: reactive_trajectories_2022-09-02T00Z.png Graphic file (type png)
-<use reactive_trajectories_2022-09-02T00Z.png>
-Package pdftex.def Info: reactive_trajectories_2022-09-02T00Z.png  used on inpu
-t line 635.
-(pdftex.def)             Requested size: 469.75502pt x 163.52014pt.
- [14 <./stateb_geography.png>]
-<ffs_trees_combined.png, id=317, 540.5796pt x 403.7484pt>
-File: ffs_trees_combined.png Graphic file (type png)
-<use ffs_trees_combined.png>
-Package pdftex.def Info: ffs_trees_combined.png  used on input line 677.
-(pdftex.def)             Requested size: 469.75502pt x 350.85782pt.
- [15 <./reactive_trajectories_2022-09-02T00Z.png>] [16 <./ffs_trees_combined.pn
-g>]
-<commitment_curve.png, id=333, 569.9694pt x 423.984pt>
-File: commitment_curve.png Graphic file (type png)
-<use commitment_curve.png>
-Package pdftex.def Info: commitment_curve.png  used on input line 718.
-(pdftex.def)             Requested size: 399.29463pt x 297.03906pt.
-<trajectory_2022-09-02T00Z_pathway1079.png, id=336, 995.3988pt x 788.7066pt>
-File: trajectory_2022-09-02T00Z_pathway1079.png Graphic file (type png)
-<use trajectory_2022-09-02T00Z_pathway1079.png>
-Package pdftex.def Info: trajectory_2022-09-02T00Z_pathway1079.png  used on inp
-ut line 747.
-(pdftex.def)             Requested size: 469.75502pt x 372.20851pt.
+Package pdftex.def Info: ffs_schematic.pdf  used on input line 243.
+(pdftex.def)             Requested size: 422.77664pt x 237.8094pt.
+ [13] [14 <./ffs_schematic.pdf>] [15] [16]
 
-Overfull \hbox (3.1638pt too wide) in paragraph at lines 766--772
-\OT1/cmr/m/n/10.95 Figures []11[]--[]13[] show storm-centred com-pos-ites of vo
-r-tic-ity, rel-a-tive hu-mid-ity, and warm-core anomaly,
+LaTeX Warning: Command \textdegree invalid in math mode on input line 313.
+
+
+LaTeX Warning: Command \textdegree invalid in math mode on input line 313.
+
+
+LaTeX Warning: Command \textdegree invalid in math mode on input line 313.
+
+
+LaTeX Warning: Command \textdegree invalid in math mode on input line 313.
+
+
+LaTeX Warning: Command \textdegree invalid in math mode on input line 313.
+
+
+LaTeX Warning: Command \textdegree invalid in math mode on input line 313.
+
+
+LaTeX Warning: Command \textdegree invalid in math mode on input line 313.
+
+
+LaTeX Warning: Command \textdegree invalid in math mode on input line 313.
+
+Missing character: There is no ° in font cmr10!
+Missing character: There is no ° in font cmr10!
+Missing character: There is no ° in font cmr10!
+Missing character: There is no ° in font cmr10!
+[17] [18] [19] [20] [21] [22] [23]
+</glade/derecho/scratch/schreck/FFS/results_mar18/plots/summary/rates_plot.png,
+ id=496, 713.064pt x 351.714pt>
+File: /glade/derecho/scratch/schreck/FFS/results_mar18/plots/summary/rates_plot
+.png Graphic file (type png)
+<use /glade/derecho/scratch/schreck/FFS/results_mar18/plots/summary/rates_plot.
+png>
+Package pdftex.def Info: /glade/derecho/scratch/schreck/FFS/results_mar18/plots
+/summary/rates_plot.png  used on input line 491.
+(pdftex.def)             Requested size: 469.75502pt x 231.71335pt.
+</glade/derecho/scratch/schreck/FFS/results_mar18/plots/summary/ffs_interface_p
+robs.png, id=498, 1074.8958pt x 586.3506pt>
+File: /glade/derecho/scratch/schreck/FFS/results_mar18/plots/summary/ffs_interf
+ace_probs.png Graphic file (type png)
+<use /glade/derecho/scratch/schreck/FFS/results_mar18/plots/summary/ffs_interfa
+ce_probs.png>
+Package pdftex.def Info: /glade/derecho/scratch/schreck/FFS/results_mar18/plots
+/summary/ffs_interface_probs.png  used on input line 502.
+(pdftex.def)             Requested size: 469.75502pt x 256.2504pt.
+
+Overfull \hbox (9.8868pt too wide) in paragraph at lines 532--533
+[]\OT1/cmr/m/n/10.95 The three case stud-ies re-veal strik-ingly dif-fer-ent bo
+t-tle-neck struc-tures. For the Earl IC, $\OML/cmm/m/it/10.95 P\OT1/cmr/m/n/10.
+95 (\OML/cmm/m/it/10.95 ^^U[]\OMS/cmsy/m/n/10.95 j\OML/cmm/m/it/10.95 ^^U[]\OT1
+/cmr/m/n/10.95 ) =
  []
 
-[17] [18 <./commitment_curve.png>] [19 <./trajectory_2022-09-02T00Z_pathway1079
-.png>]
-<2022-09-02T00Z_composites.png, id=360, 1088.3862pt x 701.9826pt>
-File: 2022-09-02T00Z_composites.png Graphic file (type png)
-<use 2022-09-02T00Z_composites.png>
-Package pdftex.def Info: 2022-09-02T00Z_composites.png  used on input line 787.
+[24] [25 </glade/derecho/scratch/schreck/FFS/results_mar18/plots/summary/rates_
+plot.png>] [26 </glade/derecho/scratch/schreck/FFS/results_mar18/plots/summary/
+ffs_interface_probs.png>]
+</glade/derecho/scratch/schreck/FFS/results_mar18/plots/summary/commitment_curv
+e.png, id=517, 569.9694pt x 423.984pt>
+File: /glade/derecho/scratch/schreck/FFS/results_mar18/plots/summary/commitment
+_curve.png Graphic file (type png)
+<use /glade/derecho/scratch/schreck/FFS/results_mar18/plots/summary/commitment_
+curve.png>
+Package pdftex.def Info: /glade/derecho/scratch/schreck/FFS/results_mar18/plots
+/summary/commitment_curve.png  used on input line 542.
+(pdftex.def)             Requested size: 399.29463pt x 297.03906pt.
+ [27 </glade/derecho/scratch/schreck/FFS/results_mar18/plots/summary/commitment
+_curve.png>]
+</glade/derecho/scratch/schreck/FFS/results_mar18/plots/reactive_trajectories/r
+eactive_trajectories_2022-09-02T00Z.png, id=525, 1500.3252pt x 522.2712pt>
+File: /glade/derecho/scratch/schreck/FFS/results_mar18/plots/reactive_trajector
+ies/reactive_trajectories_2022-09-02T00Z.png Graphic file (type png)
+<use /glade/derecho/scratch/schreck/FFS/results_mar18/plots/reactive_trajectori
+es/reactive_trajectories_2022-09-02T00Z.png>
+Package pdftex.def Info: /glade/derecho/scratch/schreck/FFS/results_mar18/plots
+/reactive_trajectories/reactive_trajectories_2022-09-02T00Z.png  used on input 
+line 559.
+(pdftex.def)             Requested size: 469.75502pt x 163.52014pt.
+ [28 </glade/derecho/scratch/schreck/FFS/results_mar18/plots/reactive_trajector
+ies/reactive_trajectories_2022-09-02T00Z.png>]
+</glade/derecho/scratch/schreck/FFS/results_mar18/plots/ffs_trees/ffs_tree_rank
+01_2022-09-02T00Z_lambda0_config_0440_BN.png, id=533, 766.062pt x 467.8278pt>
+File: /glade/derecho/scratch/schreck/FFS/results_mar18/plots/ffs_trees/ffs_tree
+_rank01_2022-09-02T00Z_lambda0_config_0440_BN.png Graphic file (type png)
+<use /glade/derecho/scratch/schreck/FFS/results_mar18/plots/ffs_trees/ffs_tree_
+rank01_2022-09-02T00Z_lambda0_config_0440_BN.png>
+Package pdftex.def Info: /glade/derecho/scratch/schreck/FFS/results_mar18/plots
+/ffs_trees/ffs_tree_rank01_2022-09-02T00Z_lambda0_config_0440_BN.png  used on i
+nput line 571.
+(pdftex.def)             Requested size: 352.31625pt x 215.16057pt.
 
-(pdftex.def)             Requested size: 469.75502pt x 302.98204pt.
-<2022-09-09T12Z_composites.png, id=361, 1088.3862pt x 701.9826pt>
-File: 2022-09-09T12Z_composites.png Graphic file (type png)
-<use 2022-09-09T12Z_composites.png>
-Package pdftex.def Info: 2022-09-09T12Z_composites.png  used on input line 800.
+Overfull \hbox (18.78291pt too wide) in paragraph at lines 578--579
+\OT1/cmr/m/n/10.95 ing struc-ture re-veals that com-mit-ted path-ways from this
+ seed span a cor-ri-dor from the Ba-hamas/Greater
+ []
 
-(pdftex.def)             Requested size: 469.75502pt x 302.98204pt.
-<2022-09-22T00Z_composites.png, id=364, 1088.3862pt x 701.9826pt>
-File: 2022-09-22T00Z_composites.png Graphic file (type png)
-<use 2022-09-22T00Z_composites.png>
-Package pdftex.def Info: 2022-09-22T00Z_composites.png  used on input line 809.
+</glade/derecho/scratch/schreck/FFS/results_mar18/plots/committor_maps/committo
+r_map_2022-09-02T00Z.png, id=536, 1669.437pt x 861.9402pt>
+File: /glade/derecho/scratch/schreck/FFS/results_mar18/plots/committor_maps/com
+mittor_map_2022-09-02T00Z.png Graphic file (type png)
+<use /glade/derecho/scratch/schreck/FFS/results_mar18/plots/committor_maps/comm
+ittor_map_2022-09-02T00Z.png>
+Package pdftex.def Info: /glade/derecho/scratch/schreck/FFS/results_mar18/plots
+/committor_maps/committor_map_2022-09-02T00Z.png  used on input line 582.
+(pdftex.def)             Requested size: 469.75502pt x 242.53845pt.
+</glade/derecho/scratch/schreck/FFS/results_mar18/plots/trajectory_physics/traj
+ectory_2022-09-02T00Z_pathway26.png, id=538, 995.3988pt x 770.88pt>
+File: /glade/derecho/scratch/schreck/FFS/results_mar18/plots/trajectory_physics
+/trajectory_2022-09-02T00Z_pathway26.png Graphic file (type png)
+<use /glade/derecho/scratch/schreck/FFS/results_mar18/plots/trajectory_physics/
+trajectory_2022-09-02T00Z_pathway26.png>
+Package pdftex.def Info: /glade/derecho/scratch/schreck/FFS/results_mar18/plots
+/trajectory_physics/trajectory_2022-09-02T00Z_pathway26.png  used on input line
+ 595.
+(pdftex.def)             Requested size: 469.75502pt x 363.79575pt.
+[29 </glade/derecho/scratch/schreck/FFS/results_mar18/plots/ffs_trees/ffs_tree_
+rank01_2022-09-02T00Z_lambda0_config_0440_BN.png>] [30 </glade/derecho/scratch/
+schreck/FFS/results_mar18/plots/committor_maps/committor_map_2022-09-02T00Z.png
+>] [31 </glade/derecho/scratch/schreck/FFS/results_mar18/plots/trajectory_physi
+cs/trajectory_2022-09-02T00Z_pathway26.png>] [32]
+</glade/derecho/scratch/schreck/FFS/results_mar18/plots/committor_fields/commit
+tor_fields_tvd_heatmap_top20.png, id=569, 535.2798pt x 793.0428pt>
+File: /glade/derecho/scratch/schreck/FFS/results_mar18/plots/committor_fields/c
+ommittor_fields_tvd_heatmap_top20.png Graphic file (type png)
+<use /glade/derecho/scratch/schreck/FFS/results_mar18/plots/committor_fields/co
+mmittor_fields_tvd_heatmap_top20.png>
+Package pdftex.def Info: /glade/derecho/scratch/schreck/FFS/results_mar18/plots
+/committor_fields/committor_fields_tvd_heatmap_top20.png  used on input line 65
+6.
+(pdftex.def)             Requested size: 399.29463pt x 591.59811pt.
 
-(pdftex.def)             Requested size: 469.75502pt x 302.98204pt.
- [20 <./2022-09-02T00Z_composites.png>] [21 <./2022-09-09T12Z_composites.png>] 
-[22 <./2022-09-22T00Z_composites.png>] [23]
 
-Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 917.
+LaTeX Warning: Float too large for page by 21.90562pt on input line 663.
+
+[33]
+</glade/derecho/scratch/schreck/FFS/results_mar18/plots/committor_fields/commit
+tor_fields_tvd_heatmap_late_top20.png, id=580, 535.2798pt x 793.0428pt>
+File: /glade/derecho/scratch/schreck/FFS/results_mar18/plots/committor_fields/c
+ommittor_fields_tvd_heatmap_late_top20.png Graphic file (type png)
+<use /glade/derecho/scratch/schreck/FFS/results_mar18/plots/committor_fields/co
+mmittor_fields_tvd_heatmap_late_top20.png>
+Package pdftex.def Info: /glade/derecho/scratch/schreck/FFS/results_mar18/plots
+/committor_fields/committor_fields_tvd_heatmap_late_top20.png  used on input li
+ne 671.
+(pdftex.def)             Requested size: 399.29463pt x 591.59811pt.
 
 
-Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 917.
+LaTeX Warning: Float too large for page by 21.2973pt on input line 676.
 
-[24] (./main_james.bbl [25] [26])
+</glade/derecho/scratch/schreck/FFS/results_mar18/plots/summary/bottleneck_inte
+rface_heatmap.png, id=582, 1025.7522pt x 1444.9182pt>
+File: /glade/derecho/scratch/schreck/FFS/results_mar18/plots/summary/bottleneck
+_interface_heatmap.png Graphic file (type png)
+<use /glade/derecho/scratch/schreck/FFS/results_mar18/plots/summary/bottleneck_
+interface_heatmap.png>
+Package pdftex.def Info: /glade/derecho/scratch/schreck/FFS/results_mar18/plots
+/summary/bottleneck_interface_heatmap.png  used on input line 682.
+(pdftex.def)             Requested size: 469.75502pt x 661.71606pt.
 
-Package natbib Warning: There were undefined citations.
+LaTeX Warning: Float too large for page by 116.4861pt on input line 689.
 
-[27] (./main_james.aux)
+[34] [35 </glade/derecho/scratch/schreck/FFS/results_mar18/plots/committor_fiel
+ds/committor_fields_tvd_heatmap_top20.png>] [36 </glade/derecho/scratch/schreck
+/FFS/results_mar18/plots/committor_fields/committor_fields_tvd_heatmap_late_top
+20.png>] [37 </glade/derecho/scratch/schreck/FFS/results_mar18/plots/summary/bo
+ttleneck_interface_heatmap.png>] [38]
+
+LaTeX Warning: Command \textdegree invalid in math mode on input line 720.
+
+
+LaTeX Warning: Command \textdegree invalid in math mode on input line 720.
+
+Missing character: There is no ° in font cmr10!
+
+LaTeX Warning: Command \textdegree invalid in math mode on input line 720.
+
+
+LaTeX Warning: Command \textdegree invalid in math mode on input line 720.
+
+Missing character: There is no ° in font cmr10!
+
+LaTeX Warning: Command \textdegree invalid in math mode on input line 723.
+
+
+LaTeX Warning: Command \textdegree invalid in math mode on input line 723.
+
+Missing character: There is no ° in font cmr10!
+[39] [40] [41] [42] (./main.bbl [43] [44]) [45] (./main.aux)
  ***********
 LaTeX2e <2023-11-01> patch level 1
 L3 programming layer <2024-02-20>
  ***********
-Package rerunfilecheck Info: File `main_james.out' has not changed.
-(rerunfilecheck)             Checksum: FAF0F9F6C76F759E0F36E26FB91F8F13;3564.
+Package rerunfilecheck Info: File `main.out' has not changed.
+(rerunfilecheck)             Checksum: 31C00E8E1026E258D492E1533F6EFD5E;10940.
  ) 
 Here is how much of TeX's memory you used:
- 11535 strings out of 474116
- 184264 string characters out of 5674265
- 1940187 words of memory out of 5000000
- 33661 multiletter control sequences out of 15000+600000
- 571167 words of font info for 86 fonts, out of 8000000 for 9000
+ 11442 strings out of 474116
+ 187702 string characters out of 5674265
+ 1944187 words of memory out of 5000000
+ 33477 multiletter control sequences out of 15000+600000
+ 569600 words of font info for 81 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 75i,14n,79p,1151b,598s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 75i,13n,79p,2389b,582s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/
 texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></glade/u/apps/casper/24.1
 2/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/texmf-dist/fonts/type1/publi
@@ -664,34 +743,35 @@ c/amsfonts/cm/cmbx12.pfb></glade/u/apps/casper/24.12/spack/opt/spack/texlive/20
 lade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/texmf
 -dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></glade/u/apps/casper/24.12/spa
 ck/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/texmf-dist/fonts/type1/public/ams
-fonts/cm/cmmi12.pfb></glade/u/apps/casper/24.12/spack/opt/spack/texlive/2024031
-2/gcc/12.4.0/nm7e/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb></glade/u
-/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/texmf-dist/
-fonts/type1/public/amsfonts/cm/cmmi8.pfb></glade/u/apps/casper/24.12/spack/opt/
-spack/texlive/20240312/gcc/12.4.0/nm7e/texmf-dist/fonts/type1/public/amsfonts/c
-m/cmr10.pfb></glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12
-.4.0/nm7e/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></glade/u/apps/ca
-sper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/texmf-dist/fonts/ty
-pe1/public/amsfonts/cm/cmr17.pfb></glade/u/apps/casper/24.12/spack/opt/spack/te
-xlive/20240312/gcc/12.4.0/nm7e/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.p
-fb></glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e
-/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></glade/u/apps/casper/24.12
-/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/texmf-dist/fonts/type1/public
-/amsfonts/cm/cmsy10.pfb></glade/u/apps/casper/24.12/spack/opt/spack/texlive/202
-40312/gcc/12.4.0/nm7e/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></gla
-de/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/texmf-d
-ist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></glade/u/apps/casper/24.12/spack/
-opt/spack/texlive/20240312/gcc/12.4.0/nm7e/texmf-dist/fonts/type1/public/amsfon
-ts/cm/cmti10.pfb></glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/g
-cc/12.4.0/nm7e/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb></glade/u/a
-pps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/texmf-dist/fo
-nts/type1/public/amsfonts/symbols/msam10.pfb></glade/u/apps/casper/24.12/spack/
-opt/spack/texlive/20240312/gcc/12.4.0/nm7e/texmf-dist/fonts/type1/public/cm-sup
-er/sfrm1095.pfb>
-Output written on main_james.pdf (27 pages, 3825002 bytes).
+fonts/cm/cmmi6.pfb></glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312
+/gcc/12.4.0/nm7e/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></glade/u/
+apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/texmf-dist/f
+onts/type1/public/amsfonts/cm/cmr10.pfb></glade/u/apps/casper/24.12/spack/opt/s
+pack/texlive/20240312/gcc/12.4.0/nm7e/texmf-dist/fonts/type1/public/amsfonts/cm
+/cmr12.pfb></glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.
+4.0/nm7e/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></glade/u/apps/cas
+per/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/texmf-dist/fonts/typ
+e1/public/amsfonts/cm/cmr6.pfb></glade/u/apps/casper/24.12/spack/opt/spack/texl
+ive/20240312/gcc/12.4.0/nm7e/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb
+></glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/t
+exmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></glade/u/apps/casper/24.12/s
+pack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/texmf-dist/fonts/type1/public/a
+msfonts/cm/cmsy10.pfb></glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240
+312/gcc/12.4.0/nm7e/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></glade
+/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/texmf-dis
+t/fonts/type1/public/amsfonts/cm/cmsy8.pfb></glade/u/apps/casper/24.12/spack/op
+t/spack/texlive/20240312/gcc/12.4.0/nm7e/texmf-dist/fonts/type1/public/amsfonts
+/cm/cmti10.pfb></glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc
+/12.4.0/nm7e/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb></glade/u/app
+s/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/texmf-dist/font
+s/type1/public/amsfonts/symbols/msam10.pfb></glade/u/apps/casper/24.12/spack/op
+t/spack/texlive/20240312/gcc/12.4.0/nm7e/texmf-dist/fonts/type1/public/amsfonts
+/symbols/msbm10.pfb></glade/u/apps/casper/24.12/spack/opt/spack/texlive/2024031
+2/gcc/12.4.0/nm7e/texmf-dist/fonts/type1/public/cm-super/sfrm1095.pfb>
+Output written on main.pdf (45 pages, 4072429 bytes).
 PDF statistics:
- 531 PDF objects out of 1000 (max. 8388607)
- 407 compressed objects within 5 object streams
- 88 named destinations out of 1000 (max. 500000)
- 202 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 794 PDF objects out of 1000 (max. 8388607)
+ 657 compressed objects within 7 object streams
+ 180 named destinations out of 1000 (max. 500000)
+ 424 words of extra memory for PDF output out of 10000 (max. 10000000)
 

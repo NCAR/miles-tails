@@ -1,0 +1,258 @@
+\begin{thebibliography}{37}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Allen et~al.(2006)Allen, Frenkel, and ten Wolde]{allen2006forward}
+R.~J. Allen, D.~Frenkel, and P.~R. ten Wolde.
+\newblock Simulating rare events in equilibrium or nonequilibrium stochastic
+  systems.
+\newblock \emph{J. Chem. Phys.}, 124:\penalty0 024102, 2006.
+
+\bibitem[Allen et~al.(2009)Allen, Valeriani, and ten Wolde]{allen2009forward}
+R.~J. Allen, C.~Valeriani, and P.~R. ten Wolde.
+\newblock Forward flux sampling for rare event simulations.
+\newblock \emph{J. Phys.: Condens. Matter}, 21:\penalty0 463102, 2009.
+\newblock \doi{10.1088/0953-8984/21/46/463102}.
+
+\bibitem[Allen et~al.(2005)Allen, Warren, and ten Wolde]{allen2005sampling}
+Rosalind~J. Allen, Patrick~B. Warren, and Pieter~Rein ten Wolde.
+\newblock Sampling rare switching events in biochemical networks.
+\newblock \emph{Physical Review Letters}, 94:\penalty0 018104, 2005.
+\newblock \doi{10.1103/PhysRevLett.94.018104}.
+
+\bibitem[Bi and Coauthors(2023)]{bi2023pangu}
+K.~Bi and Coauthors.
+\newblock Accurate medium-range global weather forecasting with {3D} neural
+  networks.
+\newblock \emph{Nature}, 619:\penalty0 533--538, 2023.
+\newblock \doi{10.1038/s41586-023-06185-3}.
+
+\bibitem[Bister and Emanuel(1998)]{bister1998dissipative}
+M.~Bister and K.~A. Emanuel.
+\newblock Dissipative heating and hurricane intensity.
+\newblock \emph{Meteor.\ Atmos.\ Phys.}, 65:\penalty0 233--240, 1998.
+\newblock \doi{10.1007/BF01030791}.
+
+\bibitem[Bolhuis et~al.(2002)Bolhuis, Chandler, Dellago, and
+  Geissler]{bolhuis2002transition}
+P.~G. Bolhuis, D.~Chandler, C.~Dellago, and P.~L. Geissler.
+\newblock Transition path sampling: Throwing ropes over rough mountain passes,
+  in the dark.
+\newblock \emph{Annu. Rev. Phys. Chem.}, 53:\penalty0 291--318, 2002.
+
+\bibitem[Buizza and Coauthors(2018)]{buizza2018ensemble}
+R.~Buizza and Coauthors.
+\newblock The evolution of ensemble forecasting systems.
+\newblock \emph{Bull. Amer. Meteor. Soc.}, 99:\penalty0 1393--1400, 2018.
+
+\bibitem[Camargo et~al.(2007)Camargo, Emanuel, and Sobel]{camargo2007use}
+S.~J. Camargo, K.~A. Emanuel, and A.~H. Sobel.
+\newblock Use of a genesis potential index to diagnose {ENSO} effects on
+  tropical cyclone genesis.
+\newblock \emph{J.\ Climate}, 20:\penalty0 4819--4834, 2007.
+\newblock \doi{10.1175/JCLI4282.1}.
+
+\bibitem[Finkel et~al.(2023)Finkel, Gerber, Abbot, and
+  Weare]{finkel2023revealing}
+J.~Finkel, E.~P. Gerber, D.~S. Abbot, and J.~Weare.
+\newblock Revealing the statistics of extreme events hidden in short weather
+  forecast data.
+\newblock \emph{AGU Adv.}, 4:\penalty0 e2023AV000881, 2023.
+\newblock \doi{10.1029/2023AV000881}.
+
+\bibitem[Finkel et~al.(2024)Finkel, Abbot, and Weare]{finkel2024bringing}
+J.~Finkel, D.~S. Abbot, and J.~Weare.
+\newblock Bringing it all together: Rare event sampling in climate science.
+\newblock \emph{Chaos}, 34:\penalty0 072101, 2024.
+
+\bibitem[Frank(1970)]{Frank1970}
+N.~L. Frank.
+\newblock Atlantic tropical systems of 1969.
+\newblock \emph{Mon. Wea. Rev.}, 98:\penalty0 307--314, 1970.
+
+\bibitem[G{\'a}lfi et~al.(2019)G{\'a}lfi, Lucarini, and
+  Wouters]{galfi2019large}
+V.~M. G{\'a}lfi, V.~Lucarini, and J.~Wouters.
+\newblock A large deviation theory-based analysis of heat waves and cold spells
+  in a simplified model of the general circulation of the atmosphere.
+\newblock \emph{J. Stat. Mech.: Theory Exp.}, 2019:\penalty0 033404, 2019.
+\newblock \doi{10.1088/1742-5468/ab02e8}.
+
+\bibitem[Gray(1968)]{gray1968global}
+W.~M. Gray.
+\newblock Global view of the origin of tropical disturbances and storms.
+\newblock \emph{Mon. Wea. Rev.}, 96:\penalty0 669--700, 1968.
+
+\bibitem[Halperin et~al.(2013)Halperin, Fuelberg, Hart, Cossuth, Sura, and
+  Pasch]{Halperin2013}
+D.~J. Halperin, H.~E. Fuelberg, R.~E. Hart, J.~H. Cossuth, P.~Sura, and R.~J.
+  Pasch.
+\newblock An evaluation of tropical cyclone genesis forecasts from global
+  numerical models.
+\newblock \emph{Wea. Forecasting}, 28:\penalty0 1423--1445, 2013.
+\newblock \doi{10.1175/WAF-D-13-00008.1}.
+
+\bibitem[Hart(2003)]{hart2003cyclone}
+R.~E. Hart.
+\newblock A cyclone phase space derived from thermal wind and thermal
+  asymmetry.
+\newblock \emph{Mon. Wea. Rev.}, 131:\penalty0 585--616, 2003.
+
+\bibitem[Heikenfeld and Coauthors(2019)]{heikenfeld2019tobac}
+M.~Heikenfeld and Coauthors.
+\newblock tobac 1.2: towards a flexible framework for tracking and analysis of
+  clouds in diverse datasets.
+\newblock \emph{Geosci. Model Dev.}, 12:\penalty0 4551--4570, 2019.
+
+\bibitem[Hersbach et~al.(2020)Hersbach, Bell, Berrisford, Hirahara,
+  Hor{\'a}nyi, Mu{\~n}oz-Sabater, Nicolas, Peubey, Radu, Schepers, Simmons,
+  Soci, Abdalla, Abellan, Balsamo, Bechtold, Biavati, Bidlot, Bonavita,
+  De~Chiara, Dahlgren, Dee, Diamantakis, Dragani, Flemming, Forbes, Fuentes,
+  Geer, Haimberger, Healy, Hogan, H{\'o}lm, Janiskov{\'a}, Keeley, Laloyaux,
+  Lopez, Lupu, Radnoti, de~Rosnay, Rozum, Vamborg, Villaume, and
+  Th{\'e}paut]{hersbach2020era5}
+H.~Hersbach, B.~Bell, P.~Berrisford, S.~Hirahara, A.~Hor{\'a}nyi,
+  J.~Mu{\~n}oz-Sabater, J.~Nicolas, C.~Peubey, R.~Radu, D.~Schepers,
+  A.~Simmons, C.~Soci, S.~Abdalla, X.~Abellan, G.~Balsamo, P.~Bechtold,
+  G.~Biavati, J.~Bidlot, M.~Bonavita, G.~De~Chiara, P.~Dahlgren, D.~Dee,
+  M.~Diamantakis, R.~Dragani, J.~Flemming, R.~Forbes, M.~Fuentes, A.~Geer,
+  L.~Haimberger, S.~Healy, R.~J. Hogan, E.~H{\'o}lm, M.~Janiskov{\'a},
+  S.~Keeley, P.~Laloyaux, P.~Lopez, C.~Lupu, G.~Radnoti, P.~de~Rosnay,
+  I.~Rozum, F.~Vamborg, S.~Villaume, and J.-N. Th{\'e}paut.
+\newblock The {ERA5} global reanalysis.
+\newblock \emph{Quart. J. Roy. Meteor. Soc.}, 146:\penalty0 1999--2049, 2020.
+\newblock \doi{10.1002/qj.3803}.
+
+\bibitem[Hussain and Haji-Akbari(2020)]{hussain2020studying}
+S.~Hussain and A.~Haji-Akbari.
+\newblock Studying rare events using forward-flux sampling: Recent
+  breakthroughs and future outlook.
+\newblock \emph{J.\ Chem.\ Phys.}, 152:\penalty0 060901, 2020.
+\newblock \doi{10.1063/1.5127780}.
+
+\bibitem[Knaff and Zehr(2007)]{knaff2007improved}
+J.~A. Knaff and R.~M. Zehr.
+\newblock Reexamination of tropical cyclone pressure--wind relationships.
+\newblock \emph{Wea. Forecasting}, 22:\penalty0 71--88, 2007.
+
+\bibitem[Laio and Parrinello(2002)]{laio2002escaping}
+A.~Laio and M.~Parrinello.
+\newblock Escaping free-energy minima.
+\newblock \emph{Proc. Natl. Acad. Sci.}, 99:\penalty0 12562--12566, 2002.
+
+\bibitem[Lam and Coauthors(2023)]{lam2023graphcast}
+R.~Lam and Coauthors.
+\newblock Learning skillful medium-range global weather forecasting.
+\newblock \emph{Science}, 382:\penalty0 1416--1421, 2023.
+\newblock \doi{10.1126/science.adi2336}.
+
+\bibitem[Lancelin et~al.(2025)Lancelin, Wikner, Dubus, {Le Priol}, Abbot,
+  Bouchet, Hassanzadeh, and Weare]{lancelin2025ai}
+A.~Lancelin, A.~Wikner, L.~Dubus, C.~{Le Priol}, D.~S. Abbot, F.~Bouchet,
+  P.~Hassanzadeh, and J.~Weare.
+\newblock {AI}-boosted rare event sampling to characterize extreme weather.
+\newblock \emph{arXiv preprint arXiv:2510.27066}, 2025.
+
+\bibitem[Landsea(1998)]{Landsea1998}
+C.~W. Landsea.
+\newblock Atlantic basin hurricanes: Indices of climatic changes.
+\newblock \emph{Climatic Change}, 42:\penalty0 89--129, 1998.
+
+\bibitem[Lorenz(1969)]{lorenz1969atmospheric}
+E.~N. Lorenz.
+\newblock The predictability of a flow which possesses many scales of motion.
+\newblock \emph{Tellus}, 21:\penalty0 289--307, 1969.
+
+\bibitem[Mu et~al.(2025)Mu, Chen, Yuan, Qin, and Guo]{mu2025skillful}
+B.~Mu, Y.~Chen, S.~Yuan, B.~Qin, and H.~Guo.
+\newblock Skillful subseasonal-to-seasonal forecasting of extreme events with a
+  multi-sphere coupled probabilistic model.
+\newblock \emph{arXiv preprint arXiv:2512.12545}, 2025.
+
+\bibitem[{National Hurricane Center}(2023)]{nhc2022season}
+{National Hurricane Center}.
+\newblock 2022 {Atlantic} hurricane season.
+\newblock Technical report, NOAA/National Hurricane Center, 2023.
+\newblock URL \url{https://www.nhc.noaa.gov/data/tcr/summary_2022.pdf}.
+\newblock Annual Tropical Cyclone Report.
+
+\bibitem[Pathak and Coauthors(2022)]{pathak2022fourcastnet}
+J.~Pathak and Coauthors.
+\newblock {FourCastNet}: A global data-driven high-resolution weather model
+  using adaptive {Fourier} neural operators.
+\newblock \emph{arXiv:2202.11214}, 2022.
+
+\bibitem[Plotkin et~al.(2019)Plotkin, Webber, O'Neill, Weare, and
+  Abbot]{plotkin2019maximizing}
+D.~A. Plotkin, R.~J. Webber, M.~E. O'Neill, J.~Weare, and D.~S. Abbot.
+\newblock Maximizing simulated tropical cyclone intensity with action
+  minimization.
+\newblock \emph{J. Adv. Model. Earth Syst.}, 11:\penalty0 863--891, 2019.
+
+\bibitem[Ragone et~al.(2018)Ragone, Wouters, and
+  Bouchet]{ragone2018computation}
+F.~Ragone, J.~Wouters, and F.~Bouchet.
+\newblock Computation of extreme heat waves in climate models using a large
+  deviation algorithm.
+\newblock \emph{Proc. Natl. Acad. Sci.}, 115:\penalty0 24--29, 2018.
+\newblock \doi{10.1073/pnas.1712645115}.
+
+\bibitem[Rasp and Coauthors(2024)]{rasp2024weatherbench2}
+S.~Rasp and Coauthors.
+\newblock {WeatherBench 2}: A benchmark for the next generation of data-driven
+  global weather models.
+\newblock \emph{J.\ Adv.\ Model.\ Earth Syst.}, 16:\penalty0 e2023MS004019,
+  2024.
+\newblock \doi{10.1029/2023MS004019}.
+
+\bibitem[Rotskoff and Vanden-Eijnden(2018)]{rotskoff2018machine}
+G.~M. Rotskoff and E.~Vanden-Eijnden.
+\newblock Neural networks as optimal approximations of committor functions for
+  {Markov} processes.
+\newblock \emph{NeurIPS Workshop on Integration of Deep Learning Theories},
+  2018.
+
+\bibitem[Schreck and Coauthors(2025)]{schreck2025sdl}
+J.~R. Schreck and Coauthors.
+\newblock {SDL-WXFormer}: Stochastic decomposition layers for controllable
+  weather ensemble forecasting.
+\newblock \emph{arXiv:2512.18815}, 2025.
+
+\bibitem[Schreck et~al.(2015)Schreck, Ouldridge, Romano, \v{S}ulc, Shaw, Louis,
+  and Doye]{schreck2015dna}
+John~S. Schreck, Thomas~E. Ouldridge, Flavio Romano, Petr \v{S}ulc, Liam~P.
+  Shaw, Ard~A. Louis, and Jonathan P.~K. Doye.
+\newblock {DNA} hairpins destabilize duplexes primarily by promoting melting
+  rather than by inhibiting hybridization.
+\newblock \emph{Nucleic Acids Res.}, 43:\penalty0 6181--6190, 2015.
+\newblock \doi{10.1093/nar/gkv582}.
+
+\bibitem[Titley and Elsberry(2000)]{Titley2000}
+D.~W. Titley and R.~L. Elsberry.
+\newblock Large intensity changes in tropical cyclones: A climatology and case
+  studies for the western {North Pacific}.
+\newblock \emph{Mon. Wea. Rev.}, 128:\penalty0 92--111, 2000.
+
+\bibitem[Touchette(2009)]{touchette2009large}
+H.~Touchette.
+\newblock The large deviation approach to statistical mechanics.
+\newblock \emph{Phys. Rep.}, 478:\penalty0 1--69, 2009.
+
+\bibitem[Valeriani et~al.(2007)Valeriani, Allen, Morelli, Frenkel, and ten
+  Wolde]{valeriani2007computing}
+C.~Valeriani, R.~J. Allen, M.~J. Morelli, D.~Frenkel, and P.~R. ten Wolde.
+\newblock Computing stationary distributions in equilibrium and nonequilibrium
+  systems with forward flux sampling.
+\newblock \emph{J. Chem. Phys.}, 127:\penalty0 114109, 2007.
+\newblock \doi{10.1063/1.2767625}.
+
+\bibitem[Webber et~al.(2019)Webber, Plotkin, O'Neill, Abbot, and
+  Weare]{webber2019practical}
+R.~J. Webber, D.~A. Plotkin, M.~E. O'Neill, D.~S. Abbot, and J.~Weare.
+\newblock Practical rare event sampling for extreme mesoscale weather.
+\newblock \emph{Chaos}, 29:\penalty0 053109, 2019.
+
+\end{thebibliography}

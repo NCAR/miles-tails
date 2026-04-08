@@ -178,7 +178,7 @@ estimates, and characterize the method's behaviour across a full hurricane seaso
 We deliberately use SDL-WXFormer at 1$^\circ$ resolution rather than a convection-permitting
 physics-based model for two practical reasons. First, FFS is computationally demanding:
 each initial condition requires $\mathcal{O}(10^4)$ 15-day trajectories, and at
-$\approx$0.24 GPU-minutes per single-member 15-day forecast on an NVIDIA A100, the full 98-IC dataset required
+$\sim$1.5 GPU-minutes per forecast on an NVIDIA A100, the full 98-IC dataset required
 approximately 2,450 GPU-hours. A comparable experiment with WRF or IFS would be
 prohibitively expensive on available allocations. Second, the SDL-WXFormer's calibrated
 stochastic decomposition layers provide the ensemble variability the FFS shooting phase
@@ -310,18 +310,11 @@ from each factor:
 
 \subsection{SDL-WXFormer and Experimental Setup}
 
-SDL-WXFormer \citep{schreck2025sdl} is a hierarchical encoder-decoder vision transformer
-with U-Net skip connections, trained on ERA5 reanalysis \citep{hersbach2020era5} (1979--2021,
-test year 2022) at 1$^\circ$ resolution and 6-hour timesteps.
-The model predicts 64 upper-air channels (U, V, T, Q at 16 ERA5 model levels) plus 7 surface
-variables, and accepts 3 input-only forcing channels (solar, orography, land mask).
-Stochastic Decomposition Layers (SDL) inject three independent latent noise vectors
-into the decoder at three spatial scales (after each upsampling stage, before
-skip-connection concatenation), producing calibrated ensemble spread through 15-day
-lead times.
-A single 15-day forecast (60 steps) requires $\approx$0.24 GPU-minutes on a single
-NVIDIA A100; scaling to 10 ensemble members, whose trajectories are batched through
-the model in parallel, requires $\approx$1.96 GPU-minutes.
+SDL-WXFormer \citep{schreck2025sdl} is a vision transformer trained on ERA5 reanalysis
+(1979--2021) at 1$^\circ$ resolution, 6-hour timesteps, predicting 69 pressure-level
+and 8 surface variables. Stochastic decomposition layers inject learned, state-dependent
+noise enabling calibrated ensemble generation. Each 10-day forecast requires
+$\approx$1.5 GPU-minutes on NVIDIA A100.
 
 We select 98 initial conditions from ERA5 at 00 and 12~UTC spanning August~21 --
 October~8, 2022, verifying $Q(\mathbf{x}_0) > 1008$~hPa for each. Three initial

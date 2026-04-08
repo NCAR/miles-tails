@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024 - Spack) (preloaded format=pdflatex 2024.12.17)  8 APR 2026 07:32
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024 - Spack) (preloaded format=pdflatex 2024.12.17)  4 APR 2026 07:33
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -511,136 +511,108 @@ LaTeX Font Info:    Trying to load font information for U+msb on input line 71.
 (/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/te
 xmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
-)
-
-Package natbib Warning: Citation `Titley2000' on page 1 undefined on input line
- 112.
-
-[1
+) [1
 
 {/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/te
-xmf-dist/fonts/map/pdftex/updmap/pdftex.map}] [2]
-
-Package natbib Warning: Citation `schreck2025sdl' on page 3 undefined on input 
-line 169.
-
-[3] [4]
-
-Package natbib Warning: Citation `schreck2025sdl' on page 5 undefined on input 
-line 313.
-
-
-Package natbib Warning: Citation `hersbach2020era5' on page 5 undefined on inpu
-t line 314.
-
-[5]
-Overfull \hbox (3.62415pt too wide) in paragraph at lines 334--336
-[]\OT1/cmr/bx/n/10.95 2022-09-22T00Z (Ian)\OT1/cmr/m/n/10.95 : 24 hours be-fore
- Hur-ri-cane Ian's NHC gen-e-sis des-ig-na-tion on Septem-
- []
-
-[6{/glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/
-texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc}]
-<ffs_schematic.pdf, id=199, 722.7pt x 406.51875pt>
+xmf-dist/fonts/map/pdftex/updmap/pdftex.map}] [2] [3] [4] [5] [6{/glade/u/apps/
+casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/texmf-dist/fonts/
+enc/dvips/cm-super/cm-super-ts1.enc}]
+<ffs_schematic.pdf, id=209, 722.7pt x 406.51875pt>
 File: ffs_schematic.pdf Graphic file (type pdf)
 <use ffs_schematic.pdf>
-Package pdftex.def Info: ffs_schematic.pdf  used on input line 401.
+Package pdftex.def Info: ffs_schematic.pdf  used on input line 394.
 (pdftex.def)             Requested size: 469.75502pt x 264.24025pt.
- [7] [8 <./ffs_schematic.pdf>] [9]
-<rates_plot.png, id=274, 713.064pt x 351.714pt>
+
+[7] [8 <./ffs_schematic.pdf>]
+<rates_plot.png, id=279, 713.064pt x 351.714pt>
 File: rates_plot.png Graphic file (type png)
 <use rates_plot.png>
-Package pdftex.def Info: rates_plot.png  used on input line 498.
+Package pdftex.def Info: rates_plot.png  used on input line 490.
 (pdftex.def)             Requested size: 469.75502pt x 231.71335pt.
-<ffs_interface_probs.png, id=276, 1074.8958pt x 586.3506pt>
+<ffs_interface_probs.png, id=281, 1074.8958pt x 586.3506pt>
 File: ffs_interface_probs.png Graphic file (type png)
 <use ffs_interface_probs.png>
-Package pdftex.def Info: ffs_interface_probs.png  used on input line 514.
+Package pdftex.def Info: ffs_interface_probs.png  used on input line 506.
 (pdftex.def)             Requested size: 469.75502pt x 256.2504pt.
-<ffs_vs_direct_scatter.png, id=277, 418.2024pt x 384.9582pt>
+<ffs_vs_direct_scatter.png, id=282, 418.2024pt x 384.9582pt>
 File: ffs_vs_direct_scatter.png Graphic file (type png)
 <use ffs_vs_direct_scatter.png>
-Package pdftex.def Info: ffs_vs_direct_scatter.png  used on input line 528.
+Package pdftex.def Info: ffs_vs_direct_scatter.png  used on input line 520.
 (pdftex.def)             Requested size: 469.75502pt x 432.4249pt.
-<conditional_prob_distributions.png, id=278, 641.2758pt x 457.71pt>
+<conditional_prob_distributions.png, id=283, 641.2758pt x 457.71pt>
 File: conditional_prob_distributions.png Graphic file (type png)
 <use conditional_prob_distributions.png>
 Package pdftex.def Info: conditional_prob_distributions.png  used on input line
- 543.
+ 535.
 (pdftex.def)             Requested size: 469.75502pt x 335.29886pt.
- [10 <./rates_plot.png>] [11 <./ffs_interface_probs.png>] [12 <./ffs_vs_direct_
-scatter.png>] [13 <./conditional_prob_distributions.png>]
-<stateb_geography.png, id=309, 1004.553pt x 439.6425pt>
+ [9] [10 <./rates_plot.png>] [11 <./ffs_interface_probs.png>] [12 <./ffs_vs_dir
+ect_scatter.png>] [13 <./conditional_prob_distributions.png>]
+<stateb_geography.png, id=318, 1004.553pt x 439.6425pt>
 File: stateb_geography.png Graphic file (type png)
 <use stateb_geography.png>
-Package pdftex.def Info: stateb_geography.png  used on input line 620.
+Package pdftex.def Info: stateb_geography.png  used on input line 612.
 (pdftex.def)             Requested size: 469.75502pt x 205.58548pt.
-<reactive_trajectories_2022-09-02T00Z.png, id=310, 1500.3252pt x 522.2712pt>
+<reactive_trajectories_2022-09-02T00Z.png, id=319, 1500.3252pt x 522.2712pt>
 File: reactive_trajectories_2022-09-02T00Z.png Graphic file (type png)
 <use reactive_trajectories_2022-09-02T00Z.png>
 Package pdftex.def Info: reactive_trajectories_2022-09-02T00Z.png  used on inpu
-t line 635.
+t line 627.
 (pdftex.def)             Requested size: 469.75502pt x 163.52014pt.
- [14 <./stateb_geography.png>]
-<ffs_trees_combined.png, id=317, 540.5796pt x 403.7484pt>
+ [14] [15 <./stateb_geography.png> <./reactive_trajectories_2022-09-02T00Z.png>
+]
+<ffs_trees_combined.png, id=333, 540.5796pt x 403.7484pt>
 File: ffs_trees_combined.png Graphic file (type png)
 <use ffs_trees_combined.png>
-Package pdftex.def Info: ffs_trees_combined.png  used on input line 677.
+Package pdftex.def Info: ffs_trees_combined.png  used on input line 667.
 (pdftex.def)             Requested size: 469.75502pt x 350.85782pt.
- [15 <./reactive_trajectories_2022-09-02T00Z.png>] [16 <./ffs_trees_combined.pn
-g>]
-<commitment_curve.png, id=333, 569.9694pt x 423.984pt>
+<commitment_curve.png, id=336, 569.9694pt x 423.984pt>
 File: commitment_curve.png Graphic file (type png)
 <use commitment_curve.png>
-Package pdftex.def Info: commitment_curve.png  used on input line 718.
+Package pdftex.def Info: commitment_curve.png  used on input line 706.
 (pdftex.def)             Requested size: 399.29463pt x 297.03906pt.
-<trajectory_2022-09-02T00Z_pathway1079.png, id=336, 995.3988pt x 788.7066pt>
-File: trajectory_2022-09-02T00Z_pathway1079.png Graphic file (type png)
-<use trajectory_2022-09-02T00Z_pathway1079.png>
-Package pdftex.def Info: trajectory_2022-09-02T00Z_pathway1079.png  used on inp
-ut line 747.
-(pdftex.def)             Requested size: 469.75502pt x 372.20851pt.
+ [16] [17 <./ffs_trees_combined.png>] [18 <./commitment_curve.png>]
+<trajectory_2022-09-02T00Z_pathway26.png, id=355, 990.5808pt x 782.925pt>
+File: trajectory_2022-09-02T00Z_pathway26.png Graphic file (type png)
+<use trajectory_2022-09-02T00Z_pathway26.png>
+Package pdftex.def Info: trajectory_2022-09-02T00Z_pathway26.png  used on input
+ line 735.
+(pdftex.def)             Requested size: 469.75502pt x 371.28397pt.
 
-Overfull \hbox (3.1638pt too wide) in paragraph at lines 766--772
+Overfull \hbox (3.1638pt too wide) in paragraph at lines 753--759
 \OT1/cmr/m/n/10.95 Figures []11[]--[]13[] show storm-centred com-pos-ites of vo
 r-tic-ity, rel-a-tive hu-mid-ity, and warm-core anomaly,
  []
 
-[17] [18 <./commitment_curve.png>] [19 <./trajectory_2022-09-02T00Z_pathway1079
-.png>]
-<2022-09-02T00Z_composites.png, id=360, 1088.3862pt x 701.9826pt>
+<2022-09-02T00Z_composites.png, id=359, 1088.3862pt x 701.9826pt>
 File: 2022-09-02T00Z_composites.png Graphic file (type png)
 <use 2022-09-02T00Z_composites.png>
-Package pdftex.def Info: 2022-09-02T00Z_composites.png  used on input line 787.
+Package pdftex.def Info: 2022-09-02T00Z_composites.png  used on input line 774.
 
 (pdftex.def)             Requested size: 469.75502pt x 302.98204pt.
-<2022-09-09T12Z_composites.png, id=361, 1088.3862pt x 701.9826pt>
+<2022-09-09T12Z_composites.png, id=360, 1088.3862pt x 701.9826pt>
 File: 2022-09-09T12Z_composites.png Graphic file (type png)
 <use 2022-09-09T12Z_composites.png>
-Package pdftex.def Info: 2022-09-09T12Z_composites.png  used on input line 800.
+Package pdftex.def Info: 2022-09-09T12Z_composites.png  used on input line 787.
 
 (pdftex.def)             Requested size: 469.75502pt x 302.98204pt.
-<2022-09-22T00Z_composites.png, id=364, 1088.3862pt x 701.9826pt>
+<2022-09-22T00Z_composites.png, id=363, 1088.3862pt x 701.9826pt>
 File: 2022-09-22T00Z_composites.png Graphic file (type png)
 <use 2022-09-22T00Z_composites.png>
-Package pdftex.def Info: 2022-09-22T00Z_composites.png  used on input line 809.
+Package pdftex.def Info: 2022-09-22T00Z_composites.png  used on input line 796.
 
 (pdftex.def)             Requested size: 469.75502pt x 302.98204pt.
- [20 <./2022-09-02T00Z_composites.png>] [21 <./2022-09-09T12Z_composites.png>] 
-[22 <./2022-09-22T00Z_composites.png>] [23]
+[19] [20 <./trajectory_2022-09-02T00Z_pathway26.png>] [21 <./2022-09-02T00Z_com
+posites.png>] [22 <./2022-09-09T12Z_composites.png>] [23 <./2022-09-22T00Z_comp
+osites.png>] [24]
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 917.
+(hyperref)                removing `math shift' on input line 904.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 917.
+(hyperref)                removing `math shift' on input line 904.
 
-[24] (./main_james.bbl [25] [26])
-
-Package natbib Warning: There were undefined citations.
-
-[27] (./main_james.aux)
+[25] (./main_james.bbl [26] [27]) [28] (./main_james.aux)
  ***********
 LaTeX2e <2023-11-01> patch level 1
 L3 programming layer <2024-02-20>
@@ -649,13 +621,13 @@ Package rerunfilecheck Info: File `main_james.out' has not changed.
 (rerunfilecheck)             Checksum: FAF0F9F6C76F759E0F36E26FB91F8F13;3564.
  ) 
 Here is how much of TeX's memory you used:
- 11535 strings out of 474116
- 184264 string characters out of 5674265
- 1940187 words of memory out of 5000000
+ 11536 strings out of 474116
+ 184257 string characters out of 5674265
+ 1944187 words of memory out of 5000000
  33661 multiletter control sequences out of 15000+600000
  571167 words of font info for 86 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 75i,14n,79p,1151b,598s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 75i,14n,79p,1088b,598s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </glade/u/apps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/
 texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></glade/u/apps/casper/24.1
 2/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/texmf-dist/fonts/type1/publi
@@ -688,10 +660,10 @@ pps/casper/24.12/spack/opt/spack/texlive/20240312/gcc/12.4.0/nm7e/texmf-dist/fo
 nts/type1/public/amsfonts/symbols/msam10.pfb></glade/u/apps/casper/24.12/spack/
 opt/spack/texlive/20240312/gcc/12.4.0/nm7e/texmf-dist/fonts/type1/public/cm-sup
 er/sfrm1095.pfb>
-Output written on main_james.pdf (27 pages, 3825002 bytes).
+Output written on main_james.pdf (28 pages, 3839718 bytes).
 PDF statistics:
- 531 PDF objects out of 1000 (max. 8388607)
- 407 compressed objects within 5 object streams
- 88 named destinations out of 1000 (max. 500000)
+ 542 PDF objects out of 1000 (max. 8388607)
+ 417 compressed objects within 5 object streams
+ 89 named destinations out of 1000 (max. 500000)
  202 words of extra memory for PDF output out of 10000 (max. 10000000)
 
