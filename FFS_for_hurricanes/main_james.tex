@@ -77,8 +77,8 @@ This paper presents a \textit{methods demonstration}: we show that Forward Flux 
 (FFS), a non-equilibrium rare-event technique from statistical mechanics, can be
 efficiently coupled to a fast neural weather emulator (SDL-WXFormer, 1$^\circ$ resolution)
 to estimate conditional genesis rates without modifying model dynamics.
-The 1$^\circ$ emulator is chosen deliberately for computational tractability --- FFS
-requires $\mathcal{O}(10^4)$ model trajectories per initial condition --- and its
+The 1$^\circ$ emulator is chosen deliberately for computational tractability: FFS
+requires $\mathcal{O}(10^4)$ model trajectories per initial condition, and its
 calibrated stochastic layers provide the ensemble spread the method requires.
 FFS decomposes the rare $A \to B$ transition into a flux through an initial interface
 and a product of conditional crossing probabilities across four shooting interfaces,
@@ -89,8 +89,8 @@ FFS resolves genesis rates spanning nearly three orders of magnitude
 capturing a clear seasonal cycle whose timing and amplitude are qualitatively consistent
 with the known structure of the 2022 Atlantic season (suppressed early-season activity
 attributed to Saharan dust and wind shear, followed by a highly active September).
-A self-consistency check --- comparing FFS rates to independent direct-sampling rates from the
-same flux trajectories --- yields a mean ratio of $1.03 \pm 0.15$ (range 0.71--1.52)
+A self-consistency check comparing FFS rates to independent direct-sampling rates from the
+same flux trajectories yields a mean ratio of $1.03 \pm 0.15$ (range 0.71--1.52)
 across all 98 initial conditions, confirming self-consistent implementation of the
 conditional probability factorization within this model.
 Computational enhancement factors range from $3\times$ (most active environment) to
@@ -112,7 +112,7 @@ non-developing cases challenges deterministic and ensemble approaches alike
 \citep{Titley2000,Halperin2013}. The challenge is not merely predictive: it is
 statistical. For a genesis event with probability $p \sim 10^{-3}$ per day, direct
 Monte Carlo estimation of the genesis rate to 20\% relative uncertainty requires
-$\mathcal{O}(10^4)$ ensemble trajectories per initial condition --- far beyond
+$\mathcal{O}(10^4)$ ensemble trajectories per initial condition, far beyond
 operational or research budgets when using physics-based models. The question of
 \textit{how frequently} genesis occurs under a given atmospheric state, not just
 whether individual ensemble members develop, remains largely inaccessible to
@@ -131,7 +131,7 @@ learned surrogates can dramatically reduce the cost of importance sampling in at
 systems. Forward Flux Sampling \citep{allen2006forward,allen2009forward,hussain2020studying}
 occupies a distinct but complementary niche: rather than generating rare realizations,
 FFS is designed specifically to estimate non-equilibrium steady-state \textit{transition
-rates} --- expected genesis events per unit time --- with a factored uncertainty
+rates} (expected genesis events per unit time) with a factored uncertainty
 structure that identifies \textit{which intensification stage is rate-limiting}.
 For operational genesis prediction, this rate-centric view is the natural target quantity.
 
@@ -141,8 +141,8 @@ measurable flux through interfaces, and Markovian dynamics \citep{allen2009forwa
 It has been applied across a broad range of non-equilibrium systems from
 biochemical networks \citep{allen2005sampling} to nucleic acid folding kinetics
 \citep{schreck2015dna}. The atmosphere is a canonical non-equilibrium steady-state
-(NESS) system --- driven persistently by solar forcing and dissipated by radiation
-and friction --- and satisfies all three requirements. Atmospheric rare events are
+(NESS) system driven persistently by solar forcing and dissipated by radiation
+and friction, and satisfies all three requirements. Atmospheric rare events are
 dynamical transitions between regions of a strange attractor, not thermodynamic
 transitions over energy barriers \citep{touchette2009large}, making FFS \textit{more}
 defensible here than equilibrium-based rare event techniques.
@@ -154,8 +154,8 @@ initial condition is a \textit{conditional genesis rate given the atmospheric st
 that IC}, not a climatological steady-state rate. Each FFS simulation treats a
 10--15~day forecast window anchored to a specific ERA5 state as locally stationary,
 so $k$ characterizes genesis probability density in that particular atmospheric
-environment. This conditional framing --- analogous to a conditional return period
-given present climate state \citep{finkel2023revealing,finkel2024bringing} --- motivates
+environment. This conditional framing is analogous to a conditional return period
+given present climate state \citep{finkel2023revealing,finkel2024bringing} and motivates
 our seasonal sampling across 98~ICs and enables direct interpretation against observed
 Atlantic activity.
 
@@ -293,7 +293,7 @@ For each initial condition we generate trajectories from the ERA5 state perturbe
 SDL-WXFormer stochastic layers, advancing 6-hourly for up to 15 days. Decorrelated
 $\lambda_0$ crossings (requiring return to state $A$ between consecutive crossings) are
 accumulated to $N_{\text{cross}} = 2000$ per initial condition, yielding Poisson
-uncertainty $\sigma_\Phi/\Phi \approx 2.2\%$ --- well below across-IC variability.
+uncertainty $\sigma_\Phi/\Phi \approx 2.2\%$, well below across-IC variability.
 State-$B$ arrivals during flux generation provide an independent direct-sampling rate
 $k^{\text{direct}} = N_{\text{direct}}/T_{\text{total}}$ that serves as a self-consistency check.
 
@@ -393,9 +393,9 @@ tropical development.
 \centering
 \includegraphics[width=\textwidth]{ffs_schematic.pdf}
 \caption{Schematic of the Forward Flux Sampling algorithm (after \citealt{allen2006forward}).
-\textit{Panel (a) --- flux phase}: Gray trajectories evolve forward from state $A$;
+\textit{Panel (a), flux phase}: Gray trajectories evolve forward from state $A$;
 each decorrelated crossing of $\lambda_0$ is recorded (marked $\times$).
-\textit{Panel (b) --- shooting phase}: New trial trajectories are launched from each saved
+\textit{Panel (b), shooting phase}: New trial trajectories are launched from each saved
 $\lambda_i$ configuration (filled circles). Shots that return to state $A$ (arrows labelled $A$)
 are failures; shots that reach $\lambda_{i+1}$ (filled circles on the next interface) are successes,
 yielding the conditional probability $P(\lambda_{i+1}|\lambda_i)$.
@@ -455,14 +455,14 @@ We test this implicitly through the self-consistency check: if significant
 memory effects were present across interfaces, the FFS product $\Phi_{A,0}\prod P_i$
 would systematically over- or under-estimate $k^{\text{direct}}$ (which contains no
 interface-level conditioning). The near-unity ratio across 98 ICs constitutes an
-empirical trajectory-level test --- the most direct available within this framework.
+empirical trajectory-level test, the most direct available within this framework.
 We note that the observed anti-correlation between $P_1$ and $P_4$ across ICs
 (environments favorable for initial organisation tend to have suppressed final-stage
 probabilities) reflects \textit{cross-IC} atmospheric variability, not within-trajectory
 memory, and does not violate Markovianity.
 It is important to be precise about the limits of this implicit test.
 The self-consistency check can detect Markov violations that produce
-\emph{systematic} bias in the factorized rate relative to the direct count ---
+\emph{systematic} bias in the factorized rate relative to the direct count;
 for example, if conditioning on a particular interface level consistently selects
 trajectories with anomalous histories that cause the product $\prod P_i$ to deviate
 from the unconditional rate.
@@ -472,15 +472,15 @@ stochastic layers produce trajectories with correlated memory across interfaces
 (e.g., a persistent large-scale environment that simultaneously makes all $P_i$
 easier to cross), both estimates would be inflated together and their ratio would
 remain near unity while the absolute rate is wrong.
-Such a scenario would require an explicit committor analysis --- checking whether
-$P(B|\lambda_i)$ is a function of $Q$ alone, independent of trajectory history ---
+Such a scenario would require an explicit committor analysis of whether
+$P(B|\lambda_i)$ is a function of $Q$ alone, independent of trajectory history,
 which is beyond the scope of the present methods demonstration.
 The physical plausibility of approximate Markovianity in this setting rests on the
 observation that the SDL-WXFormer's stochastic layers generate independent noise
 at each 6-hour timestep, so the primary source of memory is the resolved atmospheric
 state itself (which is captured in the model's state vector).
-A more rigorous test --- comparing conditional probabilities for trajectories with
-different histories at the same interface --- is deferred to future work but is not
+A more rigorous test comparing conditional probabilities for trajectories with
+different histories at the same interface is deferred to future work but is not
 indicated by the current results.
 
 Computational enhancement factors range from $3\times$ (most active IC) to $140\times$
@@ -606,7 +606,7 @@ to 975~hPa). This is physically consistent with Ian's trajectory: the storm was 
 organizing over the Caribbean on September~22--23, entering the Gulf of Mexico's warm
 core environment only after September~25, when conditions supported rapid intensification.
 The FFS framework identifies the final-stage intensification barrier \textit{one day before}
-Ian's official genesis --- a diagnostic that direct ensemble sampling cannot resolve.
+Ian's official genesis, a diagnostic that direct ensemble sampling cannot resolve.
 
 \begin{figure}[htbp]
 \centering
@@ -650,7 +650,7 @@ Importantly, the IC date labels are \textit{initialisation} times, not genesis d
 Each FFS simulation runs 15 days forward from its IC; each node in the tree represents
 the storm feature at a different future lead time within that window.
 A single seed at $\lambda_0$ therefore spawns descendants that span a range of calendar
-dates, geographic positions, and atmospheric states --- all sampled from one background IC.
+dates, geographic positions, and atmospheric states, all sampled from one background IC.
 
 All three trees are displayed on a single combined map; branch colours encode
 interface level ($\lambda_1$ through $\lambda_4$) using a shared yellow-orange-red
@@ -686,8 +686,8 @@ anticipating Ian's observed track toward Florida.}
 
 \subsection{Committor Curves and Spatial Genesis Fields}
 
-Figure~\ref{fig:committor} shows the committor curve $p_B(\lambda_i)$ --- the probability
-of eventually reaching state~$B$ given arrival at interface $\lambda_i$ --- averaged across
+Figure~\ref{fig:committor} shows the committor curve $p_B(\lambda_i)$, the probability
+of eventually reaching state~$B$ given arrival at interface $\lambda_i$, averaged across
 all 98 initial conditions for both the FFS (AI model) and IFS (brute-force ensemble).
 The all-season FFS curve shows a near-linear decline with the steepest drop between
 the first and second shooting interfaces ($\lambda_1\to\lambda_2$), consistent with the
@@ -696,7 +696,7 @@ seasonal mean of $P_1$ being the lowest of the four conditional probabilities
 The FFS and IFS curves agree in overall \textit{shape}: both show the steepest committor
 drop at the same interface level, and both identify the same rate-limiting stage of the
 intensification cascade.
-This structural agreement --- across two completely independent modelling systems ---
+This structural agreement between two completely independent modelling systems
 provides suggestive cross-model consistency that the intensification bottleneck identified
 by FFS reflects real atmospheric physics rather than artefacts of the SDL-WXFormer architecture;
 we note that the comparison is complicated by the different ensemble generation mechanisms
@@ -811,8 +811,8 @@ intensification pathway once the vortex reaches the near-hurricane threshold.}
 
 \subsection{Methodological Validation and Practical Considerations}
 
-The central self-consistency result --- FFS and direct-sampling rates agreeing within
-$1.03\pm0.15$ across 98 initial conditions --- provides strong empirical support for
+The central self-consistency result is that FFS and direct-sampling rates agree with a mean
+ratio of $1.03\pm0.15$ across 98 initial conditions, confirming
 the method's correct implementation. These are entirely independent estimates derived
 from the same simulation data: the FFS rate uses only the interface crossing counts
 and shooting probabilities, while the direct rate uses only the raw state-$B$ arrival
@@ -853,7 +853,7 @@ reflects a genuine physical barrier in the intensification cascade.
 The CPS filter warrants clarification. At 1$^\circ$ resolution, formal CPS parameters
 are not quantitatively validated against higher-resolution analyses, and our implementation
 omits the thermal asymmetry ($B$) parameter. The filter is best understood as a
-contamination screen rather than a rigorous warm-core classifier --- rejecting obviously
+contamination screen rather than a rigorous warm-core classifier: it rejects obviously
 extratropical systems while accepting all ambiguous cases. Future implementations with
 finer-resolution models could apply a more principled multidimensional CPS criterion.
 
@@ -870,8 +870,8 @@ Additionally, MSLP as an order parameter has known limitations at 1$^\circ$ reso
 terrain-induced pressure artifacts (present in this model due to topographic interpolation
 differences) require the CPS filter and geographic masking described in Section~2.3.
 MSLP is a downstream integrator of the thermodynamic and kinematic preconditions for
-genesis --- warm-core development, vorticity alignment, mid-level moistening, shear
-suppression --- rather than a direct measure of those precursors.
+genesis (warm-core development, vorticity alignment, mid-level moistening, shear
+suppression) rather than a direct measure of those precursors.
 As a result, the FFS rate strictly measures the frequency of organised MSLP deepening,
 and the per-interface crossing probabilities reflect barriers to pressure deepening
 specifically.
@@ -929,8 +929,8 @@ targeted by the interface placement algorithm.
 The sensitivity of reported genesis \textit{rates} to threshold choice is expected:
 $k(\lambda_B = 975)$ and $k(\lambda_B = 965)$ differ by roughly one order of magnitude,
 consistent with the additional conditional probability factor for the extra interface.
-The key methodological properties --- internal self-consistency, seasonal cycle
-structure, and bottleneck diagnostics --- are qualitatively robust across thresholds.
+The key methodological properties (internal self-consistency, seasonal cycle
+structure, and bottleneck diagnostics) are qualitatively robust across thresholds.
 For physics-based models at finer resolution, a lower $\lambda_B$ (e.g., 960~hPa)
 may be more appropriate, and the interface placement should be re-optimised accordingly.
 
