@@ -441,12 +441,11 @@ Figure~\ref{fig:rates} shows FFS genesis rates across all 98 initial conditions.
 The full seasonal cycle spans nearly three orders of magnitude,
 from $2.6\times10^{-5}$~day$^{-1}$ during suppressed October conditions to
 $1.7\times10^{-2}$~day$^{-1}$ during the peak-activity period around September~9--10
-(consistent with the Fiona formation environment). This dynamic range is entirely unresolvable by direct 50-member ensemble sampling.
+(consistent with the Fiona formation environment). Direct 50-member ensemble sampling cannot resolve this dynamic range.
 For context, the ECMWF IFS 50-member ensemble \citep{buizza2018ensemble} analyzed
-over the same 98 initial conditions reaches the minimum MSLP threshold in 25.4\% of
-members on average;
-this figure is included in Figure~\ref{fig:rates} as a \textit{qualitative sanity check}
-only. A direct rate comparison between FFS (SDL-WXFormer, 1$^\circ$) and IFS
+over the same 98 initial conditions crosses the $\lambda_0$ threshold in 25.4\% of
+members on average. We include this in Figure~\ref{fig:rates} as a \textit{qualitative
+sanity check} only. A direct rate comparison between FFS (SDL-WXFormer, 1$^\circ$) and IFS
 (0.25$^\circ$ physics, 1.5$^\circ$ output) is not appropriate: IFS does not apply
 the decorrelated-crossing requirement defining $\lambda_0$ flux, does not use a CPS
 filter, and operates at different resolution with different physics.
@@ -454,9 +453,17 @@ The IFS figures confirm that strong MSLP deepening occurs in the model at a
 plausible frequency; quantitative rate comparisons between the two systems
 are deferred to future work with matched configurations.
 
-The seasonal evolution of each individual conditional probability $P_i$
-(Fig.~\ref{fig:interface_probs}) shows that $P_1$ varies most strongly with the seasonal
-cycle, while $P_4$ is the most uniformly suppressed across all ICs.
+The seasonal evolution of each conditional probability $P_i$
+(Fig.~\ref{fig:interface_probs}) reveals two distinct regimes within the intensification
+cascade. $P_1$ (initial organization) is the most variable across ICs, with a standard
+deviation of 0.154 compared to 0.086--0.107 for $P_2$--$P_3$. It spans from below 0.1
+in suppressed environments to 0.726 in the peak-activity Fiona IC, reflecting the strong
+sensitivity of early-stage organization to the large-scale atmospheric state. By contrast,
+$P_4$ (final intensification to 975~hPa) has a season-mean of 0.356 and is consistently
+the lowest of the upper conditional probabilities, limiting the overall genesis rate even
+when earlier-stage probabilities are elevated. These two interfaces represent physically
+distinct bottlenecks. Which one dominates varies by environment, as the case studies below
+illustrate.
 
 The primary self-consistency check is the agreement between $k^{\text{FFS}}$ and the
 independent direct-sampling rate $k^{\text{direct}}$ (Figure~\ref{fig:rate_scatter}).
@@ -638,7 +645,7 @@ For the \textbf{Fiona IC} (September~9), all four conditional probabilities
 are elevated ($\geq0.27$), and the product $\prod P_i = 0.166$ is $\sim$4--9$\times$
 larger than the other two cases. The dominant bottleneck shifts to $P_4 = 0.276$
 (final intensification to 975~hPa), reflecting an environment that readily organizes
-disturbances but where crossing the hurricane-threshold step remains non-trivial.
+disturbances but where crossing the final intensification threshold remains uncertain.
 The FFS rate ($1.66\times10^{-2}$~day$^{-1}$) is high enough that direct sampling
 is also feasible (speedup $3\times$), providing a strong cross-validation: both methods
 agree to within 21\% for this most-active IC.
@@ -745,8 +752,8 @@ drop at the same interface level, and both identify the same rate-limiting stage
 intensification cascade.
 This structural agreement between two completely independent modelling systems
 provides suggestive cross-model consistency that the intensification bottleneck identified
-by FFS reflects real atmospheric physics rather than artefacts of the SDL-WXFormer architecture;
-we note that the comparison is complicated by the different ensemble generation mechanisms
+by FFS reflects real atmospheric physics rather than artefacts of the SDL-WXFormer architecture.
+Note that the comparison is complicated by the different ensemble generation mechanisms
 (learned stochastic layers vs.\ singular-vector perturbations) and the 1$^\circ$ vs.\ 1.5$^\circ$
 resolution asymmetry, so quantitative agreement is not expected and not claimed.
 The FFS committors are systematically higher in \textit{magnitude}, consistent with
