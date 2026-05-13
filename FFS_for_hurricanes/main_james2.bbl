@@ -1,4 +1,4 @@
-\begin{thebibliography}{37}
+\begin{thebibliography}{39}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -166,6 +166,13 @@ E.~N. Lorenz.
 \newblock The predictability of a flow which possesses many scales of motion.
 \newblock \emph{Tellus}, 21:\penalty0 289--307, 1969.
 
+\bibitem[Manshausen et~al.(2025)Manshausen, Brenowitz, Berner, Kashinath, and
+  Pritchard]{manshausen2025extreme}
+P.~Manshausen, N.~Brenowitz, J.~Berner, K.~Kashinath, and M.~Pritchard.
+\newblock Towards accurate extreme event likelihoods from diffusion model
+  climate emulators.
+\newblock \emph{arXiv preprint arXiv:2605.03802}, 2025.
+
 \bibitem[Mu et~al.(2025)Mu, Chen, Yuan, Qin, and Guo]{mu2025skillful}
 B.~Mu, Y.~Chen, S.~Yuan, B.~Qin, and H.~Guo.
 \newblock Skillful subseasonal-to-seasonal forecasting of extreme events with a
@@ -254,5 +261,13 @@ C.~Valeriani, R.~J. Allen, M.~J. Morelli, D.~Frenkel, and P.~R. ten Wolde.
 R.~J. Webber, D.~A. Plotkin, M.~E. O'Neill, D.~S. Abbot, and J.~Weare.
 \newblock Practical rare event sampling for extreme mesoscale weather.
 \newblock \emph{Chaos}, 29:\penalty0 053109, 2019.
+
+\bibitem[Zhang et~al.(2026)Zhang, Fischer, Zscheischler, and
+  Engelke]{zhang2026physics}
+Z.~Zhang, E.~Fischer, J.~Zscheischler, and S.~Engelke.
+\newblock Physics-based models outperform {AI} weather forecasts of
+  record-breaking extremes.
+\newblock \emph{Sci.\ Adv.}, 2026.
+\newblock \doi{10.1126/sciadv.aec1433}.
 
 \end{thebibliography}

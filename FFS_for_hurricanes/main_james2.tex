@@ -177,7 +177,7 @@ parameterizations, and inherit the dynamical attractor of their training reanaly
 This speed advantage is decisive for FFS, which requires $\mathcal{O}(10^4)$ trajectories
 per initial condition. Recent work has begun exploiting this combination for
 subseasonal-to-seasonal extreme event forecasting \citep{mu2025skillful} and importance
-sampling of weather extremes \citep{lancelin2025ai}. The SDL-WXFormer \citep{schreck2025sdl}
+sampling of weather extremes \citep{lancelin2025ai,manshausen2025extreme}. The SDL-WXFormer \citep{schreck2025sdl}
 employed here extends the standard deterministic emulator with stochastic decomposition
 layers calibrated to ERA5 ensemble statistics, providing the trajectory diversity
 the FFS shooting phase requires.
@@ -906,6 +906,9 @@ trained on ERA5 (1979--2021) at 1$^\circ$ resolution, which smooths intense vort
 cores and underrepresents Category~3+ hurricanes; state~$B$ is accordingly defined at
 975~hPa rather than the intensities typical of major hurricane activity. Validation
 against physics-based models (WRF, IFS) at higher resolution is an important next step.
+Recent work confirms more broadly that current AI weather models underestimate the frequency
+and intensity of record-breaking extremes relative to physics-based systems \citep{zhang2026physics},
+reinforcing the value of such benchmarking.
 
 Additionally, MSLP as an order parameter has known limitations at 1$^\circ$ resolution:
 terrain-induced pressure artifacts (present in this model due to topographic interpolation
