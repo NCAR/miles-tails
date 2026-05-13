@@ -337,6 +337,20 @@ from each factor:
 \frac{\sigma_k}{k} = \sqrt{\left(\frac{\sigma_\Phi}{\Phi}\right)^2 + \sum_{i=1}^{n}\left(\frac{\sigma_{P_i}}{P_i}\right)^2}
 \end{equation}
 
+\textbf{Reactive pathways and shooting trees.}
+A trial trajectory that successfully crosses all four shooting interfaces from $\lambda_0$
+through to state~$B$ is called a \textit{reactive pathway}.
+From a single $\lambda_0$ configuration, each successful crossing at interface $\lambda_i$
+seeds new launches toward $\lambda_{i+1}$, producing a branching genealogy called a
+\textit{shooting tree}.
+Multiple reactive pathways that descend from the same $\lambda_0$ seed carry a
+\textit{cluster weight} (branching factor) proportional to the statistical weight
+of that seed in the FFS ensemble; pathways from seeds that breached each interface
+rarely are weighted accordingly.
+The cumulative product $p_B(\lambda_i) = \prod_{j \geq i} P_j$ is the
+\textit{committor}: the probability that a trajectory arriving at $\lambda_i$ eventually
+reaches state~$B$ \citep{rotskoff2018machine}.
+
 \subsection{SDL-WXFormer and Experimental Setup}
 
 SDL-WXFormer \citep{schreck2025sdl} is a hierarchical encoder-decoder vision transformer
