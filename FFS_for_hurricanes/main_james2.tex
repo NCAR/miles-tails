@@ -358,23 +358,25 @@ We considered community trackers (TempestExtremes, TRACK, tobac
 The warm-core screen follows the Cyclone Phase Space (CPS) formulation of
 \citet{hart2003cyclone} as documented by the FSU CPS tool
 (\url{https://moe.met.fsu.edu/cyclonephase/help.html}).
-It was motivated primarily by MSLP artifacts arising from an imperfect terrain file
-and 1$^\circ$ grid limitations, and secondarily by extratropical contamination from
-recurving or baroclinic systems.
+The screen was motivated primarily by MSLP artifacts arising from an imperfect terrain
+file and 1$^\circ$ grid limitations, and secondarily by extratropical contamination
+from recurving or baroclinic systems.
 Both components were sufficient to demonstrate self-consistent FFS genesis rates in
 this setting and should not be adopted uncritically for other grids or models.
 
 \textbf{Flux mode (multi-storm tracking).}
 During the flux phase, the order parameter $Q$ is the global minimum MSLP over the
 basin domain $\Omega$, which may correspond to any co-existing tropical system.
-To track this minimum coherently across timesteps, we maintain a running list of
-all active vortex candidates.  At each 6-hour step, Gaussian smoothing ($\sigma=1.5$
-grid-points) is applied to the MSLP field to locate local minima; the smoothed field
-is used only to identify the grid-cell position of each minimum, and the raw
-unsmoothed MSLP value at that cell is recorded as the order parameter.  Existing tracks are updated by nearest-neighbour matching within $12^\circ$;
-unmatched minima below $12^\circ$N over land are suppressed (terrain artefacts);
-remaining unmatched minima seed new tracks.  A track is retained for up to two
-consecutive timesteps of failed matching before being dropped.  All co-existing systems are tracked simultaneously; any storm that crosses $\lambda_0$
+We maintain a running list of all active vortex candidates.
+At each 6-hour step, Gaussian smoothing ($\sigma=1.5$ grid-points) locates the
+position of each local minimum. The raw unsmoothed MSLP value at that grid cell
+is the order parameter.
+Existing tracks are updated by nearest-neighbour matching within $12^\circ$, with
+unmatched minima below $12^\circ$N over land suppressed as terrain artefacts and
+remaining unmatched minima seeding new tracks.
+A track is retained for up to two consecutive timesteps of failed matching before
+being dropped.
+All co-existing systems are tracked simultaneously. Any storm that crosses $\lambda_0$
 records a decorrelated flux crossing, regardless of whether it is the deepest system
 at that moment.
 
@@ -391,17 +393,17 @@ An empirically-calibrated contamination screen following the Cyclone Phase Space
 framework of \citet{hart2003cyclone} suppresses two known sources of spurious
 state-$B$ arrivals at 1$^\circ$ resolution: (1) terrain-induced MSLP minima from
 hydrostatic extrapolation errors in the imperfect terrain file, and (2) mid-latitude
-baroclinic cyclones entering the domain. The screen evaluates the thermal wind
-parameters $-V_T^L$ and $-V_T^U$ at $\lambda_0$ crossings and when a tracked vortex
-exceeds $50^\circ$N or $-10^\circ$W, rejecting cold-core systems with $-V_T^L < 0$
-or $-V_T^U < 0$ (in practice, a numerical tolerance permits values down to $-100$~m
-before a cold-core classification is assigned, accommodating grid noise at 1$^\circ$
-resolution). The rejection thresholds were calibrated by manual inspection of a subset
-of trajectories in the 2022 dataset that were visually identifiable as extratropical
-(recurving systems and baroclinic cyclones intruding from the northwest); they are not
-derived from formal CPS validation at this resolution and should be treated as
-engineering choices rather than physical thresholds.
-The screen errs toward inclusion to avoid discarding ambiguous cases.
+baroclinic cyclones entering the domain. The screen evaluates $-V_T^L$ and $-V_T^U$ at $\lambda_0$ crossings and when a
+tracked vortex exceeds $50^\circ$N or $-10^\circ$W. Systems with $-V_T^L < 0$ or
+$-V_T^U < 0$ are rejected as cold-core. In practice, a numerical tolerance permits
+values down to $-100$~m before a cold-core classification is assigned, accommodating
+grid noise at 1$^\circ$ resolution.
+The rejection thresholds were calibrated by manual inspection of a subset of 2022
+trajectories visually identifiable as extratropical (recurving systems and baroclinic
+cyclones intruding from the northwest). They are not derived from formal CPS
+validation at this resolution and should be treated as engineering choices rather
+than physical thresholds. We err on the side of inclusion: ambiguous systems are
+accepted rather than discarded.
 
 Across the full dataset, rejection rates at each interface are approximately
 30\% ($\lambda_1$), 20\% ($\lambda_2$), 27\% ($\lambda_3$), and 43\% ($\lambda_4$),
