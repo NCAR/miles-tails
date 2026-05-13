@@ -626,8 +626,8 @@ All-98 mean$\pm$SD  & $0.065\pm0.034$ & $0.278\pm0.154$ & $0.674\pm0.086$ & $0.5
 }
 \end{table}
 
-For the \textbf{Earl IC}, $P_1 = 0.258$ is the dominant bottleneck: fewer than 1 in 4
-trajectories crossing 1000~hPa organize to 987~hPa in this environment. This is
+For the \textbf{Earl IC}, $P_1 = 0.258$ is the dominant bottleneck: roughly 1 in 4
+trajectories reaching 987~hPa continue to organize through to 985~hPa in this environment. This is
 physically consistent with the pre-genesis atmospheric state $\sim$24~hours before
 Earl's classification, when the system had established a coherent low-level circulation
 but had not yet achieved the sustained convective organization needed to cross the
@@ -966,9 +966,7 @@ atmospheric trajectories from a shared initial state (whether a diffusion-based
 emulator, a flow-matching model, or a stochastic parameterization scheme) satisfies
 the architectural Markov requirement and can in principle be coupled to FFS in the same
 way demonstrated here.
-Neural emulators are fast enough to make FFS practical at scale, and any generative
-model that produces an ensemble from a shared initial state satisfies the Markov
-requirement. The combination is general: the same approach applies to any
+The combination is general: the same approach applies to any
 low-probability, high-consequence atmospheric event where a rate estimate and
 a bottleneck decomposition are more useful than a collection of rare realizations.
 
