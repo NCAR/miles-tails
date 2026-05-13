@@ -5,6 +5,12 @@
   \providecommand{\doi}[1]{doi: #1}\else
   \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
 
+\bibitem[Allen et~al.(2005)Allen, Warren, and ten Wolde]{allen2005sampling}
+R.~J. Allen, P.~B. Warren, and P.~R. ten Wolde.
+\newblock Sampling rare switching events in biochemical networks.
+\newblock \emph{Physical Review Letters}, 94:\penalty0 018104, 2005.
+\newblock \doi{10.1103/PhysRevLett.94.018104}.
+
 \bibitem[Allen et~al.(2006)Allen, Frenkel, and ten Wolde]{allen2006forward}
 R.~J. Allen, D.~Frenkel, and P.~R. ten Wolde.
 \newblock Simulating rare events in equilibrium or nonequilibrium stochastic
@@ -16,12 +22,6 @@ R.~J. Allen, C.~Valeriani, and P.~R. ten Wolde.
 \newblock Forward flux sampling for rare event simulations.
 \newblock \emph{J. Phys.: Condens. Matter}, 21:\penalty0 463102, 2009.
 \newblock \doi{10.1088/0953-8984/21/46/463102}.
-
-\bibitem[Allen et~al.(2005)Allen, Warren, and ten Wolde]{allen2005sampling}
-Rosalind~J. Allen, Patrick~B. Warren, and Pieter~Rein ten Wolde.
-\newblock Sampling rare switching events in biochemical networks.
-\newblock \emph{Physical Review Letters}, 94:\penalty0 018104, 2005.
-\newblock \doi{10.1103/PhysRevLett.94.018104}.
 
 \bibitem[Bi and Coauthors(2023)]{bi2023pangu}
 K.~Bi and Coauthors.
@@ -222,20 +222,22 @@ G.~M. Rotskoff and E.~Vanden-Eijnden.
 \newblock \emph{NeurIPS Workshop on Integration of Deep Learning Theories},
   2018.
 
-\bibitem[Schreck and Coauthors(2025)]{schreck2025sdl}
-J.~R. Schreck and Coauthors.
-\newblock {SDL-WXFormer}: Stochastic decomposition layers for controllable
-  weather ensemble forecasting.
-\newblock \emph{arXiv:2512.18815}, 2025.
-
 \bibitem[Schreck et~al.(2015)Schreck, Ouldridge, Romano, \v{S}ulc, Shaw, Louis,
   and Doye]{schreck2015dna}
-John~S. Schreck, Thomas~E. Ouldridge, Flavio Romano, Petr \v{S}ulc, Liam~P.
-  Shaw, Ard~A. Louis, and Jonathan P.~K. Doye.
+J.~S. Schreck, T.~E. Ouldridge, F.~Romano, P.~\v{S}ulc, L.~P. Shaw, A.~A.
+  Louis, and J.~P.~K. Doye.
 \newblock {DNA} hairpins destabilize duplexes primarily by promoting melting
   rather than by inhibiting hybridization.
 \newblock \emph{Nucleic Acids Res.}, 43:\penalty0 6181--6190, 2015.
 \newblock \doi{10.1093/nar/gkv582}.
+
+\bibitem[Schreck et~al.(2025)Schreck, Chapman, Becker, Gagne, Kimpara,
+  Cherukuru, Berner, Mayer, and Sobhani]{schreck2025sdl}
+J.~S. Schreck, W.~E. Chapman, C.~Becker, D.~J. Gagne, D.~Kimpara, N.~Cherukuru,
+  J.~Berner, K.~J. Mayer, and N.~Sobhani.
+\newblock Controllable probabilistic forecasting with stochastic decomposition
+  layers.
+\newblock \emph{arXiv:2512.18815}, 2025.
 
 \bibitem[Titley and Elsberry(2000)]{Titley2000}
 D.~W. Titley and R.~L. Elsberry.
