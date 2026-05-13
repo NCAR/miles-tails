@@ -201,6 +201,22 @@ the intensities typical of major hurricane development. This limitation is consi
 with the paper's methodological focus, and the framework transfers directly to
 higher-resolution systems as compute budgets permit.
 
+Whether the FFS rate calculation is \textit{physically} Markovian is a deeper question
+that hinges on state-vector completeness: does the model's state vector capture all
+variables that influence genesis probability?
+SDL-WXFormer does not explicitly predict slow boundary-condition fields such as
+sea-surface temperature (SST) or soil moisture.
+These are held fixed at their initialisation values rather than evolving during the
+simulation, though the model's weights encode multi-step climatological relationships
+between these slow variables and atmospheric dynamics learned during training.
+To the extent that boundary-condition fields at initialisation are correlated with
+subsequent evolution encoded in the weights, this introduces a background-state
+dependence that a fully Markovian FFS would not carry.
+The self-consistency check described in Section~\ref{sec:results_val} can detect Markov
+violations that produce systematic bias in the factorised rate relative to the direct
+count, but cannot detect violations that bias both estimators in the same direction.
+We defer a more rigorous test of physical Markovianity to future work.
+
 This paper reports: (1) a three-order-of-magnitude seasonal cycle in conditional genesis
 rates qualitatively consistent with the known structure of the 2022 Atlantic season; (2) a self-consistency
 validation showing FFS and direct-sampling rates agree within a mean ratio of
@@ -335,6 +351,13 @@ lead times.
 A single 15-day forecast (60 steps) requires $\approx$0.24 GPU-minutes on a single
 NVIDIA A100; scaling to 10 ensemble members, whose trajectories are batched through
 the model in parallel, requires $\approx$1.96 GPU-minutes.
+Enabling rare-event sampling via FFS was an explicit design objective of SDL-WXFormer.
+The model was architected as a strict state-in/state-out emulator: each 6-hour step
+takes only the current atmospheric state vector as input and applies the learned weights
+plus an independent stochastic perturbation drawn from the SDL layers, with no recurrent
+memory carried between steps.
+This design makes SDL-WXFormer Markovian at inference by construction, satisfying the
+core FFS requirement.
 
 We select 98 initial conditions from ERA5 at 00 and 12~UTC spanning August~21 --
 October~8, 2022, verifying $Q(\mathbf{x}_0) > 1008$~hPa for each. Three initial
@@ -486,53 +509,8 @@ It is important to note what this check does and does not establish.
 It confirms that the FFS bookkeeping arithmetic is internally consistent: the product
 $\Phi_{A,0}\prod P_i$ recovers the same rate that direct state-$B$ counting yields.
 It does \emph{not} constitute verification against observed climatology, nor does it
-validate the Markov assumption (see below), nor does it guarantee that the absolute
+validate the Markov assumption, nor does it guarantee that the absolute
 rate values are unbiased with respect to the real atmosphere.
-
-\textbf{Markovianity.}
-FFS requires that a trajectory's future behaviour depends only on its current state,
-not on its history prior to the most recent interface crossing.
-For SDL-WXFormer, this question has two distinct dimensions.
-
-\textit{Architectural Markovianity.}
-Enabling rare-event sampling via FFS was an explicit design objective of SDL-WXFormer,
-and the model was architected as a strict state-in/state-out emulator specifically
-to satisfy the Markov requirement.
-The base deterministic WXFormer is made stochastic by adding Stochastic Decomposition
-Layer (SDL) modules and fine-tuning with a CRPS loss \citep{schreck2025sdl}.
-At inference, each 6-hour forward step takes only the current atmospheric state vector
-as input and applies the learned weights plus an independent stochastic perturbation
-drawn from the SDL layers; no recurrent memory is carried between steps.
-This design means the model is Markovian at inference by construction, to the extent
-permitted by the available training data and the choice of state variables included.
-
-\textit{Physical Markovianity and state-vector completeness.}
-Whether the FFS rate calculation is physically Markovian is a separate question that
-hinges on whether the model's state vector is sufficient to capture all variables that
-influence genesis probability.
-Variables absent from the state vector represent the primary source of implicit
-non-Markovian pressure.
-SDL-WXFormer does not explicitly predict slow boundary-condition fields such as
-sea-surface temperature (SST) or soil moisture; these are held fixed at their
-initialisation values rather than evolving during the simulation.
-However, the model's weights encode multi-step climatological relationships between
-these slow variables and atmospheric dynamics learned during training.
-Trajectories launched from $\lambda_i$ over anomalously warm SST, or from
-environments with anomalous soil moisture, will therefore evolve differently in ways
-not captured by the atmospheric state vector alone.
-To the extent that these boundary-condition fields at initialisation are correlated
-with the subsequent evolution encoded in the weights, this introduces a background-state
-dependence that a fully Markovian FFS would not carry.
-We note that the observed anti-correlation between $P_1$ and $P_4$ across ICs
-(environments favorable for initial organisation tend to have suppressed final-stage
-probabilities) reflects \textit{cross-IC} atmospheric and SST variability, not
-within-trajectory memory, and does not itself violate the Markov assumption.
-The self-consistency check can detect Markov violations that produce systematic
-bias in the factorized rate relative to the direct count, but cannot detect violations
-that bias both estimators in the same direction.
-We defer to future work a more rigorous test of whether $P(B|\lambda_i)$ depends
-only on the current state or is also sensitive to SST and other omitted variables.
-
 Computational enhancement factors range from $3\times$ (most active IC) to $140\times$
 (most suppressed), with geometric mean $14\times$.
 
