@@ -301,7 +301,9 @@ range 0.25--0.75 as shown in Figure~\ref{fig:cond_prob_dist}.
 
 \textbf{Flux estimation.}
 For each initial condition we generate trajectories from the ERA5 state perturbed by
-SDL-WXFormer stochastic layers, advancing 6-hourly for up to 15 days. Decorrelated
+SDL-WXFormer stochastic layers, advancing 6-hourly. New storm tracks are seeded for
+up to 15 days; any active storms at that point continue to be followed until they
+return to state $A$ or reach state $B$. Decorrelated
 $\lambda_0$ crossings (requiring return to state $A$ between consecutive crossings) are
 accumulated to $N_{\text{cross}} = 2000$ per initial condition, yielding Poisson
 uncertainty $\sigma_\Phi/\Phi \approx 2.2\%$, well below across-IC variability.
@@ -367,14 +369,14 @@ During the flux phase, the order parameter $Q$ is the global minimum MSLP over t
 basin domain $\Omega$, which may correspond to any co-existing tropical system.
 To track this minimum coherently across timesteps, we maintain a running list of
 all active vortex candidates.  At each 6-hour step, Gaussian smoothing ($\sigma=1.5$
-grid-points) is applied to the MSLP field and local minima below 1010~hPa are
-detected.  Existing tracks are updated by nearest-neighbour matching within $12^\circ$;
+grid-points) is applied to the MSLP field to locate local minima; the smoothed field
+is used only to identify the grid-cell position of each minimum, and the raw
+unsmoothed MSLP value at that cell is recorded as the order parameter.  Existing tracks are updated by nearest-neighbour matching within $12^\circ$;
 unmatched minima below $12^\circ$N over land are suppressed (terrain artefacts);
 remaining unmatched minima seed new tracks.  A track is retained for up to two
-consecutive timesteps of failed matching before being dropped.  This scheme simultaneously
-follows multiple co-existing systems and switches the designated ``minimum'' when a
-new system deepens below the current one, preserving a well-defined monotone order
-parameter throughout the flux phase.
+consecutive timesteps of failed matching before being dropped.  All co-existing systems are tracked simultaneously; any storm that crosses $\lambda_0$
+records a decorrelated flux crossing, regardless of whether it is the deepest system
+at that moment.
 
 \textbf{Shoot mode (single-vortex tracking).}
 Once a trajectory has been saved at $\lambda_0$ and begins the shooting phase, the
