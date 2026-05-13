@@ -348,16 +348,19 @@ conditions receive detailed case study treatment:
 
 \subsection{Feature Tracking and Tropical Contamination Screen}
 
-We emphasise at the outset that both the vortex tracker and the warm-core screen
-described below are purpose-built, ad-hoc components calibrated for the SDL-WXFormer
-at 1$^\circ$ resolution.
-They were sufficient to demonstrate that FFS produces self-consistent genesis rates
-in this setting, which is the goal of this methods demonstration.
-Production-quality implementations at other resolutions or with other models
-will require state-of-the-art objective trackers (e.g., TempestExtremes, TRACK,
-tobac \citep{heikenfeld2019tobac}, or similar) and a formally validated tropical
-classification scheme;
-the present implementations should not be adopted uncritically for other applications.
+The vortex tracker described below is a purpose-built component calibrated to the
+SDL-WXFormer grid.
+We considered community trackers (TempestExtremes, TRACK, tobac
+\citep{heikenfeld2019tobac}), but terrain artifacts and the characteristics of the
+1$^\circ$ grid required customisation that was more tractable to implement directly.
+The warm-core screen follows the Cyclone Phase Space (CPS) formulation of
+\citet{hart2003cyclone} as documented by the FSU CPS tool
+(\url{https://moe.met.fsu.edu/cyclonephase/help.html}).
+It was motivated primarily by MSLP artifacts arising from an imperfect terrain file
+and 1$^\circ$ grid limitations, and secondarily by extratropical contamination from
+recurving or baroclinic systems.
+Both components were sufficient to demonstrate self-consistent FFS genesis rates in
+this setting and should not be adopted uncritically for other grids or models.
 
 \textbf{Flux mode (multi-storm tracking).}
 During the flux phase, the order parameter $Q$ is the global minimum MSLP over the
@@ -382,17 +385,20 @@ system, ensuring that the shooting trajectory measures the intensification of th
 specific disturbance seeded at $\lambda_0$.
 
 \textbf{Tropical contamination screen.}
-An empirically-calibrated contamination screen, inspired by the Cyclone Phase Space
-framework of \citet{hart2003cyclone}, suppresses two known sources of spurious
+An empirically-calibrated contamination screen following the Cyclone Phase Space
+framework of \citet{hart2003cyclone} suppresses two known sources of spurious
 state-$B$ arrivals at 1$^\circ$ resolution: (1) terrain-induced MSLP minima from
-hydrostatic extrapolation errors, and (2) mid-latitude baroclinic cyclones entering
-the domain. The screen evaluates the thermal wind parameters $-V_T^L$ and $-V_T^U$
-at $\lambda_0$ crossings and when a tracked vortex exceeds $50^\circ$N or $-10^\circ$W,
-rejecting systems with $-V_T^L > 0$ or $-V_T^U > 0$. The rejection thresholds were
-calibrated by manual inspection of a subset of trajectories in the 2022 dataset that
-were visually identifiable as extratropical (recurving systems and baroclinic cyclones
-intruding from the northwest); they are not derived from formal CPS validation at this
-resolution and should be treated as engineering choices rather than physical thresholds.
+hydrostatic extrapolation errors in the imperfect terrain file, and (2) mid-latitude
+baroclinic cyclones entering the domain. The screen evaluates the thermal wind
+parameters $-V_T^L$ and $-V_T^U$ at $\lambda_0$ crossings and when a tracked vortex
+exceeds $50^\circ$N or $-10^\circ$W, rejecting cold-core systems with $-V_T^L < 0$
+or $-V_T^U < 0$ (in practice, a numerical tolerance permits values down to $-100$~m
+before a cold-core classification is assigned, accommodating grid noise at 1$^\circ$
+resolution). The rejection thresholds were calibrated by manual inspection of a subset
+of trajectories in the 2022 dataset that were visually identifiable as extratropical
+(recurving systems and baroclinic cyclones intruding from the northwest); they are not
+derived from formal CPS validation at this resolution and should be treated as
+engineering choices rather than physical thresholds.
 The screen errs toward inclusion to avoid discarding ambiguous cases.
 
 Across the full dataset, rejection rates at each interface are approximately
