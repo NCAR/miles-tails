@@ -329,7 +329,7 @@ $k^{\text{direct}} = N_{\text{direct}}/T_{\text{total}}$ that serves as a self-c
 \textbf{Shooting.}
 Configurations saved at $\lambda_0$ seed shooting trajectories toward each successive
 interface. For each interface $\lambda_{i-1}$, trajectories are launched until 2000
-successful crossings of $\lambda_i$ are accumulated. Success probability
+successful crossings of $\lambda_i$ are accumulated (Appendix~\ref{sec:convergence} justifies this target). Success probability
 $P(\lambda_i|\lambda_{i-1}) = N_{\text{success}}/N_{\text{attempts}}$ with binomial
 uncertainty. Statistical uncertainty on the full rate (Eq.~\ref{eq:ffs_rate}) propagates
 from each factor:
@@ -864,7 +864,7 @@ and shooting probabilities, while the direct rate uses only the raw state-$B$ ar
 counts from flux trajectories.
 Their close agreement across three orders of magnitude of genesis probability confirms
 that (1) the interface spacing produces well-conditioned conditional probability estimates,
-(2) the ensemble sizes ($N=2000$ per interface) are sufficient, and (3) the CPS
+(2) the ensemble sizes ($N=2000$ per interface) are sufficient (see Appendix~\ref{sec:convergence}), and (3) the CPS
 contamination screen does not introduce systematic bias into the factorization.
 As discussed in Section~\ref{sec:results_val}, this self-consistency check does not
 constitute external validation against observed climatology, nor does it test the
@@ -1004,6 +1004,43 @@ The key methodological properties (self-consistency, seasonal cycle structure,
 and bottleneck diagnostics) are qualitatively robust across thresholds.
 For physics-based models at finer resolution, a lower $\lambda_B$ (e.g., 960~hPa)
 may be more appropriate, and the interface placement should be re-optimised accordingly.
+
+\section{Convergence of FFS Rate Estimates}
+\label{sec:convergence}
+
+We target $N = 2000$ successful crossing attempts per interface to ensure stable
+$P_i$ estimates and a well-converged genesis rate $k_\mathrm{FFS}$.
+Figure~\ref{fig:convergence} demonstrates this convergence using the actual
+shot-outcome logs from the three case-study initial conditions.
+
+Panel~(a) shows the running $P_i$ estimate for each of the four shooting interfaces
+of the Earl IC as a function of the number of shots attempted.
+Each curve is the mean across 50 random permutations of the shot-ordering, with the
+shaded envelope spanning the 10th--90th percentile range.
+All four $P_i$ values stabilize well before $N = 2000$ (dotted vertical line), with
+the envelope width falling below $\pm 0.02$ for the three lower interfaces and
+$\pm 0.04$ for $P_4$ (the most uncertain, reflecting the near-threshold CPS filter).
+
+Panel~(b) shows the running ratio $k_\mathrm{FFS}(N) / k_\mathrm{FFS}(\mathrm{final})$
+for all three case-study ICs.
+By $N \approx 500$ the estimates enter the $\pm 20\%$ band (gray shading), and by
+$N = 2000$ they are within $\pm 5\%$ of their final values for all three storms.
+The convergence behaviour is qualitatively similar across ICs despite the
+approximately tenfold range in $k_\mathrm{FFS}$.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{ffs_convergence.png}
+\caption{Convergence of FFS estimates as a function of the number of shooting
+attempts per interface.
+(a) Running $P_i(N)$ for the four shooting interfaces of the Earl IC (mean and
+10th--90th percentile across 50 random shot-orderings); dashed horizontal lines
+mark the final $P_i$ values.
+(b) Running $k_\mathrm{FFS}(N)$ normalised by the final value for all three
+case-study ICs; gray shading spans $\pm 20\%$; dotted vertical line marks the
+$N = 2000$ target.}
+\label{fig:convergence}
+\end{figure}
 
 \section*{Acknowledgments}
 This material is based upon work supported by the NSF National Center for Atmospheric
