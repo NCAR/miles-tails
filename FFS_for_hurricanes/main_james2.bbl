@@ -1,4 +1,4 @@
-\begin{thebibliography}{39}
+\begin{thebibliography}{40}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -54,6 +54,10 @@ S.~J. Camargo, K.~A. Emanuel, and A.~H. Sobel.
   tropical cyclone genesis.
 \newblock \emph{J.\ Climate}, 20:\penalty0 4819--4834, 2007.
 \newblock \doi{10.1175/JCLI4282.1}.
+
+\bibitem[{Computational and Information Systems Laboratory}(2019)]{Cheyenne}
+{Computational and Information Systems Laboratory}.
+\newblock Cheyenne: {HPE/SGI ICE XA System} ({NCAR Community Computing}), 2019.
 
 \bibitem[Finkel et~al.(2023)Finkel, Gerber, Abbot, and
   Weare]{finkel2023revealing}
