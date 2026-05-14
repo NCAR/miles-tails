@@ -82,11 +82,10 @@ dynamics. Tropical cyclone genesis probability varies by orders of magnitude acr
 synoptic regimes, yet direct ensemble sampling cannot resolve this variability at
 operationally feasible ensemble sizes. FFS addresses this by decomposing the rare
 $A \to B$ transition into a flux through an initial interface and a product of
-conditional crossing probabilities across four shooting interfaces, exploiting the
-natural parallelism of the shooting phase. The 1$^\circ$ emulator is chosen
-deliberately for computational tractability: FFS requires $\mathcal{O}(10^4)$ model
-trajectories per initial condition, and its calibrated stochastic layers provide the
-ensemble spread the method requires.
+conditional crossing probabilities across four shooting interfaces. We use the
+1$^\circ$ emulator because FFS requires $\mathcal{O}(10^4)$ model trajectories per
+initial condition, and because the model's calibrated stochastic layers provide the
+ensemble spread needed for the shooting phase.
 Applied to 98 Atlantic basin initial conditions spanning August~21 -- October~8,~2022,
 FFS resolves genesis rates spanning nearly three orders of magnitude
 ($2.6\times10^{-5}$ to $1.7\times10^{-2}$ events~day$^{-1}$),
@@ -104,8 +103,8 @@ Three case studies illustrate the physical diagnostics the method provides: the
 rate-limiting step is initial tropical organization for the Earl environment, uniformly
 high crossing probabilities for the Fiona precursor environment, and a compound barrier
 at the final intensification stages for the Ian environment.
-The methodology is independent of model architecture and extends in principle to
-higher-resolution physics-based systems.
+The same calculation can be applied to higher-resolution physics-based models when
+the trajectory cost is affordable.
 \end{abstract}
 
 \section{Introduction}
@@ -123,27 +122,17 @@ operational or research budgets when using physics-based models. The question of
 whether individual ensemble members develop, remains largely inaccessible to
 conventional approaches.
 
-Rare event sampling techniques address this by intelligently concentrating
-computational effort along transition pathways.
-The broader rare event literature includes transition path sampling
-\citep{bolhuis2002transition} and metadynamics \citep{laio2002escaping}, which have
-primarily been developed for molecular and condensed-matter systems.
-The atmospheric community has primarily applied Adaptive Multilevel Splitting
-\citep[AMS;][]{ragone2018computation,webber2019practical,galfi2019large} and related
-trajectory resampling methods \citep{finkel2023revealing,finkel2024bringing}, which
-efficiently generate ensembles of rare \textit{event realizations} and have been extended
-to heat waves, cold spells, and circulation extremes, including direct application to
-tropical cyclone intensification \citep{plotkin2019maximizing}.
-A parallel and rapidly developing line of work couples these ideas
-with machine learning emulators: \citet{lancelin2025ai} recently demonstrated
-AI-boosted rare event sampling for characterizing extreme weather, establishing that
-learned surrogates can dramatically reduce the cost of importance sampling in atmospheric
-systems. Forward Flux Sampling \citep{allen2006forward,allen2009forward,valeriani2007computing,hussain2020studying}
-occupies a distinct but complementary niche: rather than generating rare realizations,
-FFS is designed specifically to estimate non-equilibrium steady-state \textit{transition
-rates} (expected genesis events per unit time) with a factored uncertainty
-structure that identifies \textit{which intensification stage is rate-limiting}.
-For operational genesis prediction, this rate-centric view is the natural target quantity.
+Rare event sampling techniques address this by concentrating computation on the
+transition itself. In atmospheric science, most work has used Adaptive Multilevel
+Splitting \citep[AMS;][]{ragone2018computation,webber2019practical,galfi2019large}
+and related trajectory-resampling methods
+\citep{finkel2023revealing,finkel2024bringing}. Those methods are effective for
+generating rare event realizations, including tropical cyclone intensification
+\citep{plotkin2019maximizing}. Here the target is different. We want a transition
+rate, not just examples of successful trajectories. FFS
+\citep{allen2006forward,allen2009forward,valeriani2007computing,hussain2020studying}
+is designed for that calculation. It also shows which stage of the transition is
+hardest to cross, which is useful for genesis.
 
 FFS requires no equilibrium assumptions: no free energy landscapes, detailed balance,
 or Boltzmann distributions. The method needs only well-defined metastable regions,
@@ -171,21 +160,15 @@ our seasonal sampling across 98~ICs and enables direct comparison against observ
 Atlantic activity.
 
 Machine learning weather models \citep{lam2023graphcast,bi2023pangu,pathak2022fourcastnet}
-offer a natural platform for rare event sampling: they are $\sim$1000$\times$ faster
-than physics-based models, natively generate ensemble spread through stochastic
-parameterizations, and inherit the dynamical attractor of their training reanalysis.
-This speed advantage is decisive for FFS, which requires $\mathcal{O}(10^4)$ trajectories
-per initial condition. Recent work exploits this combination for
-subseasonal-to-seasonal extreme event forecasting \citep{mu2025skillful} and importance
-sampling of weather extremes \citep{lancelin2025ai,manshausen2025extreme}. SDL-WXFormer \citep{schreck2025sdl}
-extends the standard deterministic emulator with stochastic decomposition
-layers calibrated to ERA5 ensemble statistics, providing the trajectory diversity
-the FFS shooting phase requires.
+make this calculation practical because they are much faster than physics-based
+models. That speed matters here because FFS requires $\mathcal{O}(10^4)$ trajectories
+per initial condition. SDL-WXFormer \citep{schreck2025sdl} is useful for a second
+reason: its stochastic decomposition layers produce the ensemble spread required by
+the shooting phase.
 
 \textbf{Scope and model choice.}
-This paper is primarily a \textit{methods demonstration}: we establish that FFS can be
-coupled to a fast neural emulator to produce physically interpretable genesis rate
-estimates, and characterize the method's behaviour across a full hurricane season.
+This paper asks a simple question: can FFS recover useful conditional genesis rates
+from a fast weather emulator, and if so, what parts of genesis control those rates?
 We deliberately use SDL-WXFormer at 1$^\circ$ resolution rather than a convection-permitting
 physics-based model for two practical reasons. First, FFS is computationally demanding:
 each initial condition requires $\mathcal{O}(10^4)$ 15-day trajectories, and at
@@ -197,21 +180,19 @@ requires. A deterministic neural emulator would collapse all branching probabili
 zero or one. The 1$^\circ$ resolution imposes a well-understood limitation: the model
 cannot faithfully reproduce Category~3+ intensity or convective-scale vortex dynamics,
 so state~$B$ is defined at 975~hPa (tropical storm to minimal hurricane) rather than
-the intensities typical of major hurricane development. This limitation is consistent
-with the paper's methodological focus, and the framework transfers directly to
-higher-resolution systems as compute budgets permit.
+the intensities typical of major hurricane development. That limitation matters for
+the threshold definition, but not for the main point here, which is whether the FFS
+calculation is internally consistent and physically informative.
 
-Whether the FFS rate calculation is \textit{physically} Markovian is a deeper question
-that hinges on state-vector completeness: does the model's state vector capture all
-variables that influence genesis probability?
+Whether the FFS rate calculation is \textit{physically} Markovian depends on whether
+the model state includes the variables that matter for genesis.
 SDL-WXFormer does not explicitly predict slow boundary-condition fields such as
 sea-surface temperature (SST) or soil moisture.
 These are held fixed at their initialisation values rather than evolving during the
 simulation, though the model's weights encode multi-step climatological relationships
 between these slow variables and atmospheric dynamics learned during training.
-To the extent that boundary-condition fields at initialisation are correlated with
-subsequent evolution encoded in the weights, this introduces a background-state
-dependence that a fully Markovian FFS would not carry.
+This can introduce background-state dependence that a fully Markovian FFS calculation
+would not have.
 The self-consistency check described in Section~\ref{sec:results_val} can detect Markov
 violations that produce systematic bias in the factorised rate relative to the direct
 count, but cannot detect violations that bias both estimators in the same direction.
@@ -243,25 +224,18 @@ sea-level pressure (MSLP) within the Atlantic basin domain
 $\Omega = [10^\circ\text{N},\,40^\circ\text{N}] \times [100^\circ\text{W},\,20^\circ\text{W}]$.
 
 \textbf{Order parameter justification.}
-MSLP is the community-standard metric for tropical cyclone intensity and is used
-operationally by NHC, JTWC, and all major forecast centers to define genesis and
-track intensity throughout a storm's lifecycle \citep{knaff2007improved}.
-It has well-understood properties at 1$^\circ$ resolution (see state-$B$ threshold
-discussion below), and is robustly trackable without requiring multi-variable composites
-that would introduce additional calibration uncertainty.
-We acknowledge that MSLP is a downstream integrator of the thermodynamic and kinematic
-conditions that enable genesis, rather than a direct measure of those precursors.
-However, for the purpose of defining the FFS interfaces and measuring crossing probabilities,
-MSLP's role as a monotone descriptor of vortex organization is well suited: the seasonal
-cycle resolved by the FFS rates (Figure~\ref{fig:rates}) is physically coherent, and the
-geographic distribution of state-$B$ arrivals (Figure~\ref{fig:stateb_geo}) clusters in
-the observed Atlantic main development region.
+We use MSLP because it is the standard intensity measure and because it can be
+tracked cleanly on this grid \citep{knaff2007improved}. It is not a direct measure
+of the thermodynamic and kinematic precursors to genesis. It is a downstream summary
+of them. That is acceptable here if the resulting interfaces still separate the
+transition in a physically sensible way. They do: the seasonal cycle in
+Figure~\ref{fig:rates} is coherent, and the state-$B$ arrivals in
+Figure~\ref{fig:stateb_geo} cluster in the main development region.
 Future implementations could extend the order parameter to incorporate low-level vorticity,
 mid-tropospheric moisture, or a composite genesis potential index
 \citep[e.g.,][]{bister1998dissipative,camargo2007use};
-such extensions are expected to sharpen the physical interpretability of
-per-interface bottleneck diagnostics but are not required to demonstrate that FFS
-produces internally consistent rate estimates, which is the goal of this paper.
+such extensions may sharpen the bottleneck diagnostics, but they are not needed to
+test the rate calculation used here.
 
 \textbf{State definitions and interfaces.}
 State $A$: $Q > \lambda_A = 1008$~hPa (unorganized synoptic disturbances).
@@ -394,11 +368,9 @@ We considered community trackers (TempestExtremes, TRACK, tobac
 The warm-core screen follows the Cyclone Phase Space (CPS) formulation of
 \citet{hart2003cyclone} as documented by the FSU CPS tool
 (\url{https://moe.met.fsu.edu/cyclonephase/help.html}).
-The screen was motivated primarily by MSLP artifacts arising from an imperfect terrain
-file and 1$^\circ$ grid limitations, and secondarily by extratropical contamination
-from recurving or baroclinic systems.
-Both components were sufficient to demonstrate self-consistent FFS genesis rates in
-this setting and should not be adopted uncritically for other grids or models.
+The screen is used mainly to remove MSLP artifacts from the terrain file and the
+1$^\circ$ grid, and secondarily to remove recurving or baroclinic systems.
+It is tuned for this model and grid.
 
 \textbf{Flux mode (multi-storm tracking).}
 During the flux phase, the order parameter $Q$ is the global minimum MSLP over the
@@ -683,12 +655,10 @@ CPS-rejected (extratropical) trajectories are excluded from both panels.}
 
 \subsection{FFS Shooting Trees}
 
-Figure~\ref{fig:ffs_trees} shows representative FFS shooting trees for each of the three
-case-study ICs. Each tree traces the branching genealogy of a single $\lambda_0$ seed:
-the star marks the seed location, and successive interface crossings fan out as the
-ensemble of reactive pathways progresses toward state~$B$.
-The geographic spread of $\lambda_4$ descendants reflects the diversity of intensification
-pathways sampled by the FFS from a single starting configuration.
+Figure~\ref{fig:ffs_trees} shows representative FFS shooting trees for the three
+case-study ICs. The point is not the exact geometry of any one branch. The point is
+that one $\lambda_0$ crossing can lead to many distinct downstream pathways, and FFS
+samples that branching explicitly.
 
 Importantly, the IC date labels are \textit{initialisation} times, not genesis dates.
 Each FFS simulation runs 15 days forward from its IC. Each node in the tree represents
@@ -740,10 +710,8 @@ seasonal mean of $P_1$ being the lowest of the four conditional probabilities
 (Table~\ref{tab:results}).
 The FFS and IFS curves agree in overall \textit{shape}: both show the steepest committor
 drop at the same interface level, and both identify the same rate-limiting stage of the
-intensification cascade.
-This structural agreement between two completely independent modelling systems
-suggests that the intensification bottleneck identified by FFS reflects real atmospheric
-physics rather than artefacts of the SDL-WXFormer architecture.
+intensification cascade. This suggests that the bottleneck is not unique to
+SDL-WXFormer.
 Note that the comparison is complicated by the different ensemble generation mechanisms
 (learned stochastic layers vs.\ singular-vector perturbations) and the 1$^\circ$ vs.\ 1.5$^\circ$
 resolution asymmetry, so quantitative agreement is not expected and not claimed.
@@ -873,13 +841,12 @@ correctly within the SDL-WXFormer framework.
 
 Enhancement factors (3--140$\times$, geometric mean 14$\times$)
 scale inversely with genesis probability, as expected from FFS theory \citep{allen2009forward}.
-The right-skewed speedup distribution mirrors the log-normal FFS rate distribution itself.
-The geometric mean is the appropriate summary for such distributions and is reported throughout.
+The distribution is right-skewed, so we report the geometric mean.
 For the most active environments where direct sampling is feasible (speedup $3\times$), the two
 methods serve as mutual validation. For suppressed environments (speedup $\sim$100$\times$),
 FFS is the only practical route to a quantitative genesis rate estimate.
 
-The bottleneck analysis adds physical content beyond a scalar rate. For the Earl IC,
+The bottleneck analysis says more than the rate alone. For the Earl IC,
 the rate-limiting step at $\lambda_1$ (initial organization) indicates that the
 environment is resistant to producing organized convection but that once organized,
 the system is likely to reach hurricane strength. For the Fiona IC, the uniformly elevated probabilities indicate an environment that
@@ -900,10 +867,9 @@ reflects a genuine physical barrier in the intensification cascade.
 
 The CPS filter warrants clarification. At 1$^\circ$ resolution, formal CPS parameters
 are not quantitatively validated against higher-resolution analyses, and our implementation
-omits the thermal asymmetry ($B$) parameter. The filter is best understood as a
-contamination screen rather than a rigorous warm-core classifier: it rejects obviously
-extratropical systems while accepting all ambiguous cases. Future implementations with
-finer-resolution models could apply a more principled multidimensional CPS criterion.
+omits the thermal asymmetry ($B$) parameter. We use it as a contamination screen, not
+as a definitive warm-core classifier. It rejects clearly extratropical systems and keeps
+ambiguous ones.
 
 \subsection{Limitations}
 
@@ -944,7 +910,7 @@ A self-consistency check shows a mean ratio of FFS to direct-sampling rates of
 $1.03\pm0.15$ across all 98 ICs, confirming the conditional probability factorization
 is implemented correctly.
 Computational enhancement of 3--140$\times$ (geometric mean $14\times$) makes FFS
-practical across the full range of synoptic environments. Physically, the method reveals
+practical across the full range of synoptic environments. The main physical result is
 that the rate-limiting step in genesis varies by regime: initial tropical organization
 ($P_1$ bottleneck, as in Earl), uniformly elevated crossing probabilities with a terminal
 intensification barrier ($P_4$ bottleneck, as in the Fiona IC), or a compound
@@ -956,14 +922,9 @@ shows suggestive consistency in shape and rate-limiting stage (Fig.~\ref{fig:com
 providing qualitative evidence that the bottleneck structure is not an artefact of the
 neural emulator's dynamics.
 
-The methodology extends directly to other atmospheric rare events (extreme heatwaves,
-sudden stratospheric warmings, blocking onset) and to physics-based models.
-Any generative model producing an ensemble from a shared initial state (diffusion-based
-emulator, flow-matching model, or stochastic parameterization scheme) satisfies the
-architectural Markov requirement and can be coupled to FFS in the same way demonstrated here.
-The combination is general: the same approach applies to any
-low-probability, high-consequence atmospheric event where a rate estimate and
-a bottleneck decomposition are more useful than a collection of rare realizations.
+The same approach should also apply to other atmospheric rare events, including
+extreme heatwaves, sudden stratospheric warmings, and blocking onset, and to
+physics-based models when the ensemble cost is manageable.
 
 \appendix
 \section{State-$B$ Threshold Sensitivity}
