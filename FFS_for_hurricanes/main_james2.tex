@@ -84,7 +84,7 @@ Tropical cyclogenesis, or the process of a tropical disturbance intensifying int
 \citep{Titley2000, Halperin2013}. The challenge is not merely predictive: it is statistical. For a genesis event with probability $p \sim 10^{-3}$ per day, direct Monte Carlo estimation of the genesis rate to 20\% relative uncertainty requires $\mathcal{O}(10^4)$ ensemble trajectories per initial condition, far beyond both operational and research budgets when using physics-based models. The question of \textit{how frequently} genesis occurs under a given atmospheric state, not just whether individual ensemble members develop storms, remains largely inaccessible to
 conventional approaches.
 
-Rare event sampling techniques address this by concentrating computation on the transition itself. In atmospheric science, most work has used Adaptive Multilevel Splitting \citep[AMS;][]{ragone2018computation, webber2019practical, galfi2019large} and related trajectory-resampling methods \citep{finkel2023revealing, finkel2024bringing}. Those methods are effective for generating rare event realizations, including tropical cyclone intensification \citep{plotkin2019maximizing}. Here the target is different. We want a transition rate, not just examples of successful trajectories. FFS \citep{allen2006forward, allen2009forward, valeriani2007computing, hussain2020studying} is designed for that calculation. It also shows which stage of the transition is hardest to cross, which is useful for understanding which precursor processes are most critical for genesis to occur in a given environment.
+Rare event sampling techniques address this by concentrating computation on the transition itself. In atmospheric science, most work has used Adaptive Multilevel Splitting \citep[AMS;][]{ragone2018computation, webber2019practical, galfi2019large} and related trajectory-resampling methods \citep{finkel2023revealing, finkel2024bringing}. Those methods are effective for generating rare event realizations, including tropical cyclone intensification \citep{plotkin2019maximizing}. Here the target is different. We want a transition rate, not just examples of successful trajectories. Forward Flux Sampling \citep[FFS;][]{allen2006forward, allen2009forward, valeriani2007computing, hussain2020studying} is designed for that calculation. It also shows which stage of the transition is hardest to cross, which is useful for understanding which precursor processes are most critical for genesis to occur in a given environment.
 
 FFS requires no equilibrium assumptions: no free energy landscapes, detailed balance, or Boltzmann distributions. The method assumes only (1) well-defined metastable regions, (2) measurable flux through interfaces, and (3) Markovian dynamics \citep{allen2009forward}.
 It has been applied across a broad range of non-equilibrium systems from biochemical networks \citep{allen2005sampling} to nucleic acid folding kinetics \citep{schreck2015dna}. The atmosphere is a canonical non-equilibrium steady-state (NESS) system driven persistently by solar forcing and dissipated by radiation, friction, and turbulence; and satisfies all three above requirements. Atmospheric rare events are dynamical transitions between regions of a strange attractor \citep{lorenz1969atmospheric,touchette2009large}, not thermodynamic transitions over energy barriers, making FFS \textit{more} defensible here than equilibrium-based rare event techniques.
@@ -96,9 +96,8 @@ given present climate state \citep{finkel2023revealing, finkel2024bringing}. It 
 Atlantic activity.
 
 Machine learning weather models \citep{lam2023graphcast, bi2023pangu, pathak2022fourcastnet}
-make this calculation practical because they are much faster than physics-based models. That speed matters here because FFS requires $\mathcal{O}(10^4)$ trajectories per initial condition. SDL-WXFormer \citep{schreck2025sdl} is useful for a second reason: its stochastic decomposition layers produce the ensemble spread required by the shooting phase.
+make this calculation practical because they are much faster than physics-based models. That speed matters here because FFS requires $\mathcal{O}(10^4)$ trajectories per initial condition. SDL-WXFormer \citep{schreck2025sdl} is useful for a second reason: its stochastic decomposition layers produce the calibrated ensemble spread required by the shooting, or conditional stochastic generation, phase. 
 
-\textbf{Scope and model choice.}
 This paper asks a simple question: can FFS recover useful conditional genesis rates from a fast weather emulator, and if so, what parts of genesis control those rates? We deliberately use SDL-WXFormer at 1$^\circ$ grid spacing rather than a convection-permitting physics-based model for two practical reasons. First, FFS is computationally demanding: each initial condition requires $\mathcal{O}(10^4)$ 15-day trajectories, and at $\approx$0.24 GPU-minutes per single-member 15-day forecast on an NVIDIA A100, the full 98-IC dataset required approximately 2,450 GPU-hours. A comparable experiment with WRF or IFS would be prohibitively expensive on available allocations. Second, the SDL-WXFormer's calibrated stochastic decomposition layers provide the ensemble variability the FFS shooting phase requires. A deterministic neural emulator would collapse all branching probabilities to zero or one. The 1$^\circ$ grid spacing imposes a well-understood limitation: the model cannot faithfully reproduce Category~3+ intensity or convective-scale vortex dynamics, so state~$B$ is defined at 975~hPa (tropical storm to minimal hurricane) rather than the intensities typical of major hurricane development. That limitation matters for the threshold definition, but not for the main point here, which is whether the FFS calculation is internally consistent and physically informative.
 
 Whether the FFS rate calculation is \textit{physically} Markovian depends on whether
@@ -113,7 +112,19 @@ rates qualitatively consistent with the known structure of the 2022 Atlantic sea
 \section{Methods}
 
 \subsection{Forward Flux Sampling}
-
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{ffs_schematic.pdf}
+\caption{Schematic of the Forward Flux Sampling algorithm (after \citealt{allen2006forward}).
+\textit{Panel (a), flux phase}: Gray trajectories evolve forward from state $A$.
+Each decorrelated crossing of $\lambda_0$ is recorded (marked $\times$).
+\textit{Panel (b), shooting phase}: New trial trajectories are launched from each saved
+$\lambda_i$ configuration (filled circles). Shots that return to state $A$ (arrows labeled $A$)
+are failures; shots that reach $\lambda_{i+1}$ (filled circles on the next interface) are successes,
+yielding the conditional probability $P(\lambda_{i+1}|\lambda_i)$.
+}
+\label{fig:schematic}
+\end{figure}
 FFS estimates the transition rate from metastable state $A$ (unorganized disturbances, $Q > \lambda_A$) to state $B$ (organized tropical cyclone, $Q \leq \lambda_B$) by factorizing:
 \begin{equation}
 k_{A\to B}^{\text{FFS}} = \Phi_{A,0} \times \prod_{i=1}^{n} P(\lambda_i | \lambda_{i-1}, \mathbf{x_{\Omega}})
@@ -121,29 +132,21 @@ k_{A\to B}^{\text{FFS}} = \Phi_{A,0} \times \prod_{i=1}^{n} P(\lambda_i | \lambd
 \end{equation}
 where $\Phi_{A,0} = N_{\text{cross}}/T_{\text{total}}$ is the flux of trajectories crossing the first interface $\lambda_0$ per unit time, and $P(\lambda_i|\lambda_{i-1})$ is the conditional probability that a trajectory at $\lambda_{i-1}$ reaches $\lambda_i$ before returning to $A$ (Fig.~\ref{fig:schematic}). The order parameter $Q(\mathbf{x})$ is the minimum mean sea-level pressure (MSLP) within the Atlantic basin domain $\Omega = [10^\circ\text{N},\,40^\circ\text{N}] \times [100^\circ\text{W},\,20^\circ\text{W}]$ derived from atmospheric state $\mathbf{x}$.
 
-\textbf{Order parameter justification.}
-We use MSLP because it is the standard intensity measure and because it can be
-tracked cleanly on this grid \citep{knaff2007improved}. It is not a direct measure
-of the thermodynamic and kinematic precursors to genesis. It is a downstream summary
-of them. That is acceptable here if the resulting interfaces still separate the
-transition in a physically sensible way. They do: the seasonal cycle in
+We use MSLP because it is one of the standard tropical cyclone intensity measures and because it can be tracked cleanly on this grid \citep{knaff2007improved}. MSLP provides a downstream summary of the thermodynamic and kinematic precursors to genesis. FFS requires that the chosen interfaces separate the
+transition in a physically sensible way. Based on our analysis, they do: the seasonal cycle in
 Figure~\ref{fig:rates} is coherent, and the state-$B$ arrivals in
 Figure~\ref{fig:stateb_geo} cluster in the main development region.
-Future implementations could extend the order parameter to incorporate low-level vorticity,
+Future implementations could extend the order parameter definition to incorporate low-level vorticity,
 mid-tropospheric moisture, or a composite genesis potential index
-\citep[e.g.,][]{bister1998dissipative,camargo2007use};
-such extensions may sharpen the bottleneck diagnostics, but they are not needed to
-test the rate calculation used here.
+\citep[e.g.,][]{bister1998dissipative,camargo2007use}.
+Such extensions may sharpen the bottleneck diagnostics, but they are not needed to test the rate calculation used here.
 
-\textbf{State definitions and interfaces.}
-State $A$: $Q > \lambda_A = 1008$~hPa (unorganized synoptic disturbances).
-State $B$: $Q \leq \lambda_B = 975$~hPa AND warm-core structure satisfied (CPS criterion)
-AND vortex centre within the basin domain $\Omega$.
-We note that 975~hPa corresponds to tropical storm to minimal hurricane intensity and is
-\textit{intentionally stronger} than the conventional NHC tropical storm genesis designation
+We define State $A$: $Q > \lambda_A = 1008$~hPa, a pressure generally associated with unorganized synoptic disturbances.
+For State $B$ we expect both $Q \leq \lambda_B = 975$~hPa and that the warm-core structure is satisfied based on the CPS criterion and that the vortex center is within the basin domain $\Omega$.
+We note that 975~hPa corresponds to tropical storm to minimal hurricane intensity and is \textit{intentionally stronger} than the conventional NHC tropical storm genesis designation
 ($\sim$34~kt, roughly 997--1003~hPa in typical Atlantic pressure--wind relationships).
 At 1$^\circ$ grid spacing, the model's smoothed MSLP field does not develop a reliable closed
-isobar signature until the vortex is more strongly organised than the standard genesis threshold.
+isobar signature until the vortex is more strongly organized than the standard genesis threshold.
 In practice, 975~hPa is the lowest pressure at which state-$B$ arrivals cluster in physically expected
 geographic locations and pass the CPS warm-core screen with consistent reliability.
 The compound criterion means that reaching the 975~hPa MSLP threshold is necessary but not sufficient
@@ -167,7 +170,7 @@ Note that \texttt{forecast\_start\_times} in that file lists only the three case
 The full 98-IC seasonal run was launched via the PBS job scripts in
 \texttt{applications/run\_paper\_figures\_mar18.sh}.
 
-\textbf{Notation.}
+
 We label the four conditional crossing probabilities $P_1$--$P_4$ in order of the
 FFS product: $P_1 = P(\lambda_2|\lambda_1)$, $P_2 = P(\lambda_3|\lambda_2)$,
 $P_3 = P(\lambda_4|\lambda_3)$, and $P_4 = P(B|\lambda_4)$.
@@ -175,21 +178,31 @@ The $\lambda_0\to\lambda_1$ transition is implicit in the flux $\Phi_{A,0}$ and 
 not a shooting interface. $P_1$ therefore refers to the \textit{first shooting} step
 (987.2 $\to$ 984.7~hPa), not the first interface crossing from $A$.
 
-\textbf{Interface placement.}
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{conditional_prob_distributions.png}
+\caption{Distribution of conditional crossing probabilities $P_i$ across all 98 initial
+conditions. Each violin shows the full distribution; boxes show quartiles; coloured
+lines connect the three case-study ICs. The horizontal dashed line marks the optimal
+$P = 1/e \approx 0.37$ \citep{allen2009forward}; the blue band spans the well-conditioned range 0.25--0.75.
+Most ICs have $P_i$ within the well-conditioned range, confirming that interface placement
+produces efficient variance reduction. The spread of $P_1$ (initial organization) is larger
+than that of $P_2$--$P_3$, reflecting the dominant role of large-scale atmospheric variability
+in setting the first intensification barrier. Mean $\pm$ SD for each interface are annotated.}
+\label{fig:cond_prob_dist}
+\end{figure}
 Shooting interfaces are chosen using the optimal-$1/e$ rule of
 \citet{allen2009forward}: the next interface $\lambda_{i+1}$ is placed at the
 $p^*$-quantile of the MSLP distribution reached by trajectories launched from
-$\lambda_i$, where $p^* = 1/e \approx 0.368$.  This placement minimises variance in
+$\lambda_i$, where $p^* = 1/e \approx 0.368$.  This placement minimizes variance in
 the estimated rate and targets conditional crossing probabilities near $1/e$,
-maximising statistical efficiency \citep{allen2009forward}.
-In practice, interfaces were optimized from long trial runs and then rounded to
-physically interpretable pressure values; the resulting $P_i$ values (Table~\ref{tab:results})
+maximizing statistical efficiency \citep{allen2009forward}.
+In practice, interfaces were optimized from long trial runs and then rounded to physically interpretable pressure values; the resulting $P_i$ values (Table~\ref{tab:results})
 cluster between 0.10 and 0.91 across all ICs, with a majority in the well-conditioned
 range 0.25--0.75 as shown in Figure~\ref{fig:cond_prob_dist}.
 
-\textbf{Flux estimation.}
 For each initial condition we generate trajectories from the ERA5 state perturbed by
-SDL-WXFormer stochastic layers, advancing 6-hourly. New storm tracks are seeded for
+SDL-WXFormer stochastic layers with 6-hour prediction time steps. New storm tracks are seeded for
 up to 15 days. Any active storms at that point continue to be followed until they
 return to state $A$ or reach state $B$. Decorrelated
 $\lambda_0$ crossings (requiring return to state $A$ between consecutive crossings) are
@@ -198,7 +211,6 @@ uncertainty $\sigma_\Phi/\Phi \approx 2.2\%$, well below across-IC variability.
 State-$B$ arrivals during flux generation provide an independent direct-sampling rate
 $k^{\text{direct}} = N_{\text{direct}}/T_{\text{total}}$ that serves as a self-consistency check.
 
-\textbf{Shooting.}
 Configurations saved at $\lambda_0$ seed shooting trajectories toward each successive
 interface. For each interface $\lambda_{i-1}$, trajectories are launched until 2000
 successful crossings of $\lambda_i$ are accumulated (Appendix~\ref{sec:convergence} justifies this target). Success probability
@@ -209,7 +221,6 @@ from each factor:
 \frac{\sigma_k}{k} = \sqrt{\left(\frac{\sigma_\Phi}{\Phi}\right)^2 + \sum_{i=1}^{n}\left(\frac{\sigma_{P_i}}{P_i}\right)^2}
 \end{equation}
 
-\textbf{Reactive pathways and shooting trees.}
 A trial trajectory that successfully crosses all four shooting interfaces from $\lambda_0$
 through to state~$B$ is called a \textit{reactive pathway}.
 From a single $\lambda_0$ configuration, each successful crossing at interface $\lambda_i$
@@ -249,36 +260,29 @@ We select 98 initial conditions from ERA5 at 00 and 12~UTC spanning August~21 --
 October~8, 2022, verifying $Q(\mathbf{x}_0) > 1008$~hPa for each. Three initial
 conditions receive detailed case study treatment:
 \begin{itemize}\setlength\itemsep{2pt}
-\item \textbf{2022-09-02T00Z (Earl)}: $\sim$24~hours before Hurricane Earl's official
-      tropical-storm genesis on September~3.
-\item \textbf{2022-09-09T12Z (Fiona)}: highest observed FFS genesis rate in the
-      dataset, within the Fiona precursor environment ($\sim$5 days before Fiona's formation).
-\item \textbf{2022-09-22T00Z (Ian)}: 24~hours before Hurricane Ian's NHC
-      genesis designation on September~23.
+\item \textbf{Earl (2022-09-02 00Z)}: $\sim$24~hours before Hurricane Earl's official tropical-storm genesis on September~3.
+\item \textbf{Fiona (2022-09-09 12Z)}: highest observed FFS genesis rate in the dataset, within the Fiona precursor environment ($\sim$5 days before Fiona's formation).
+\item \textbf{Ian 2022-09-22 00Z}: 48~hours before Hurricane Ian's tropical-storm genesis designation on 24~September.
 \end{itemize}
 
 \subsection{Feature Tracking and Tropical Contamination Screen}
 
 The vortex tracker is a purpose-built component calibrated to the SDL-WXFormer grid.
-We considered community trackers (TempestExtremes, TRACK, tobac
+We considered community trackers (e.g., TempestExtremes, TRACK, tobac
 \citep{heikenfeld2019tobac}), but terrain artifacts and the characteristics of the
-1$^\circ$ grid required customisation that was more tractable to implement directly.
+1$^\circ$ grid required customization that was more tractable to implement directly.
 The warm-core screen follows the Cyclone Phase Space (CPS) formulation of
 \citet{hart2003cyclone} as documented by the FSU CPS tool
 (\url{https://moe.met.fsu.edu/cyclonephase/help.html}).
 The screen is used mainly to remove MSLP artifacts from the terrain file and the
 1$^\circ$ grid, and secondarily to remove recurving or baroclinic systems.
-It is tuned for this model and grid.
+The tracker and screening parameters are tuned for this model and grid.
 
-\textbf{Flux mode (multi-storm tracking).}
-During the flux phase, the order parameter $Q$ is the global minimum MSLP over the
-basin domain $\Omega$, which may correspond to any co-existing tropical system.
-We maintain a running list of all active vortex candidates.
+During the flux phase, the order parameter $Q$ is the global minimum MSLP over the basin domain $\Omega$, which may correspond to any co-existing tropical system. We maintain a running list of all active vortex candidates.
 At each 6-hour step, Gaussian smoothing ($\sigma=1.5$ grid-points) locates the
-position of each local minimum. The raw unsmoothed MSLP value at that grid cell
-is the order parameter.
-Existing tracks are updated by nearest-neighbour matching within $12^\circ$, with
-unmatched minima below $12^\circ$N over land suppressed as terrain artefacts and
+position of each local minimum. The raw, unsmoothed MSLP value at that grid cell is the order parameter.
+Existing tracks are updated by nearest-neighbor matching within $12^\circ$, with
+unmatched minima below $12^\circ$N over land suppressed as terrain artifacts and
 remaining unmatched minima seeding new tracks.
 A track is retained for up to two consecutive timesteps of failed matching before
 being dropped.
@@ -286,7 +290,6 @@ All co-existing systems are tracked simultaneously. Any storm that crosses $\lam
 records a decorrelated flux crossing, regardless of whether it is the deepest system
 at that moment.
 
-\textbf{Shoot mode (single-vortex tracking).}
 Once a trajectory has been saved at $\lambda_0$ and begins the shooting phase, the
 target vortex is the one that triggered the $\lambda_0$ crossing.  At each timestep,
 the MSLP minimum is sought within $12^\circ$ of the vortex's last known position.
@@ -294,7 +297,6 @@ This single-vortex constraint prevents $Q$ from jumping to a stronger but unrela
 system, ensuring that the shooting trajectory measures the intensification of the
 specific disturbance seeded at $\lambda_0$.
 
-\textbf{Tropical contamination screen.}
 The contamination screen follows the Cyclone Phase Space framework of \citet{hart2003cyclone}
 and suppresses two known sources of spurious state-$B$ arrivals at 1$^\circ$ grid spacing:
 (1) terrain-induced MSLP minima from hydrostatic extrapolation errors in the imperfect
@@ -308,15 +310,12 @@ The rejection thresholds were calibrated by manual inspection of a subset of 202
 trajectories visually identifiable as extratropical (recurving systems and baroclinic
 cyclones intruding from the northwest). They are not derived from formal CPS
 validation at this grid spacing and should be treated as engineering choices rather
-than physical thresholds. We err on the side of inclusion: ambiguous systems are
-accepted rather than discarded.
+than physical thresholds. We err on the side of inclusion: ambiguous systems are accepted rather than discarded.
 
 Across the full dataset, rejection rates at each interface are approximately
 30\% ($\lambda_1$), 20\% ($\lambda_2$), 27\% ($\lambda_3$), and 43\% ($\lambda_4$),
 with per-IC variation from 23\% to 93\% at $\lambda_4$ in the most suppressed environments.
-The elevated rejection rate at $\lambda_4$ is physically expected: 975~hPa is precisely
-the pressure range where midlatitude baroclinic systems deepen most strongly, so
-contamination from extratropical tracks is worst at the final interface.
+The elevated rejection rate at $\lambda_4$ is physically expected for this case: both Earl and Fiona transitioned into extratropical cyclones without weakening prior to landfall.
 The non-monotone pattern at earlier interfaces reflects marginal cyclones that failed
 to maintain a warm core through the intensification cascade.
 The high per-IC variation at $\lambda_4$ (up to 93\% in suppressed environments)
@@ -324,24 +323,27 @@ reflects that those rare vortices which deepen to 975~hPa in unfavorable environ
 are disproportionately anomalous poleward-recurving tracks rather than canonical
 tropical development.
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\textwidth]{ffs_schematic.pdf}
-\caption{Schematic of the Forward Flux Sampling algorithm (after \citealt{allen2006forward}).
-\textit{Panel (a), flux phase}: Gray trajectories evolve forward from state $A$.
-Each decorrelated crossing of $\lambda_0$ is recorded (marked $\times$).
-\textit{Panel (b), shooting phase}: New trial trajectories are launched from each saved
-$\lambda_i$ configuration (filled circles). Shots that return to state $A$ (arrows labelled $A$)
-are failures; shots that reach $\lambda_{i+1}$ (filled circles on the next interface) are successes,
-yielding the conditional probability $P(\lambda_{i+1}|\lambda_i)$.
-The genesis rate is $k = \Phi_{A,0}\prod_i P(\lambda_{i+1}|\lambda_i)$.}
-\label{fig:schematic}
-\end{figure}
+
 
 \section{Results}
 
 \subsection{Seasonal Genesis Rates and Self-Consistency Check}
 \label{sec:results_val}
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{rates_plot.png}
+\caption{FFS genesis rates across all 98 initial conditions (August~21 -- October~8, 2022)
+on a logarithmic scale.
+\textit{Blue}: $\lambda_0$ flux rate $\Phi_{A,0}$.
+\textit{Orange}: IFS $\lambda_0$ crossing rate (contextual reference; not directly comparable to FFS due to different grid spacing and no CPS filter).
+\textit{Green}: Full FFS genesis rate $k^{\text{FFS}}$ (flux $\times$ product of conditional probabilities).
+\textit{Purple}: Direct-sampling rate $k^{\text{direct}}$ from state-$B$ arrivals during the flux phase ($\pm 1\sigma$ Poisson).
+\textit{Red}: IFS brute-force genesis rate ($\pm 1\sigma$ Poisson; upward arrows denote upper bounds where zero events observed).
+Agreement between green and purple (mean ratio $1.03\pm0.15$) validates the FFS method.
+The FFS rate resolves a seasonal cycle spanning nearly three orders of magnitude
+invisible to direct 50-member ensemble sampling.}
+\label{fig:rates}
+\end{figure}
 
 Figure~\ref{fig:rates} shows FFS genesis rates across all 98 initial conditions.
 The full seasonal cycle spans nearly three orders of magnitude,
@@ -359,6 +361,20 @@ The IFS figures confirm that strong MSLP deepening occurs in the model at a
 plausible frequency. Quantitative rate comparisons between the two systems
 are deferred to future work with matched configurations.
 
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{ffs_interface_probs.png}
+\caption{Seasonal evolution of FFS conditional crossing probabilities $P(\lambda_i|\lambda_{i-1})$
+for all 98 initial conditions (August~21 -- October~8, 2022). The first panel shows the $\lambda_0$
+flux rate. Subsequent panels show each $P_i$ between successive shooting interfaces.
+The dashed line marks the all-season mean. $P_1$ (initial organization, $\lambda_1\to\lambda_2$)
+varies most strongly with the seasonal cycle, with a pronounced peak in early September coinciding
+with the Fiona formation environment. $P_4$ (final intensification, $\lambda_4\to B$) is
+the most uniformly suppressed probability, limiting the overall genesis rate even in active periods.
+The three case-study ICs (Earl~09-02, Fiona~09-09, Ian~09-22) are indicated by vertical markers.}
+\label{fig:interface_probs}
+\end{figure}
+
 The seasonal evolution of each conditional probability $P_i$
 (Fig.~\ref{fig:interface_probs}) reveals two distinct regimes within the intensification
 cascade. $P_1$ (initial organization) is the most variable across ICs, with a standard
@@ -370,6 +386,21 @@ the lowest of the upper conditional probabilities, limiting the overall genesis 
 when earlier-stage probabilities are elevated. These two interfaces represent physically
 distinct bottlenecks. Which one dominates varies by environment, as the case studies below
 illustrate.
+
+\begin{figure}[htp]
+\centering
+\includegraphics[width=0.8\textwidth]{ffs_vs_direct_scatter.png}
+\caption{Log-log scatter of FFS genesis rate $k^{\text{FFS}}$ versus independent
+direct-sampling rate $k^{\text{direct}}$ for all 98 initial conditions.
+Points are coloured by the ratio $k^{\text{FFS}}/k^{\text{direct}}$: green indicates
+near-unity agreement; red/blue indicate over- or under-estimation.
+The black dashed line is the 1:1 reference; shaded band spans $\pm$50\%.
+Three case-study ICs are marked with stars (Earl: red; Fiona: orange; Ian: yellow).
+The tight clustering along the 1:1 line across three orders of magnitude confirms
+correct implementation of the conditional probability factorization.
+Inset statistics: mean ratio $1.03\pm0.15$, median $1.02$, range $[0.71, 1.52]$.}
+\label{fig:rate_scatter}
+\end{figure}
 
 The primary self-consistency check is the agreement between $k^{\text{FFS}}$ and the
 independent direct-sampling rate $k^{\text{direct}}$ (Figure~\ref{fig:rate_scatter}).
@@ -397,78 +428,11 @@ rate values are unbiased with respect to the real atmosphere.
 Computational enhancement factors range from $3\times$ (most active IC) to $140\times$
 (most suppressed), with geometric mean $14\times$.
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\textwidth]{rates_plot.png}
-\caption{FFS genesis rates across all 98 initial conditions (August~21 -- October~8, 2022)
-on a logarithmic scale.
-\textit{Blue}: $\lambda_0$ flux rate $\Phi_{A,0}$.
-\textit{Orange}: IFS $\lambda_0$ crossing rate (contextual reference; not directly comparable to FFS due to different grid spacing and no CPS filter).
-\textit{Green}: Full FFS genesis rate $k^{\text{FFS}}$ (flux $\times$ product of conditional probabilities).
-\textit{Purple}: Direct-sampling rate $k^{\text{direct}}$ from state-$B$ arrivals during the flux phase ($\pm 1\sigma$ Poisson).
-\textit{Red}: IFS brute-force genesis rate ($\pm 1\sigma$ Poisson; upward arrows denote upper bounds where zero events observed).
-Agreement between green and purple (mean ratio $1.03\pm0.15$) validates the FFS method.
-The FFS rate resolves a seasonal cycle spanning nearly three orders of magnitude
-invisible to direct 50-member ensemble sampling.}
-\label{fig:rates}
-\end{figure}
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\textwidth]{ffs_interface_probs.png}
-\caption{Seasonal evolution of FFS conditional crossing probabilities $P(\lambda_i|\lambda_{i-1})$
-for all 98 initial conditions (August~21 -- October~8, 2022). The first panel shows the $\lambda_0$
-flux rate. Subsequent panels show each $P_i$ between successive shooting interfaces.
-The dashed line marks the all-season mean. $P_1$ (initial organization, $\lambda_1\to\lambda_2$)
-varies most strongly with the seasonal cycle, with a pronounced peak in early September coinciding
-with the Fiona formation environment. $P_4$ (final intensification, $\lambda_4\to B$) is
-the most uniformly suppressed probability, limiting the overall genesis rate even in active periods.
-The three case-study ICs (Earl~09-02, Fiona~09-09, Ian~09-22) are indicated by vertical markers.}
-\label{fig:interface_probs}
-\end{figure}
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\textwidth]{ffs_vs_direct_scatter.png}
-\caption{Log-log scatter of FFS genesis rate $k^{\text{FFS}}$ versus independent
-direct-sampling rate $k^{\text{direct}}$ for all 98 initial conditions.
-Points are coloured by the ratio $k^{\text{FFS}}/k^{\text{direct}}$: green indicates
-near-unity agreement; red/blue indicate over- or under-estimation.
-The black dashed line is the 1:1 reference; shaded band spans $\pm$50\%.
-Three case-study ICs are marked with stars (Earl: red; Fiona: orange; Ian: yellow).
-The tight clustering along the 1:1 line across three orders of magnitude confirms
-correct implementation of the conditional probability factorization.
-Inset statistics: mean ratio $1.03\pm0.15$, median $1.02$, range $[0.71, 1.52]$.}
-\label{fig:rate_scatter}
-\end{figure}
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\textwidth]{conditional_prob_distributions.png}
-\caption{Distribution of conditional crossing probabilities $P_i$ across all 98 initial
-conditions. Each violin shows the full distribution; boxes show quartiles; coloured
-lines connect the three case-study ICs. The horizontal dashed line marks the optimal
-$P = 1/e \approx 0.37$ \citep{allen2009forward}; the blue band spans the well-conditioned range 0.25--0.75.
-Most ICs have $P_i$ within the well-conditioned range, confirming that interface placement
-produces efficient variance reduction. The spread of $P_1$ (initial organization) is larger
-than that of $P_2$--$P_3$, reflecting the dominant role of large-scale atmospheric variability
-in setting the first intensification barrier. Mean $\pm$ SD for each interface are annotated.}
-\label{fig:cond_prob_dist}
-\end{figure}
 
 \subsection{Case Studies: Distinct Genesis Bottlenecks}
-
-Table~\ref{tab:results} presents FFS statistics for the three case-study initial
-conditions. The most striking feature is the variable position of the rate-limiting
-step, encoded in which conditional probability is smallest.
-Figure~\ref{fig:stateb_geo} shows the geographic distribution of state-$B$ arrivals
-across all 98 ICs, confirming that the model's genesis events cluster in physically
-plausible locations (tropical Atlantic, Caribbean, Gulf of Mexico) and shift
-geographically with the seasonal cycle.
-For the Earl IC, Fig.~\ref{fig:reactive_traj} shows the 199 reactive
-pathways that successfully reached state~$B$, illustrating the geographic diversity
-of intensification trajectories sampled by FFS from a single background state.
-
 \begin{table}[htbp]
 \centering
 \caption{FFS statistics for three case-study initial conditions.
@@ -494,6 +458,18 @@ All-98 mean$\pm$SD  & $0.065\pm0.034$ & $0.278\pm0.154$ & $0.674\pm0.086$ & $0.5
 \end{tabular}%
 }
 \end{table}
+Table~\ref{tab:results} presents FFS statistics for the three case-study initial
+conditions. The most striking feature is the variable position of the rate-limiting
+step, encoded in which conditional probability is smallest.
+Figure~\ref{fig:stateb_geo} shows the geographic distribution of state-$B$ arrivals
+across all 98 ICs, confirming that the model's genesis events cluster in physically
+plausible locations (tropical Atlantic, Caribbean, Gulf of Mexico) and shift
+geographically with the seasonal cycle.
+For the Earl IC, Fig.~\ref{fig:reactive_traj} shows the 199 reactive
+pathways that successfully reached state~$B$, illustrating the geographic diversity
+of intensification trajectories sampled by FFS from a single background state.
+
+
 
 For the \textbf{Earl IC}, $P_1 = 0.258$ is the dominant bottleneck: roughly 1 in 4
 trajectories reaching 987~hPa continue to organize through to 985~hPa in this environment. This is
