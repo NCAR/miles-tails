@@ -114,7 +114,7 @@ rates qualitatively consistent with the known structure of the 2022 Atlantic sea
 \subsection{Forward Flux Sampling}
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{ffs_schematic.pdf}
+\includegraphics[width=\textwidth]{figure1.pdf}
 \caption{Schematic of the Forward Flux Sampling algorithm (after \citealt{allen2006forward}).
 \textit{Panel (a), flux phase}: Gray trajectories evolve forward from state $A$.
 Each decorrelated crossing of $\lambda_0$ is recorded (marked $\times$).
@@ -182,7 +182,7 @@ $\lambda_3$ (981.2~hPa) into state~$B$.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{conditional_prob_distributions.png}
+\includegraphics[width=\textwidth]{figure2.png}
 \caption{Distribution of conditional crossing probabilities $P_i$ across all 98 initial
 conditions. Each violin shows the full distribution; boxes show quartiles; coloured
 lines connect the three case-study ICs. The horizontal dashed line marks the optimal
@@ -333,7 +333,7 @@ tropical development.
 \label{sec:results_val}
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{rates_plot.png}
+\includegraphics[width=\textwidth]{figure3.png}
 \caption{FFS genesis rates across all 98 initial conditions (August~21 -- October~8, 2022)
 on a logarithmic scale.
 \textit{Blue}: $\lambda_0$ flux rate $\Phi_{A,0}$.
@@ -365,7 +365,7 @@ are deferred to future work with matched configurations.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{ffs_interface_probs.png}
+\includegraphics[width=\textwidth]{figure4.png}
 \caption{Seasonal evolution of FFS conditional crossing probabilities $P(\lambda_i|\lambda_{i-1})$
 for all 98 initial conditions (August~21 -- October~8, 2022). The first panel shows the $\lambda_0$
 flux rate. Subsequent panels show each $P_i$ between successive shooting interfaces.
@@ -391,7 +391,7 @@ illustrate.
 
 \begin{figure}[htp]
 \centering
-\includegraphics[width=0.8\textwidth]{ffs_vs_direct_scatter.png}
+\includegraphics[width=0.8\textwidth]{figure5.png}
 \caption{Log-log scatter of FFS genesis rate $k^{\text{FFS}}$ versus independent
 direct-sampling rate $k^{\text{direct}}$ for all 98 initial conditions.
 Points are coloured by the ratio $k^{\text{FFS}}/k^{\text{direct}}$: green indicates
@@ -499,7 +499,7 @@ Ian's tropical-storm designation, a diagnostic that direct ensemble sampling can
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{stateb_geography.png}
+\includegraphics[width=\textwidth]{figure6.png}
 \caption{Geographic distribution of state-$B$ arrival locations (MSLP $\leq$ 975~hPa)
 across all 98 initial conditions.
 Each point marks where a reactive trajectory first reached state~$B$. Colour encodes
@@ -514,7 +514,7 @@ and shifts westward later in the season as Ian-like Gulf environments become act
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{reactive_trajectories_2022-09-02T00Z.png}
+\includegraphics[width=\textwidth]{figure7.png}
 \caption{Reactive genesis trajectories for the Earl IC (2022-09-02T00Z).
 \textit{Left}: Individual tracks that cross from $\lambda_0$ through to state~$B$,
 color-coded by branching factor (cluster weight). The 199 reactive pathways sample
@@ -555,7 +555,7 @@ Campeche and a north-track group tracking northward toward Florida.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{ffs_trees_combined.png}
+\includegraphics[width=\textwidth]{figure8.png}
 \caption{FFS shooting trees for the three case-study ICs on a single combined map.
 Each star ($\lambda_0$ seed) and its descendant branches are plotted together.
 Branch colour encodes interface level from $\lambda_1$ (yellow-orange) to $\lambda_4$
@@ -590,7 +590,7 @@ $\lambda_2$.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{2022-09-22T00Z_ian_gulf_composites_lam2.png}
+\includegraphics[width=\textwidth]{figure9.png}
 \caption{Composite 500~hPa geopotential height (filled, row 1) with 500~hPa wind
 vectors and 850~hPa wind speed (filled, row 2) with 850~hPa wind vectors, evaluated
 at the $\lambda_2$ interface (984.7~hPa) for Ian IC (2022-09-22T00Z) FFS trajectories
@@ -629,7 +629,7 @@ SDL-WXFormer's higher absolute genesis rate at 1$^\circ$ relative to IFS archive
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.85\textwidth]{commitment_curve.png}
+\includegraphics[width=0.85\textwidth]{figure10.png}
 \caption{Genesis committor curve $p_B(\lambda_i)$ — the probability of eventually reaching
 state~$B$ ($\leq$975~hPa) given arrival at interface $\lambda_i$ — averaged across all 98
 initial conditions.
@@ -658,7 +658,7 @@ dynamical processes.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{trajectory_2022-09-02T00Z_pathway1079.png}
+\includegraphics[width=\textwidth]{figure11.png}
 \caption{Storm-centred physics along a representative reactive pathway for the Earl IC
 (2022-09-02T00Z, pathway~1079), $\lambda_0$ through $\lambda_4$.
 Each column shows one interface crossing. Column headers give the MSLP and storm latitude.
@@ -698,7 +698,7 @@ has a physically interpretable composite signature.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{2022-09-02T00Z_composites.png}
+\includegraphics[width=\textwidth]{figure12.png}
 \caption{Storm-centred physics composites along reactive pathways for the Earl IC
 (2022-09-02T00Z). Columns show interfaces $\lambda_0$ through state~$B$. Sample sizes
 $n$ in each column header. Rows show: (1) 850-hPa relative vorticity $\zeta_{850}$
@@ -711,7 +711,7 @@ lower $P_1$ value and identifies initial organisation as the rate-limiting bottl
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{2022-09-09T12Z_composites.png}
+\includegraphics[width=\textwidth]{figure13.png}
 \caption{As in Fig.~\ref{fig:composites_earl} but for the Fiona IC
 (2022-09-09T12Z). Stronger vorticity and warm-core development at early interfaces
 compared to Earl reflects the more favourable large-scale environment and higher $P_1$.}
@@ -720,7 +720,7 @@ compared to Earl reflects the more favourable large-scale environment and higher
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{2022-09-22T00Z_composites.png}
+\includegraphics[width=\textwidth]{figure14.png}
 \caption{As in Fig.~\ref{fig:composites_earl} but for the Ian IC
 (2022-09-22T00Z). The $T'_{500}$ amplitude at state~$B$ is comparable across all three
 ICs despite their differing genesis rates, suggesting a physically similar final
@@ -902,7 +902,7 @@ approximately tenfold range in $k_\mathrm{FFS}$.
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=\textwidth]{ffs_convergence.png}
+\includegraphics[width=\textwidth]{figure15.png}
 \caption{Convergence of FFS estimates as a function of the number of shooting
 attempts per interface.
 (a) Running $P_i(N)$ for the four shooting interfaces of the Earl IC (mean and
