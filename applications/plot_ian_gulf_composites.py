@@ -222,10 +222,11 @@ def _add_basemap(ax):
     ax.set_extent(GULF_EXTENT, crs=ccrs.PlateCarree())
     ax.add_feature(cfeature.OCEAN.with_scale('50m'), facecolor='#c9dff0', zorder=0)
 
-def _add_boundaries(ax, zorder=7):
-    ax.add_feature(cfeature.COASTLINE.with_scale('50m'), linewidth=0.8, edgecolor='#333', zorder=zorder)
-    ax.add_feature(cfeature.BORDERS.with_scale('50m'),   linewidth=0.5, edgecolor='#666', zorder=zorder)
-    ax.add_feature(cfeature.STATES.with_scale('50m'),    linewidth=0.25, edgecolor='#999', zorder=zorder)
+def _add_boundaries(ax, zorder=7, coast_color='#333', coast_lw=0.8,
+                    border_color='#666', border_lw=0.5, states_lw=0.25):
+    ax.add_feature(cfeature.COASTLINE.with_scale('50m'), linewidth=coast_lw,  edgecolor=coast_color,  zorder=zorder)
+    ax.add_feature(cfeature.BORDERS.with_scale('50m'),   linewidth=border_lw, edgecolor=border_color, zorder=zorder)
+    ax.add_feature(cfeature.STATES.with_scale('50m'),    linewidth=states_lw, edgecolor='#999',       zorder=zorder)
 
 def _add_gridlines(ax):
     gl = ax.gridlines(draw_labels=False, linewidth=0.4, color='gray',
@@ -360,7 +361,7 @@ def plot_composites(west_avg, west_pos, west_lam4_pos, north_avg, north_pos, nor
         a = axes[0, col]
         _add_basemap(a)
         pcm_z = a.contourf(lons2d, lats2d, z_sub, levels=z_fill,
-                           cmap='plasma', transform=pc, zorder=1)
+                           cmap='plasma', extend='both', transform=pc, zorder=1)
         a.contour(lons2d, lats2d, z_sub, levels=z_cont,
                   colors='white', linewidths=0.7, alpha=0.65, transform=pc, zorder=2)
         _add_quiver(a, lons2d[::sk, ::sk], lats2d[::sk, ::sk],
@@ -382,7 +383,7 @@ def plot_composites(west_avg, west_pos, west_lam4_pos, north_avg, north_pos, nor
         a = axes[1, col]
         _add_basemap(a)
         pcm_s8 = a.contourf(lons2d, lats2d, s8_sub, levels=s8_fill,
-                             cmap='YlOrRd', transform=pc, zorder=1)
+                             cmap='YlOrRd', extend='both', transform=pc, zorder=1)
         a.contour(lons2d, lats2d, s8_sub, levels=s8_cont,
                   colors='k', linewidths=0.4, alpha=0.4, transform=pc, zorder=2)
         _add_quiver(a, lons2d[::sk, ::sk], lats2d[::sk, ::sk],
@@ -415,9 +416,9 @@ def plot_composites(west_avg, west_pos, west_lam4_pos, north_avg, north_pos, nor
         a = axes[row, 2]
         _add_basemap(a)
         pcm = a.contourf(lons2d, lats2d, diff_field, levels=levels,
-                         cmap='RdBu_r', transform=pc, zorder=1)
+                         cmap='RdBu_r', extend='both', transform=pc, zorder=1)
         a.contour(lons2d, lats2d, diff_field, levels=[0],
-                  colors='k', linewidths=1.0, transform=pc, zorder=2)
+                  colors='white', linewidths=1.0, transform=pc, zorder=2)
         du_q = du[::sk, ::sk]
         dv_q = dv[::sk, ::sk]
         if fkey == 's8':
@@ -425,7 +426,8 @@ def plot_composites(west_avg, west_pos, west_lam4_pos, north_avg, north_pos, nor
         _add_quiver(a, lons2d[::sk, ::sk], lats2d[::sk, ::sk],
                     du_q, dv_q,
                     scale=qscale * 0.85, color='#222', zorder=6)
-        _add_boundaries(a, zorder=7)
+        _add_boundaries(a, zorder=7, coast_color='black', coast_lw=1.8,
+                        border_color='black', border_lw=1.2, states_lw=0.7)
         _add_gridlines(a)
         for lat, lon in west_pos:
             a.scatter(lon, lat, color='blue', s=60, marker='*',

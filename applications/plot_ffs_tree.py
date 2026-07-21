@@ -266,6 +266,13 @@ IC_LABELS = {
     '2022-09-20T00Z': 'Ian',
 }
 
+# Marker shape per storm — makes Fiona vs Earl branch points visually distinct
+IC_MARKERS = {
+    'Earl':  'o',   # circle
+    'Fiona': 's',   # square
+    'Ian':   '^',   # triangle-up
+}
+
 # (dlon, dlat) offset for each IC's text label
 IC_LABEL_OFFSETS = {
     '2022-09-02T00Z': (2.5, 3.5),   # Earl at ~18N -55W → text upper-right
@@ -285,7 +292,7 @@ def plot_combined_trees(ic_data, ifaces, n_ifaces, plot_dir):
     cmap   = plt.cm.YlOrRd
     colors = [cmap(0.15 + 0.8 * i / max(n_ifaces - 1, 1)) for i in range(n_ifaces)]
 
-    extent = [-105, -50, 8, 52]
+    extent = [-105, -50, 8, 42]
     clon, clat = -77.5, 30.0
     proj = ccrs.LambertConformal(central_longitude=clon, central_latitude=clat,
                                   standard_parallels=(25, 50))
@@ -303,7 +310,8 @@ def plot_combined_trees(ic_data, ifaces, n_ifaces, plot_dir):
     gl.right_labels = False
 
     for date_str, l0_name, nodes, edges, loc_map in ic_data:
-        label = IC_LABELS.get(date_str, date_str)
+        label      = IC_LABELS.get(date_str, date_str)
+        storm_mrkr = IC_MARKERS.get(label, 'o')
 
         # Draw edges coloured by interface level
         drawn = set()
@@ -320,7 +328,8 @@ def plot_combined_trees(ic_data, ifaces, n_ifaces, plot_dir):
                     color=col, alpha=0.6, linewidth=0.9,
                     transform=ccrs.PlateCarree(), zorder=3)
 
-        # Draw nodes by interface level
+        # Draw nodes by interface level; λ0 seed always gets a star, branch
+        # points use a per-storm shape so Earl/Fiona/Ian are visually distinct.
         node_counts = defaultdict(int)
         for pa, ch in edges:
             node_counts[ch] += 1
@@ -337,7 +346,7 @@ def plot_combined_trees(ic_data, ifaces, n_ifaces, plot_dir):
             sizes   = [300 if is_l0 else max(20, 15 * node_counts.get(n, 1))
                        for n in level_nodes]
             ax.scatter(lons_lv, lats_lv, s=sizes, c=[col] * len(level_nodes),
-                       marker='*' if is_l0 else 'o',
+                       marker='*' if is_l0 else storm_mrkr,
                        edgecolors='black' if is_l0 else 'none',
                        linewidths=0.8 if is_l0 else 0,
                        transform=ccrs.PlateCarree(),
@@ -351,7 +360,7 @@ def plot_combined_trees(ic_data, ifaces, n_ifaces, plot_dir):
                     color='#111', transform=ccrs.PlateCarree(), zorder=8,
                     bbox=dict(boxstyle='round,pad=0.2', fc='white', ec='none', alpha=0.7))
 
-    # One legend for interface levels
+    # Legend: interface levels (color) + storm shapes
     legend_handles = [
         Line2D([0], [0], color=colors[lv], linewidth=2,
                marker='*' if lv == 0 else 'o', markersize=8 if lv == 0 else 6,
@@ -359,7 +368,15 @@ def plot_combined_trees(ic_data, ifaces, n_ifaces, plot_dir):
                label=f'λ{lv}  {ifaces[lv]:.0f} hPa')
         for lv in range(n_ifaces)
     ]
-    ax.legend(handles=legend_handles, fontsize=10, loc='lower right', framealpha=0.9)
+    storm_handles = [
+        Line2D([0], [0], linestyle='none',
+               marker=IC_MARKERS[storm], markersize=7,
+               markerfacecolor='gray', markeredgecolor='none',
+               label=storm)
+        for storm in ('Earl', 'Fiona', 'Ian')
+    ]
+    ax.legend(handles=legend_handles + storm_handles,
+              fontsize=10, loc='lower right', framealpha=0.9)
 
     out = plot_dir / 'ffs_trees_combined.png'
     plt.savefig(out, dpi=150, bbox_inches='tight')
