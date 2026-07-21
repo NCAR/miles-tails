@@ -224,7 +224,7 @@ predict:
         # b_model_name: "hybm"
         # a_half_name: "hyai"
         # b_half_name: "hybi"
-        pressure_levels: [500.0, 700.0, 850.0]
+        pressure_levels: [300.0, 500.0, 600.0, 700.0, 850.0, 900.0]
 
     ensemble:
         noise:
