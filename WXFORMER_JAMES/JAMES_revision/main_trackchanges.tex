@@ -1,0 +1,697 @@
+%\documentclass{agujournal2019}
+%DIF LATEXDIFF DIFFERENCE FILE
+%DIF DEL /tmp/main_submitted.tex   Mon Jul 27 15:21:07 2026
+%DIF ADD main.tex                  Mon Jul 27 15:20:59 2026
+\documentclass{agujournal2019}
+\usepackage{url} %this package should fix any errors with URLs in refs.
+\usepackage{lineno}
+\usepackage[inline]{trackchanges} %for better track changes. finalnew option will compile document with changes incorporated.
+\usepackage{soul}
+\linenumbers
+%%%%%%%
+% As of 2018 we recommend use of the TrackChanges package to mark revisions.
+% The trackchanges package adds five new LaTeX commands:
+%
+%  \note[editor]{The note}
+%  \annote[editor]{Text to annotate}{The note}
+%  \add[editor]{Text to add}
+%  \remove[editor]{Text to remove}
+%  \change[editor]{Text to remove}{Text to add}
+%
+% complete documentation is here: http://trackchanges.sourceforge.net/
+%%%%%%%
+%\usepackage{natbib}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{siunitx}
+\draftfalse
+
+%% Enter journal name below.
+%% Choose from this list of Journals:
+%
+% JGR: Atmospheres
+% JGR: Biogeosciences
+% JGR: Earth Surface
+% JGR: Oceans
+% JGR: Planets
+% JGR: Solid Earth
+% JGR: Space Physics
+% Global Biogeochemical Cycles
+% Geophysical Research Letters
+% Paleoceanography and Paleoclimatology
+% Radio Science
+% Reviews of Geophysics
+% Tectonics
+% Space Weather
+% Water Resources Research
+% Geochemistry, Geophysics, Geosystems
+% Journal of Advances in Modeling Earth Systems (JAMES)
+% Earth's Future
+% Earth and Space Science
+% Geohealth
+%
+% ie, \journalname{Water Resources Research}
+
+% \journalname{Journal of Advances in Modeling Earth Systems (JAMES)}
+\journalname{}
+%DIF PREAMBLE EXTENSION ADDED BY LATEXDIFF
+%DIF UNDERLINE PREAMBLE %DIF PREAMBLE
+\RequirePackage[normalem]{ulem} %DIF PREAMBLE
+\RequirePackage{color}\definecolor{RED}{rgb}{1,0,0}\definecolor{BLUE}{rgb}{0,0,1} %DIF PREAMBLE
+\providecommand{\DIFadd}[1]{{\protect\color{blue}\uwave{#1}}} %DIF PREAMBLE
+\providecommand{\DIFdel}[1]{{\protect\color{red}\sout{#1}}}                      %DIF PREAMBLE
+%DIF SAFE PREAMBLE %DIF PREAMBLE
+\providecommand{\DIFaddbegin}{} %DIF PREAMBLE
+\providecommand{\DIFaddend}{} %DIF PREAMBLE
+\providecommand{\DIFdelbegin}{} %DIF PREAMBLE
+\providecommand{\DIFdelend}{} %DIF PREAMBLE
+\providecommand{\DIFmodbegin}{} %DIF PREAMBLE
+\providecommand{\DIFmodend}{} %DIF PREAMBLE
+%DIF FLOATSAFE PREAMBLE %DIF PREAMBLE
+\providecommand{\DIFaddFL}[1]{\DIFadd{#1}} %DIF PREAMBLE
+\providecommand{\DIFdelFL}[1]{\DIFdel{#1}} %DIF PREAMBLE
+\providecommand{\DIFaddbeginFL}{} %DIF PREAMBLE
+\providecommand{\DIFaddendFL}{} %DIF PREAMBLE
+\providecommand{\DIFdelbeginFL}{} %DIF PREAMBLE
+\providecommand{\DIFdelendFL}{} %DIF PREAMBLE
+%DIF COLORLISTINGS PREAMBLE %DIF PREAMBLE
+\RequirePackage{listings} %DIF PREAMBLE
+\RequirePackage{color} %DIF PREAMBLE
+\lstdefinelanguage{DIFcode}{ %DIF PREAMBLE
+%DIF DIFCODE_UNDERLINE %DIF PREAMBLE
+  moredelim=[il][\color{red}\sout]{\%DIF\ <\ }, %DIF PREAMBLE
+  moredelim=[il][\color{blue}\uwave]{\%DIF\ >\ } %DIF PREAMBLE
+} %DIF PREAMBLE
+\lstdefinestyle{DIFverbatimstyle}{ %DIF PREAMBLE
+	language=DIFcode, %DIF PREAMBLE
+	basicstyle=\ttfamily, %DIF PREAMBLE
+	columns=fullflexible, %DIF PREAMBLE
+	keepspaces=true %DIF PREAMBLE
+} %DIF PREAMBLE
+\lstnewenvironment{DIFverbatim}{\lstset{style=DIFverbatimstyle}}{} %DIF PREAMBLE
+\lstnewenvironment{DIFverbatim*}{\lstset{style=DIFverbatimstyle,showspaces=true}}{} %DIF PREAMBLE
+%DIF END PREAMBLE EXTENSION ADDED BY LATEXDIFF
+
+\begin{document}
+
+\title{Controllable Probabilistic Forecasting with Stochastic Decomposition Layers}
+
+\authors{
+John S. Schreck \affil{a},
+William E. Chapman \affil{c},
+Charlie Becker \affil{a},
+David John Gagne II \affil{a},
+Dhamma Kimpara \affil{a},
+Nihanth Cherukuru \affil{a},
+Judith Berner \affil{a},
+Kirsten J. Mayer \affil{a},
+Negin Sobhani \affil{a}
+}
+
+\affiliation{1}{NSF National Center for Atmospheric Research, Boulder, CO, USA}
+\affiliation{2}{Atmospheric and Oceanic Sciences Department, University of Colorado, Boulder, CO, USA}
+
+\correspondingauthor{John S. Schreck}{schreck@ucar.edu}
+
+\textbf{Key Points:}
+\begin{itemize}
+\item Transfer learning converts a deterministic weather model into an ensemble system using less than 2\% of baseline training cost
+\item \DIFdelbegin \DIFdel{Compact latent storage enables perfect forecast reproducibility and post-inference spread adjustment without regenerating members
+}\DIFdelend \DIFaddbegin \DIFadd{Ensemble members are archived as kilobyte-scale latent vectors, enabling exact regeneration and spread adjustment by re-running only the decoder
+}\DIFaddend \item Multi-scale perturbation structure enables operational control over uncertainty: \DIFdelbegin \DIFdel{post-inference }\DIFdelend \DIFaddbegin \DIFadd{post-hoc }\DIFaddend spread adjustment, ensemble member interpolation, and scale-targeted perturbations
+\end{itemize}
+
+\section*{Abstract}
+AI weather prediction ensembles with latent noise injection and optimized with the continuous ranked probability score (CRPS) have produced both accurate and well-calibrated predictions with far less computational cost compared with diffusion-based methods. However, current CRPS ensemble approaches vary in their training strategies and noise injection mechanisms, with most injecting noise globally throughout the network via conditional normalization. \DIFdelbegin \DIFdel{This structure increases training expense and limits the physical interpretability of the stochastic perturbations }\DIFdelend \DIFaddbegin \DIFadd{Because the stochasticity enters through a single global pathway, the resulting perturbations are not separately addressable by spatial scale after inference}\DIFaddend . We introduce Stochastic Decomposition Layers (SDL) for converting deterministic machine learning weather models into probabilistic ensemble systems. Adapted from StyleGAN's hierarchical noise injection, SDL applies learned perturbations at three decoder scales through latent-driven modulation, per-pixel noise, and channel scaling. When applied to WXFormer via transfer learning, SDL requires less than 2\% of the computational cost needed to train the baseline model. Each ensemble member is \DIFdelbegin \DIFdel{generated from a compact latent tensor (5 MB}\DIFdelend \DIFaddbegin \DIFadd{determined by compact per-scale latent vectors (5.3 kB per member per forecast step, together with the noise-generator seed}\DIFaddend ), enabling \DIFdelbegin \DIFdel{perfect reproducibility }\DIFdelend \DIFaddbegin \DIFadd{exact regeneration }\DIFaddend and post-inference spread adjustment through \DIFdelbegin \DIFdel{latent rescaling }\DIFdelend \DIFaddbegin \DIFadd{rescaling of the stored perturbations, at the cost of re-running only the decoder (23\% of a full forward pass)}\DIFaddend . Evaluation on 2022 ERA5 reanalysis shows ensembles with spread-skill ratios approaching unity and rank histograms that progressively flatten toward uniformity through medium-range forecasts, achieving calibration competitive with operational IFS-ENS. Multi-scale experiments reveal hierarchical uncertainty: coarse layers modulate synoptic patterns while fine layers control mesoscale variability. The explicit latent parameterization provides \DIFdelbegin \DIFdel{interpretable uncertainty quantification }\DIFdelend \DIFaddbegin \DIFadd{a scale-interpretable representation of forecast uncertainty }\DIFaddend for operational forecasting and climate applications.
+
+\section*{Plain Language Summary}
+Ensemble forecasting quantifies weather uncertainty by generating multiple plausible scenarios, but traditional methods require expensive repeated simulations. We developed a method that converts single scenario machine learning models into ensemble systems efficiently. Our approach learns uncertainty structure from historical data and stores each \DIFdelbegin \DIFdel{forecast as a small file (5 MB}\DIFdelend \DIFaddbegin \DIFadd{ensemble member as a set of small files (kilobytes per forecast step}\DIFaddend ), enabling exact reproduction and \DIFdelbegin \DIFdel{post-inference adjustment without regenerating forecasts}\DIFdelend \DIFaddbegin \DIFadd{inexpensive adjustment of the spread after a forecast has been made}\DIFaddend . Testing shows calibrated ensembles competitive with operational systems while requiring less than 2\% of baseline training cost. The method provides forecasters with systematic uncertainty exploration capabilities for operational prediction.
+
+\section{Introduction}
+National Meteorological and Hydrological Services have increasingly incorporated ensemble forecasting methods to provide probabilistic predictions and quantify forecast uncertainty over the past 3 decades \cite{leutbecher2008svs, palmer2019stochastic}. Traditional ensemble numerical weather prediction (NWP) approaches perturb initial conditions and/or use perturbed model physics parameterizations \cite{molteni1996ens,buizza2005comparison,leutbecher2017stochastic, berner2017stochastic}, but these methods are computationally expensive, requiring multiple full model integrations. Operational NWP ensembles have a relatively small number of members, usually on the order of 30-50, and may run at a lower spatial resolution compared with deterministic flagship members \cite{Fu2024-zo}. Recent advances in machine learning for weather prediction \cite{keisler2022fourcastnet, pathak2022fourcastnet, bi2023pangu, Lam2023graphcast, chen2023fuxi, schreck2025} have demonstrated skill comparable to traditional numerical weather prediction models, yet extending these capabilities to probabilistic forecasting while respecting chaotic dynamics remains challenging. 
+
+The theoretical foundation for ensemble prediction stems from Lorenz's discovery that the atmosphere is a chaotic system where small initial condition errors grow exponentially \cite{lorenz1963deterministic}. Quantitative estimates from early global circulation models established a practical deterministic predictability limit of roughly two weeks \cite{charney1966applicability}, later confirmed as a fundamental property of atmospheric dynamics \cite{lorenz1969predictability, Lorenz1969-tc, lorenz1996predictability}. \citeA{Epstein1969-nj} proposed a stochastic-dynamic formulation of the primitive equations that predicted the mean and variance of each state variable but was viewed to be computationally intractable at the time. Monte Carlo ensemble approximations \cite{Leith1974} and optimization with least squares techniques \cite{Pitcher1977-li} demonstrated that calibrated NWP ensembles could be produced that could improve on deterministic forecasts. In general, ensemble forecasting quantifies the fundamental predictability limitations of chaotic dynamics by sampling the phase space of possible atmospheric states, representing forecast uncertainty through trajectory divergence on the climate system's attractor \cite{palmer2019stochastic, toth1993ensemble}.
+
+Early ML weather models employed deterministic architectures trained with mean squared error (MSE) loss. When combined with multi-step training, these models produced overly smooth forecasts that underrepresented atmospheric variability. Generative modeling approaches, particularly diffusion-based weather models \cite{sohl-dickstein2015deep, ho2020denoising, song2021scorebased, price2025gencast}, address this limitation by iteratively denoising random fields to produce realistic ensemble members. \DIFdelbegin \DIFdel{However, diffusion-based }\DIFdelend \DIFaddbegin \DIFadd{Diffusion-based }\DIFaddend weather models \cite{price2025gencast} \DIFdelbegin \DIFdel{require }\DIFdelend \DIFaddbegin \DIFadd{have conventionally required }\DIFaddend learning full denoising trajectories across hundreds of timesteps during training and \DIFdelbegin \DIFdel{at least 20-50 }\DIFdelend \DIFaddbegin \DIFadd{tens of }\DIFaddend iterative refinement steps per forecast at inference\DIFdelbegin \DIFdel{, imposing substantial computational burden on operational systems requiring rapid generation of large ensembles (50+ members)}\DIFdelend \DIFaddbegin \DIFadd{. Consistency and distillation approaches now reduce inference to a few steps or one \mbox{%DIFAUXCMD
+\cite{stock2025swift}}\hskip0pt%DIFAUXCMD
+, so inference step count alone no longer separates these methods from single-pass alternatives; the remaining distinction is whether a separate generative model and distillation stage are required at all}\DIFaddend .
+
+Recent work has explored parameter-efficient alternatives that avoid iterative denoising by injecting stochasticity through various architectural mechanisms and training directly on the Continuous Ranked Probability Score (CRPS) to achieve calibrated ensembles with computational costs proportional to ensemble size \cite{lang2024aifs, alet2024fgn, bonev2025fourcastnet3, fuxi_ens, kochkov2024neuralgcm}. Foundation models demonstrate strong transfer learning capabilities across weather and climate tasks \cite{nguyen2023climax, bodnar2025aurora, allen2025aardvark}. Alternative approaches to ensemble generation include conditional diffusion models with explicit uncertainty quantification \cite{shi2025codicast}, latent diffusion with knowledge alignment mechanisms for precipitation nowcasting \cite{gao2023prediff}, and diffusion-based ensemble emulation methods that generate large ensembles conditioned on few operational forecast members \cite{price2024seeds}. From a dynamical systems perspective, these approaches sample the forecast distribution but provide no mechanism to systematically navigate the sampled trajectories or regenerate specific ensemble members. In addition, many of these approaches inject noise globally throughout the network without explicit hierarchical decomposition\DIFdelbegin \DIFdel{, which limits the spatial and scale-specific interpretability of the stochastic perturbations}\DIFdelend \DIFaddbegin \DIFadd{; the resulting perturbations are effective, but they are not separately addressable by spatial scale after inference. We note that injecting noise through a single global conditioning pathway is a widely used and successful design; we do not claim a skill advantage over global conditioning, which would require an independently fine-tuned model on the same backbone, and which we have not undertaken here. The distinction we draw is architectural: where the stochasticity enters determines what can be manipulated afterwards}\DIFaddend .
+
+Operational ensemble forecasting requires not only probabilistic skill but also interpretable control over uncertainty structure. Forecasters benefit from the ability to systematically explore alternative scenarios within the ensemble distribution. For example, amplifying or suppressing specific synoptic patterns to understand their downstream impacts on regional weather. Similarly, ensemble post-processing and recalibration workflows require adjusting spread without regenerating forecasts, particularly when computational constraints limit ensemble size or when verification reveals systematic over- or underdispersion \cite{hamill1997verification, vannitsem2021statistical}. The multi-scale nature of atmospheric predictability, where large-scale synoptic systems exhibit different error growth rates than mesoscale features \cite{tribbia2004scale}, motivates hierarchical uncertainty decomposition. Injecting perturbations at distinct spatial scales spanning the synoptic/meso-$\alpha$ boundary through the meso-$\beta$ range while maintaining meteorological consistency enables physically interpretable ensemble spread that reflects the scale-dependent structure of forecast uncertainty. Current ML ensemble methods lack explicit architectural mechanisms for scale-dependent uncertainty control and provide limited capability to adjust or explore the generated forecast distribution after inference.
+
+In this work, we introduce Stochastic Decomposition Layers (SDL)\DIFdelbegin \DIFdel{that separate latent-driven modulation from }\DIFdelend \DIFaddbegin \DIFadd{, a mechanism for adding controlled randomness to a deterministic forecast model. An SDL injects a random perturbation into the model's internal feature maps at several stages of the decoder, each stage operating at a different spatial resolution, so that each injection point influences a different range of atmospheric scales. The perturbation at each point combines a low-dimensional random vector, which sets the overall character of that member's perturbation, with independent }\DIFaddend per-pixel \DIFdelbegin \DIFdel{stochasticity, enabling }\DIFdelend \DIFaddbegin \DIFadd{noise that supplies local detail; both are shaped by weights learned during fine-tuning. This separation of scale-setting structure from local stochasticity is what enables }\DIFaddend controlled exploration of forecast uncertainty\DIFaddbegin \DIFadd{, and the formal definition is given in Section~2.2}\DIFaddend . We build upon the WXFormer architecture \cite{schreck2025, chapman2025camulator}, incorporating SDL at multiple hierarchical scales to enable two critical capabilities: (1) calibrated probabilistic forecasts competitive with physics-based ensembles, achieved through CRPS-based training with computational efficiency comparable to other computationally efficient methods, and (2) post-inference exploration of forecast uncertainty by systematically perturbing latent tensor and noise components. While noise scaling is theoretically possible in any stochastic model, SDL learns a symmetric latent geometry that provides calibrated control over ensemble spread\DIFdelbegin \DIFdel{without regeneration}\DIFdelend . Each ensemble member is determined by a compact \DIFdelbegin \DIFdel{latent tensor, enabling perfect }\DIFdelend \DIFaddbegin \DIFadd{stored representation, enabling exact }\DIFaddend reproducibility and spread adjustment after inference \DIFaddbegin \DIFadd{at the cost of re-running only the decoder (Section~2.3)}\DIFaddend . This provides operational control over forecast uncertainty without \DIFdelbegin \DIFdel{regenerating ensemble members}\DIFdelend \DIFaddbegin \DIFadd{archiving or regenerating the full ensemble fields}\DIFaddend .
+
+\section{Methods}
+
+\subsection{Base Architecture}
+
+The WXFormer model \cite{schreck2025, chapman2025camulator, sha2025conservation} employs a hierarchical encoder-decoder structure for weather prediction (Figure~\ref{fig:wxformer_noise}). The encoder processes input features on progressively coarser spatial grids through a series of cross embedding layers (CEL) and transformer blocks, enabling efficient multi-scale feature extraction. The decoder uses U-Net-style skip connections to integrate high-resolution spatial information from the encoder with globally-informed features from the deepest layer, producing weather forecasts at the original input resolution.
+
+This multi-scale processing provides injection points for stochasticity across different atmospheric resolutions, from coarse large-scale structures in deeper layers to fine-grained spatial details in shallower layers. By strategically placing noise injection layers at each level of this hierarchy (Figure~\ref{fig:wxformer_noise}), we enable simultaneous perturbation of large-scale circulation patterns and small-scale atmospheric features, creating ensemble members that span a physically coherent range of forecast solutions.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{wxformer_noise_injection.pdf}
+\caption{Schematic of WXFormer with SDL injection points. Independent latent vectors $Z_1$, $Z_2$, and $Z_3$ are sampled from $\mathcal{N}(0,\mathbf{I})$ and fed to each of the three decoder SDL layers (yellow boxes) after upsampling blocks and before skip connection concatenation. Diamonds mark optional encoder SDL injection points not used in this work. Each SDL operates with independent learnable parameters to accommodate feature magnitude variations across network depth. (b) Data flow through the SDL. Latent vector $Z_\ell$ is transformed via a learned linear layer (red) to produce  tensor $S$. Three independent pathways (learned channel modulation at the top [$\mathbf{M}$], latent ``style'' tensor in the middle [$\mathbf{S}$], and per pixel noise generation at the bottom [$\mathbf{R}$]) are combined multiplicatively before the residual addition to the input features. Tensor dimensions are shown for clarity; spatial broadcasting expands $\mathbf{S}$ and $\mathbf{M}$ to match $\mathbf{R}$}
+\label{fig:wxformer_noise}
+\end{figure}
+
+\subsection{Stochastic Decomposition Layer}
+Recent approaches to ensemble generation in machine learning weather models typically apply noise globally without explicit scale separation. The StyleGAN architecture \cite{karras2019style, karras2020analyzing} demonstrated that hierarchical, decomposed noise injection enables both diversity and fine grained control in generative models by separating global style variations, which influence composition and large scale structure, from local stochastic details, which influence texture and fine scale features. Style transfer techniques have been successfully adapted to atmospheric science applications \cite{schreck2023style}, showing that neural style decomposition can capture complex physical relationships in atmospheric data.
+
+
+\begin{table}[t!]
+\centering
+\begin{tabular}{l l l}
+\toprule
+\textbf{Component} & \textbf{Operation} & \textbf{Shape} \\
+\midrule
+\texttt{feature\_map} & input features & $(B, C, H, W)$ \\
+\texttt{noise} & latent input & $(B, \text{noise\_dim})$ \\
+$\mathbf{S}$ & latent-derived ``style'' & $(B, C, 1, 1)$ \\
+$\mathbf{M}$ & learned channel modulation & $(1, C, 1, 1)$ \\
+$\mathbf{R}$ & per-pixel Gaussian noise & $(B, C, H, W)$ \\
+\DIFdelbeginFL \DIFdelFL{$\alpha$ }\DIFdelendFL \DIFaddbeginFL \DIFaddFL{$\sigma_0$ }\DIFaddendFL & fixed noise scaling & scalar \\
+output & \DIFdelbeginFL \DIFdelFL{$\mathbf{F}_{\text{in}} + \alpha \cdot \mathbf{R} \odot \mathbf{S} \odot \mathbf{M}$ }\DIFdelendFL \DIFaddbeginFL \DIFaddFL{$\mathbf{F}_{\text{in}} + \sigma_0 \cdot \mathbf{R} \odot \mathbf{S} \odot \mathbf{M}$ }\DIFaddendFL & $(B, C, H, W)$ \\
+\bottomrule
+\end{tabular}
+\caption{Components of the SDL layer corresponding to Equation~\ref{eq:sdl} and Figure~\ref{fig:wxformer_noise}b.}
+\label{tab:tensor_shapes}
+\end{table}
+
+These insights motivate our adaptation of hierarchical noise decomposition for atmospheric ensemble forecasting. We accomplish this by injecting controlled stochastic perturbations into feature maps using three multiplicative components within SDL. The output feature map $\mathbf{F}_{\text{out}} \in \mathbb{R}^{B \times C \times H \times W}$ is computed as:
+\begin{equation}
+\mathbf{F}_{\text{out}} = \mathbf{F}_{\text{in}} + \DIFdelbegin \DIFdel{\alpha }\DIFdelend \DIFaddbegin \DIFadd{\sigma_0 }\DIFaddend \cdot \mathbf{R}_{\text{Gauss}}  \odot \mathbf{S} \odot \mathbf{M}
+\label{eq:sdl}
+\end{equation}
+where $\mathbf{R}_{\text{Gauss}} \sim \mathcal{N}(0, \mathbf{I})$ is per-pixel Gaussian noise sampled at full spatial resolution, \DIFdelbegin \DIFdel{$\alpha$ }\DIFdelend \DIFaddbegin \DIFadd{$\sigma_0$ }\DIFaddend is a non-trainable scaling parameter, $\mathbf{S} \in \mathbb{R}^{B \times C \times 1 \times 1}$ is a tensor derived from a latent tensor $\mathbf{Z}_\ell \sim \mathcal{N}(0, \mathbf{I})$ sampled independently at each SDL layer via learned \DIFdelbegin \DIFdel{linear }\DIFdelend \DIFaddbegin \DIFadd{affine }\DIFaddend transformation, and $\mathbf{M} \in \mathbb{R}^{1 \times C \times 1 \times 1}$ is a learnable channel-wise modulation parameter. The operator $\odot$ denotes element-wise multiplication with broadcasting across spatial dimensions. \DIFaddbegin \DIFadd{Note that the perturbation is bilinear in the two noise sources: it is a product of the independent Gaussians $\mathbf{R}_{\text{Gauss}}$ and (an affine function of) $\mathbf{Z}_\ell$, and is therefore symmetric but heavy-tailed, i.e., already non-Gaussian before the downstream decoder nonlinearities act on it. }\DIFaddend Table~\ref{tab:tensor_shapes} details the tensor operations and shape transformations implementing this layer. Unlike StyleGAN's original implementation which uses correlated noise across hierarchical levels, we sample independent latent vectors $\mathbf{Z}_\ell \sim \mathcal{N}(0, \mathbf{I})$ at each SDL injection point to allow distinct uncertainty representations at different scales, where synoptic/meso-$\alpha$ (400-800~km) and meso-$\beta$ (100-200~km) processes have different predictability characteristics. The multiplicative structure in Equation~\ref{eq:sdl} enables independent control over ensemble characteristics: the linear transformation producing $\mathbf{S}$ and the channel modulation parameter $\mathbf{M}$ are learned during training, while $\alpha$ remains fixed to provide consistent noise scaling. During inference, sampling different $\mathbf{Z}$ tensors produces distinct ensemble members, with the learned parameters ensuring perturbations remain appropriately scaled and physically plausible.
+
+% \begin{table}[h]
+% \centering
+% \begin{tabular}{l l l}
+% \toprule
+% \textbf{Variable} & \textbf{Operation} & \textbf{Shape} \\
+% \midrule
+% \texttt{feature\_map} & input & $(B, C, H, W)$ \\
+% \texttt{noise} & input & $(B, \text{noise\_dim})$ \\
+% \texttt{style = noise\_transform(noise)} & linear layer & $(B, C)$ \\
+% \texttt{style = style.view(B, C, 1, 1)} & reshape for broadcast & $(B, C, 1, 1)$ \\
+% \texttt{pixel\_noise} & random per-pixel noise & $(B, C, H, W)$ \\
+% \texttt{style * modulation} & broadcast multiply & $(B, C, 1, 1)$ \\
+% \texttt{pixel\_noise * style * modulation} & broadcast multiply & $(B, C, H, W)$ \\
+% \texttt{feature\_map + (...)} & elementwise add & $(B, C, H, W)$ \\
+% \bottomrule
+% \end{tabular}
+% \caption{Tensor shapes through the SDL layer.}
+% \label{tab:tensor_shapes}
+% \end{table}
+
+% The multiplicative structure in Equation~\ref{eq:sdl} enables independent control over ensemble characteristics. The linear transformation producing $\mathbf{S}$ and the channel modulation parameter $\mathbf{M}$ are learned during training, while $\alpha$ remains fixed to provide consistent noise scaling. During inference, sampling different $\mathbf{Z}$ tensors produces distinct ensemble members, with the learned parameters ensuring perturbations remain appropriately scaled and physically plausible.
+
+\subsection{Multi-Scale Injection Strategy}
+The SDL architecture supports injection at six hierarchical levels: three encoder positions and three decoder positions (Figure~\ref{fig:wxformer_noise}). In this work, we implement decoder-only SDL injection with three independent latent vectors $\mathbf{Z}_1$, $\mathbf{Z}_2$, $\mathbf{Z}_3$ sampled at each decoder stage (Figure~\ref{fig:wxformer_noise}, yellow boxes). In the decoder, SDL layers are positioned after each upsampling operation but before skip connection concatenation, ensuring that stochastic perturbations are applied to upsampled features before incorporating encoder information. This ordering enables localized variations while maintaining large-scale consistency through the skip connections.
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabular}{lccccp{6.0cm}}
+\toprule
+\textbf{Level} & \textbf{Grid} & \textbf{Resolution (°)} & \textbf{Scale (zonal km)} & \textbf{SDL} & \textbf{Scale interpretation} \\
+ & (lat×lon) & ($\Delta\phi$ × $\Delta\lambda$) & (@45°N) & \textbf{layer} & \\
+\midrule
+1 & 24×36   & 7.5×10.0  & 787 &
+$\beta_1$ &
+Synoptic/meso-$\alpha$ boundary scale. Modulation of continental-scale circulation patterns, broad troughs and ridges, and large-scale baroclinic wave structure. \\
+2 & 48×72   & 3.75×5.0  & 394 &
+$\beta_2$ &
+Meso-$\alpha$ scale. Regional cyclone structure, frontal systems, and mesoscale organization of synoptic disturbances. \\
+3 & 96×144  & 1.875×2.5 & 197 &
+$\beta_3$ &
+Meso-$\alpha$/meso-$\beta$ transition scale. Mesoscale convective organization, frontal bands, and regional precipitation structure. \\
+4 & 192×288 & 0.94×1.25 & 98  &
+output &
+Meso-$\beta$ scale. Mesoscale convective systems and frontal gradients. \\
+\bottomrule
+\end{tabular}
+\caption{Effective spatial resolution and atmospheric scale interpretation across U-Net decoder levels. Scale shown for longitude at 45°N (representative mid-latitude). SDL perturbations are injected at Levels~1--3 (bottleneck through second upsampling) via parameters $\beta_1$, $\beta_2$, $\beta_3$ respectively. Level~4 is the final output layer (no SDL injection).}
+\label{tab:decoder_scales}
+\end{table}
+
+% \begin{table}[h!]
+% \centering
+% \small
+% \begin{tabular}{lccccp{5.5cm}}
+% \toprule
+% \textbf{Level} & \textbf{Grid} & \textbf{Resolution (°)} & \textbf{Scale (km)} & \textbf{SDL} & \textbf{Meteorological interpretation} \\
+%  & (lat×lon) & ($\Delta\phi$ × $\Delta\lambda$) & (@45°N) & \textbf{layer} & \\
+% \midrule
+% 1 & 24×36   & 7.5×10.0  & 787 & $\beta_1$ & Planetary/synoptic. Large-scale waves, basin-scale pressure patterns, broad cyclone structure. \\
+% 2 & 48×72   & 3.75×5.0  & 394 & $\beta_2$ & Synoptic/mesoscale. Midlatitude cyclones, fronts, regional patterns. \\
+% 3 & 96×144  & 1.875×2.5 & 197 & $\beta_3$ & Mesoscale. Regional storms, frontal bands, organized convection (partially resolved). \\
+% 4 & 192×288 & 0.94×1.25 & 98  & output & Upper mesoscale. Mesoscale systems; deep convection remains subgrid. \\
+% \bottomrule
+% \end{tabular}
+% \caption{Effective spatial resolution and meteorological interpretation across U-Net decoder levels. Scale shown for longitude at 45°N (representative mid-latitude). SDL perturbations are injected at Levels 1--3 (bottleneck through second upsampling) via parameters $\beta_1$, $\beta_2$, $\beta_3$ respectively. Level 4 is the final output layer (no SDL injection).}
+% \label{tab:decoder_scales}
+% \end{table}
+
+To enable extensive experimentation within computational constraints, we implement decoder-only SDL injection with independent latent sampling at each layer. We refer to architectural positions as ``decoder levels'' (Level~1 through Level~4, Table~\ref{tab:decoder_scales}) and SDL application locations as ``injection points'' controlled by parameters $\beta_1$, $\beta_2$, and $\beta_3$ respectively, spanning from the synoptic/meso-$\alpha$ boundary (Level~1) through the meso-$\beta$ scale (Level~4). \DIFdelbegin %DIFDELCMD < 
+
+%DIFDELCMD < %%%
+\DIFdel{The decoder-only configuration requires storing three latent tensors per ensemble member (one per injection point), totaling approximately 5 MB }\DIFdelend \DIFaddbegin \DIFadd{The parameters $\beta_1$, $\beta_2$, and $\beta_3$ are per-scale gains applied at inference time to the stochastic perturbation injected at each point: they are fixed at unity throughout training and varied only afterwards, which is what allows ensemble spread to be adjusted by spatial scale on an already-generated forecast (Section~\ref{sec:multi_scale_control}).
+}
+
+\DIFadd{Because an ensemble member is fully determined by what enters the three injection points at each forecast step, there are two legitimate archival options, and which is preferable depends on the use case. Option~A stores the raw latent vectors together with the seed of the random-number generator: three 442-dimensional latents per member per step, $3 \times 442 \times 4\,\mathrm{B} = 5.3$~kB }\DIFaddend in single precision\DIFdelbegin \DIFdel{(}\DIFdelend \DIFaddbegin \DIFadd{, roughly $3\times10^{3}$ times smaller than the corresponding forecast fields ($71 \times 192 \times 288$ }\DIFaddend float32 \DIFdelbegin \DIFdel{): Level 1 (24$\times$36$\times$71, $\sim$240 KB), Level 2 (48$\times$72$\times$71, $\sim$960 KB), and Level 3 (96$\times$144$\times$71, $\sim$3.7 MB ). Full encoder-decoder injection would require six tensors ($\sim$10 MB per member ). These compact latent representations enable perfect }\DIFdelend \DIFaddbegin \DIFadd{$= 15.7$~MB per member per step). The latents alone do not determine the member, because the per-pixel noise $\mathbf{R}_{\text{Gauss}}$ is drawn inside each layer; exact regeneration under Option~A therefore requires the stored seed as well (a few integers, negligible in size, but part of the recipe). Option~B stores the realized per-layer perturbation tensors after $\mathbf{R}_{\text{Gauss}}$ is drawn, which removes the seed dependence entirely and makes replay self-contained, at a cost of 49.5~MB per member per step ($1024{\times}36{\times}48 + 512{\times}72{\times}96 + 256{\times}144{\times}192$ float32 values on the internally padded grid). This is larger than the forecast fields themselves, so Option~B trades storage for self-containment rather than saving space. Either representation enables exact }\DIFaddend reproducibility of any ensemble member and \DIFdelbegin \DIFdel{support }\DIFdelend \DIFaddbegin \DIFadd{supports }\DIFaddend post-inference spread adjustment through \DIFdelbegin \DIFdel{latent rescaling , all while requiring orders of magnitude less storage than archiving complete forecast fields}\DIFdelend \DIFaddbegin \DIFadd{rescaling of the stored perturbations, at the cost of re-running only the decoder (Section~\ref{sec:reproducibility})}\DIFaddend .
+
+Each injection point employs a fixed scaling parameter \DIFdelbegin \DIFdel{$\alpha$ }\DIFdelend \DIFaddbegin \DIFadd{$\sigma_0$ }\DIFaddend to accommodate feature magnitude variations across network depth. \DIFdelbegin \DIFdel{Appropriate $\alpha$ selection enables reasonable }\DIFdelend \DIFaddbegin \DIFadd{We set $\sigma_0 = 0.235$ at all injection points, selected by a short sweep over candidate values as the setting that minimized the afCRPS loss at initialization; it was not tuned against validation skill. The reason $\sigma_0$ is held fixed rather than learned is that the perturbation in Equation~\ref{eq:sdl} is linear in $\sigma_0$ and in both learned components, so any rescaling of $\sigma_0$ is absorbed exactly by $\mathbf{S}$ or $\mathbf{M}$: $\sigma_0$ is redundant with parameters the model already learns, and its role is confined to setting the initialization scale, where an appropriate value gives the }\DIFaddend initial ensemble spread \DIFdelbegin \DIFdel{, accelerating convergence of }\DIFdelend \DIFaddbegin \DIFadd{a sensible magnitude relative to the deterministic 6-hour error and accelerates convergence of the }\DIFaddend learnable SDL components\DIFdelbegin \DIFdel{($\mathbf{M}$ and the linear transformation generating $\mathbf{S}$)}\DIFdelend . The transfer learning framework allows freezing pre-trained WXFormer weights while training only SDL parameters, or joint fine-tuning \DIFdelbegin \DIFdel{for superior ensemble quality. We set $\alpha = 0.235$ at all injection points based on preliminary experiments}\DIFdelend \DIFaddbegin \DIFadd{of all weights; we use the latter in this work}\DIFaddend .
+
+\subsection{Ensemble Generation}
+During inference, multiple ensemble members are generated by sampling different latent vectors $\{\mathbf{Z}_1, \mathbf{Z}_2, \mathbf{Z}_3\}$ independently at each of the three decoder SDL injection points. The learned parameters $\mathbf{M}$ and the linear transformations producing $\mathbf{S}$, combined with the fixed \DIFdelbegin \DIFdel{$\alpha$ }\DIFdelend \DIFaddbegin \DIFadd{$\sigma_0$ }\DIFaddend scaling parameters, ensure variations remain physically plausible and appropriately scaled. \DIFaddbegin \DIFadd{Noise is re-injected at every autoregressive step: at each 6\,h step $t$ of the rollout, an independent latent $\mathbf{Z}_\ell^{(t)} \sim \mathcal{N}(0,\mathbf{I})$ is drawn at each of the three injection points $\ell$, so that an $N$-step forecast consumes $3N$ latent draws per member; noise is not held fixed along the trajectory, nor applied only at initialization. A member is thus identified by the complete ordered set $\{\mathbf{Z}_\ell^{(t)}\}$, and it is this set that is archived (Section~5.4). }\DIFaddend This multi-scale injection produces comprehensive uncertainty quantification: deep-layer perturbations affect large-scale flow patterns (e.g., synoptic troughs and ridges), while shallow-layer perturbations modulate fine-scale features (e.g., mesoscale convective systems and surface temperature gradients). The ensemble spread reflects the model's learned uncertainty structure rather than relying on ad-hoc perturbation strategies.
+
+\section{Training dataset}
+This study uses \DIFaddbegin \DIFadd{global, 6-hourly }\DIFaddend ERA5 reanalysis \cite{hersbach2020era5} \DIFdelbegin \DIFdel{coarsened to 1}\DIFdelend \DIFaddbegin \DIFadd{spanning 1979-2022, regridded from the native 0.25}\DIFaddend $^\circ$ \DIFdelbegin \DIFdel{horizontal resolution (360}\DIFdelend \DIFaddbegin \DIFadd{archive using conservative interpolation (following the approach of WeatherBench2; see \mbox{%DIFAUXCMD
+\cite{sha2025conservation, sha2025terrain}}\hskip0pt%DIFAUXCMD
+) to a 192}\DIFaddend $\times$\DIFdelbegin \DIFdel{181 grid ) spanning 1979-2022. }\DIFdelend \DIFaddbegin \DIFadd{288 grid (approximately 0.94$^\circ$ latitude $\times$ 1.25$^\circ$ longitude, the CESM finite-volume grid). This single grid is used end-to-end for training, fine-tuning, inference, and verification (Appendix B1). }\DIFaddend We selected 16 vertical levels from ERA5's 137 model levels (levels 10, 30, 40, 50, 60, 70, 80, 90, 95, 100, 105, 110, 120, 130, 136, 137), along with surface variables, static fields (land-sea mask, surface geopotential), and instantaneous solar irradiance as forcing, yielding 74 total input variables. This vertical discretization emphasizes lower-to-mid tropospheric representation where most weather-relevant processes occur while accepting coarser resolution at higher altitudes. The temporal split follows \cite{schreck2025}: training (1979-2017), validation (2018-2019), and testing (2020-2022)\DIFaddbegin \DIFadd{, of which the 2022 00Z initializations are used for all verification reported here}\DIFaddend . Complete details on variable selection, vertical level specification, and data processing are provided in \cite{schreck2025, sha2025terrain}.
+
+\section{Fine-Tuned Training Scheme}
+
+% Others who have done a probabilistic proper score objective are Pacchiardi et al. [2024], Shokar et al. [2024] and Kochkov et al. [2024]. from AIFS paper
+
+We initialize from a pre-trained deterministic WXFormer model trained on ERA5 following \cite{schreck2025}. The SDL components (\DIFdelbegin \DIFdel{$\alpha$}\DIFdelend \DIFaddbegin \DIFadd{$\sigma_0$}\DIFaddend , $\mathbf{M}$, and the linear transformations producing $\mathbf{S}$) are inserted into the model, and all model weights are then fine-tuned jointly. This transfer learning approach leverages the pre-trained model's deterministic forecast skill as a strong initialization\DIFdelbegin \DIFdel{, requiring }\DIFdelend \DIFaddbegin \DIFadd{: the fine-tuning increment is }\DIFaddend approximately 1.61\% of the computational cost \DIFdelbegin \DIFdel{needed to train }\DIFdelend \DIFaddbegin \DIFadd{of training }\DIFaddend the baseline WXFormer from scratch (see \DIFdelbegin \DIFdel{ref }\DIFdelend \cite{schreck2025} for baseline training details). \DIFdelbegin \DIFdel{Fine-tuning all weights produces superior ensemble quality compared to training only the SDL parameters while maintaining computational efficiency. See ~}\DIFdelend \DIFaddbegin \DIFadd{We note the framing of this figure explicitly: the marginal cost is the relevant number for a center that already operates a deterministic model, which is our intended use case; a like-for-like comparison against training a generative ensemble model from scratch must instead use the pretraining-plus-fine-tuning total (see \ref{sec:train_details}, where both forward-pass counts are given). See }\DIFaddend \ref{sec:train_details} for complete training details and computational cost analysis.
+
+During training, we generate $M$ = 10 ensemble members per input by sampling different latent tensors $\mathbf{Z}$ at each SDL injection point. The SDL parameters are optimized using the almost fair Continuous Ranked Probability Score (afCRPS) loss \cite{lang2024aifs}, defined for an ensemble $\{x_j\}_{j=1}^M$ and verification target $y$ as:
+
+\begin{equation}
+\text{afCRPS}_\alpha = \frac{1}{M}\sum_{j=1}^M |x_j - y| - \frac{1-\epsilon}{2M(M-1)}\sum_{j=1}^M\sum_{k=1}^M |x_j - x_k|
+\label{eq:afcrps}
+\end{equation}
+
+where $\epsilon := \frac{(1-\alpha)}{M}$, and $\alpha \in (0,1]$ is a hyperparameter. Setting $\alpha = 1$ recovers the fair CRPS \cite{ferro2013fair}, which adjusts for finite ensemble size. However, fair CRPS suffers from a degeneracy where all members except one match the target, leaving the remaining member unconstrained. The almost fair formulation with $\alpha < 1$ avoids this pathology while maintaining near-fair scoring properties. We use $\alpha = 0.95$ following \cite{lang2024aifs}. The loss is averaged across all variables, vertical levels, and spatial locations with latitude weighting following \cite{schreck2025}.
+
+Training uses the same 1979-2017 ERA5 data as the deterministic model, with validation performed on 2018-2019 and testing on 00Z initializations from 2022. \DIFdelbegin \DIFdel{This }\DIFdelend \DIFaddbegin \DIFadd{As a route to adding ensemble capability to an existing deterministic model, this }\DIFaddend fine-tuning strategy is \DIFdelbegin \DIFdel{substantially more efficient than diffusion-based ensemble generation, which requires iterative denoising steps at inference and prohibitively expensive training on full trajectory sequences. Our approach incurs computational overhead only proportional to the desired ensemble size. }\DIFdelend \DIFaddbegin \DIFadd{inexpensive: no separate generative model is trained and no distillation stage is required. Inference cost is proportional to ensemble size, with each member generated in a single forward pass of the backbone. On step count alone this is comparable to well-distilled one-step consistency models \mbox{%DIFAUXCMD
+\cite{stock2025swift} }\hskip0pt%DIFAUXCMD
+rather than dramatically cheaper; the distinction is that the ensemble capability here is obtained directly by fine-tuning the existing deterministic backbone. }\DIFaddend Generating 50 members requires 50 forward passes with different $\mathbf{Z}$ samples but no architectural modifications or iterative refinement. The pretrained base model ensures that deterministic forecast quality is preserved without training from scratch, while the learned SDL parameters add controlled stochasticity appropriate to each hierarchical level.
+
+\section{Results}
+
+\subsection{Ensemble Forecast Skill}
+\label{sec:skill}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\columnwidth]{ensemble_metrics.png}
+    \caption{Forecast verification metrics for selected atmospheric variables at key pressure levels over the 2022 ERA5 test period. Columns show geopotential height at 500~hPa (Z500), zonal wind at 700~hPa (U700), meridional wind at 850~hPa (V850), temperature at 850~hPa (T850), and specific humidity at 850~hPa (Q850). Rows display: (1) Deterministic Root Mean Square Error (RMSE) comparing the baseline deterministic WXFormer (solid line, 15-day forecasts) against IFS HRES (dashed line, 10-day forecasts); (2) Ensemble mean RMSE comparing SDL-WXFormer (solid line) to IFS-ENS (dashed line); (3) Continuous Ranked Probability Score (CRPS), where lower values indicate better probabilistic skill; (4) Spread-Skill Ratio (SSR), where values near 1.0 indicate well-calibrated ensemble spread; (5) SDL-WXFormer rank histogram frequency showing distribution of verification values among ranked ensemble members; (6) IFS-ENS rank histogram frequency for comparison. The two RMSE rows share the same $y$-axis range within each column for direct comparison between deterministic and ensemble performance. Colors in rank histograms denote forecast lead times: 6~h (purple), 5~days (blue), 10~days (orange), 15~days (green).}
+    \label{fig:pressure_levels}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\columnwidth]{figure2.png}
+    \caption{Vertical structure of ensemble forecast skill for core atmospheric variables across all 16 model levels. Columns show zonal wind (U), meridional wind (V), temperature (T), and specific humidity (Q). Rows display: (1-2) CRPS and RMSE as functions of forecast lead time (x-axis) and model level (colorbar, with lighter colors indicating upper atmosphere); (3) Spread-Skill Ratio (SSR) versus lead time, with dashed horizontal line at 1.0 indicating perfect calibration; (4-7) Rank histograms at 6h, 5d, 10d, and 15d lead times across ensemble member ranks (x-axis). Each rank histogram curve corresponds to a different model level (colored by vertical position). SDL-WXFormer (solid) and IFS-ENS (dashed) shown for SSR comparison. Model levels are hybrid $\sigma$--pressure coordinates; approximate pressure equivalents are provided for reference (e.g., level~90 $\approx$ 500~hPa, level~110 $\approx$ 850~hPa).
+}
+    \label{fig:vertical_profiles}
+\end{figure}
+
+We evaluate our SDL-enhanced WXFormer (SDL-WXFormer) ensemble against the ECMWF Integrated Forecasting System (IFS-ENS) on the 2022 test period using standard probabilistic metrics: Continuous Ranked Probability Score (CRPS), root mean square error (RMSE) of the ensemble mean, spread-skill ratio (SSR), and rank histograms. \DIFaddbegin \DIFadd{The SDL-WXFormer ensemble comprises 100 members and IFS-ENS 50 members ($M=10$ members are used during training only). Of these diagnostics, spread, SSR, and rank histograms are sensitive to ensemble size while the almost-fair CRPS corrects for it (Equation~\ref{eq:afcrps}); subsampling the SDL ensemble to 50 members changes Z500 ensemble-mean RMSE, spread, SSR, and CRPS by less than 1\% at 24, 120, and 240\,h over twelve 2022 initializations, so the size difference does not confound the comparison. }\DIFaddend We also compare the underlying deterministic SDL-WXFormer against IFS HRES to establish baseline forecast skill. All forecasts are verified on a common 192×288 grid; details on operational system resolutions, regridding procedures, and pressure-level interpolation are provided in \ref{sec:skill_details}. Figure~\ref{fig:pressure_levels} shows results for key atmospheric variables at selected pressure levels, while Figure~\ref{fig:vertical_profiles} presents comprehensive vertical structure across all 16 model levels.
+
+The SDL ensemble achieves competitive CRPS scores across all variables and lead times (Figures~\ref{fig:pressure_levels} and \ref{fig:vertical_profiles}, top rows). For upper-air winds (U700, V850), geopotential height (Z500), and temperature (T850), CRPS remains comparable to IFS-ENS through 15-day forecasts. Notably, specific humidity (Q850) demonstrates particularly strong performance with lower CRPS than IFS-ENS throughout the forecast window, indicating effective representation of boundary layer moisture processes. The vertical profiles reveal stratification in skill—lower-to-mid tropospheric variables (model levels 60--137) exhibit substantially lower CRPS and RMSE than upper tropospheric and stratospheric levels (model levels 10--40), reflecting the model's training on 16 selected model levels that emphasize weather-relevant atmospheric regions while accepting coarser vertical resolution at higher altitudes.
+
+Deterministic RMSE comparisons (Figure \ref{fig:pressure_levels}, first row) show that the base deterministic WXFormer model delivers performance comparable to operational IFS HRES forecasts across all evaluated variables. For dynamical fields (Z500, U700, V850) and the thermodynamic field (T850), the model’s RMSE curves closely track—or in some cases outperform—IFS HRES throughout the 10-day IFS forecast window. Beyond day 10, the model maintains stable skill through day 15, demonstrating that the ERA5-trained dynamics extend reliably into a longer forecast horizon than that provided by IFS in this comparison. Specific humidity (Q850) shows particularly impressive deterministic skill, with consistently lower RMSE than IFS HRES across all lead times. This strong performance on moisture fields reflects effective learning of boundary layer processes and moisture transport despite the well-known challenges of humidity prediction in data-driven models \cite{bi2023pangu, Lam2023graphcast}.
+
+Ensemble mean RMSE (Figure~\ref{fig:pressure_levels} and \ref{fig:vertical_profiles}, second rows) follows similar patterns to both deterministic RMSE and CRPS, with SDL forecasts maintaining accuracy comparable to or better than IFS-ENS through medium-range timescales. The shared $y$-axis range between deterministic and ensemble RMSE rows reveals that ensemble averaging provides consistent error reduction across all variables, with ensemble mean performance closely matching single-member deterministic skill. The RMSE growth rates are consistent with ensemble mean forecast error accumulation in operational systems, suggesting that the pre-trained deterministic WXFormer base provides stable skill while SDL perturbations add calibrated uncertainty without degrading deterministic performance.
+
+%%% START REWRITE based on Charlie's comments (see below)
+\subsection{Ensemble Calibration}
+
+Figure~\ref{fig:pressure_levels} shows calibration diagnostics for key pressure levels. The spread-skill ratio (SSR) quantifies ensemble calibration by comparing ensemble spread (standard deviation) to ensemble mean RMSE; well-calibrated ensembles exhibit SSR near 1.0. For all evaluated variables, SSR values start below unity at short lead times but converge toward optimal calibration (SSR $\approx$ 1.0) by day 5-10 and maintain well-calibrated spread through day 15. Specific humidity (Q850) demonstrates particularly strong calibration throughout the forecast window.
+
+Rank histograms provide complementary calibration diagnostics by comparing the frequency with which verification values fall into ranked ensemble member bins. Ideally, rank histograms should be flat (uniform), indicating ensemble members and observations are statistically indistinguishable samples from the same distribution. All variables exhibit U-shaped patterns at short lead times (6h) indicating initial underdispersion, but these histograms progressively flatten toward uniform distributions by day 10-15 as ensemble spread grows with forecast range. IFS-ENS exhibits similar temporal evolution in rank histogram structure.
+
+Figure~\ref{fig:vertical_profiles} reveals that calibration quality degrades with altitude. Lower-tropospheric levels (model levels 100-137) achieve SSR values near unity and produce substantially flatter rank histograms across all lead times compared to upper-tropospheric levels (model levels 10-60), which show persistent underdispersion (SSR $< 1.0$) and more pronounced U-shapes throughout the forecast window. This vertical gradient reflects the model's 16-level discretization, which provides finest resolution in the weather-relevant lower troposphere while accepting coarser sampling aloft.
+
+%%% ORIGINAL VERSION before comments
+% \subsection{Ensemble Calibration}
+
+% The spread-skill ratio (SSR) quantifies ensemble calibration by comparing ensemble spread (standard deviation) to ensemble mean RMSE; well-calibrated ensembles exhibit SSR near 1.0, indicating predicted uncertainty matches actual forecast error. Our SDL ensemble demonstrates systematic vertical stratification in calibration quality. For lower-tropospheric and near-surface levels (model levels 100-137, darker colors in Figure~\ref{fig:vertical_profiles}), dynamical variables (U, V, Z) and specific humidity (Q) exhibit SSR values that typically start below unity at short lead times but converge toward optimal calibration (SSR $\approx$ 1.0) by day 5-10 and maintain well-calibrated spread through day 15. In contrast, upper-tropospheric levels (model levels 10-60, darker colors) show persistent underdispersion (SSR $< 1.0$) throughout the forecast window across all variables, indicating that ensemble spread underestimates forecast uncertainty in the upper atmosphere where the model's 16-level vertical discretization provides coarser resolution.
+
+% The rank histograms (Figure~\ref{fig:pressure_levels} and \ref{fig:vertical_profiles}, bottom rows) provide further calibration diagnostics by comparing the frequency with which verification values fall into ranked ensemble member bins. Ideally, rank histograms should be flat (uniform), indicating ensemble members and observations are statistically indistinguishable samples from the same distribution. In Figure~\ref{fig:pressure_levels}, all variables including specific humidity exhibit U-shaped patterns at short lead times (6h) indicating initial underdispersion, but these histograms progressively flatten toward uniform distributions by day 10-15, demonstrating improved calibration as ensemble spread grows with forecast range.
+
+% The vertical profile analysis in Figure~\ref{fig:vertical_profiles} reveals systematic variation in calibration quality with atmospheric level. All variables show U-shaped histograms at 6h that improve with lead time, though some asymmetric U-shape structure (particularly on the left side) persists at longer lead times. The dominant signal is clear vertical stratification: near-surface levels (model levels 100-137, darker colors) produce substantially flatter, better-calibrated rank histograms across all lead times compared to upper-tropospheric levels (model levels 10-60, darker colors), which maintain more pronounced U-shapes throughout the forecast window. This vertical gradient in calibration quality mirrors the SSR patterns, confirming that the model achieves superior probabilistic performance in the lower troposphere where vertical resolution is finest. The systematic improvement in calibration quality from upper troposphere to boundary layer reflects both the model's training emphasis on weather-relevant atmospheric regions and the inherent predictability structure of the atmosphere itself.
+
+
+\DIFaddbegin \subsection{Multivariate and Spatial-Dependence Diagnostics}
+\label{sec:multivariate}
+
+\DIFadd{The diagnostics above are univariate. To test whether the learned perturbations capture spatial and cross-variable dependence, we add two multivariate measures. First, the variogram score of order $p=0.5$ \mbox{%DIFAUXCMD
+\cite{scheuerer2015variogram}}\hskip0pt%DIFAUXCMD
+, which is specifically sensitive to spatial dependence structure, computed for the SDL ensemble over twelve 2022 initializations (the first of each month, 00Z) at 24, 120, and 240\,h for Z500, T850, and Q850 on a spatially pooled grid (every sixth point; pairwise sums scale quadratically in the number of points). The score grows monotonically with lead time for every field, with the largest relative growth for Z500 (a factor of $\sim$49 from 24\,h to 240\,h, versus $\sim$13 for T850 and $\sim$5 for Q850), consistent with Z500's longer error-growth timescale. Our archives hold IFS-ENS only as summary statistics and regridded distribution products rather than raw member fields at matching valid times, so we report the SDL variogram score as a documented baseline with its lead-time scaling rather than as a head-to-head comparison.
+}
+
+\DIFadd{Second, and more directly interpretable, the cross-variable spatial correlation between Z500 and T850, computed per member and compared against the same correlation in ERA5 at each of the 36 initialization-lead combinations. The SDL members track the ERA5 coupling essentially exactly: mean member correlation 0.939 versus 0.936 in ERA5, mean absolute difference 0.004, with per-combination differences within $[-0.024, +0.016]$ and no systematic sign bias, out to 240\,h. Thus the stochastic perturbations do not degrade this physically meaningful cross-variable relationship even at 10 days.
+}
+
+\DIFaddend \subsection{Ensemble Forecast Evolution Across Lead Times}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{ensemble_figure.png}
+\caption{Ensemble forecast evolution for Winter Storm Izzy valid January 17, 2022 at 18:00 UTC. Each row represents a different forecast initialization time (2-10 days before the event). For each lead time, five ensemble members are randomly shown. Contours show MSLP at 10 hPa intervals.}
+\label{fig:izzy_ensemble}
+\end{figure}
+
+At 10-day lead time, the ensemble exhibits substantial uncertainty in both storm track and intensity (Figure~\ref{fig:izzy_ensemble}). The five randomly selected members span a wide range of solutions: some show weak offshore systems with minimal coastal impacts, others depict intense coastal lows, and several fail to capture organized cyclogenesis. Storm position varies by several hundred kilometers, with central pressure estimates spanning $>$ 30 hPa across the ensemble. This spread reflects fundamental uncertainty in synoptic patterns at extended range. At 6-day lead time, ensemble convergence is evident. All members depict well-defined coastal cyclogenesis, though disagreement persists regarding exact track and intensity. Spatial spread narrows considerably, with most members placing the system over the western Atlantic offshore of the Mid-Atlantic coast.
+
+At 2-day lead time, the ensemble has strong agreement on storm structure and position. All sampled members show consistent development of an intense low pressure system (central pressures $<$ 980 hPa) positioned offshore of the Northeast coast. Remaining uncertainty concerns fine-scale intensity details and exact offshore positioning rather than fundamental occurrence or track. This evolution from high uncertainty to consensus illustrates typical improvement in forecast skill as lead time decreases for winter coastal cyclones, with ensemble spread collapsing as initial condition uncertainty diminishes and atmospheric predictability increases at shorter ranges.
+
+\subsection{Reproducibility}
+\DIFaddbegin \label{sec:reproducibility}
+\DIFaddend 
+
+Operational forecast centers require the ability to exactly reproduce disseminated
+ensemble members for verification, case studies, and audit trails. \DIFdelbegin \DIFdel{While stochastic perturbation methods can reproduce prior forecasts by storing random number generator (RNG) seeds, this approach only enables rigid replay. In contrast, SDL 's latent tensor storage enables structural reproducibility, where the stored representation can be mathematically manipulated (e.g., rescaled or interpolated) post-inference. This is a capability unavailable with simple RNG seeds. SDL }\DIFdelend \DIFaddbegin \DIFadd{SDL }\DIFaddend generates each ensemble member from three independent latent tensors $\mathbf{Z}_1, \mathbf{Z}_2, \mathbf{Z}_3 \sim \mathcal{N}(0, \mathbf{I})$ sampled at each decoder injection point \DIFdelbegin \DIFdel{. Rather than }\DIFdelend \DIFaddbegin \DIFadd{and step, and either archival option of Section~2.3 reproduces a member exactly: }\DIFaddend storing the raw \DIFdelbegin \DIFdel{latent vectors, we archive the computed noise perturbations $\alpha \cdot \mathbf{R}_{\text{Gauss}} \odot \mathbf{S}(\mathbf{Z}_\ell) \odot \mathbf{M}$ }\DIFdelend \DIFaddbegin \DIFadd{latents plus the RNG seed (Option~A, 5.3~kB per member per step), or storing the realized perturbations $\sigma_0 \cdot \mathbf{R}_{\text{Gauss}} \odot \mathbf{S}(\mathbf{Z}_\ell) \odot \mathbf{M}$ }\DIFaddend applied at each SDL layer \DIFdelbegin \DIFdel{during the forward pass. These stored perturbations are compact ($\sim$5~MB per member per forecast time), substantially reducing archival requirements relative to complete atmospheric state fields}\DIFdelend (\DIFdelbegin \DIFdel{$\sim$35~MB per member per time). Crucially, this representation supports }\DIFdelend \DIFaddbegin \DIFadd{Option~B, self-contained but larger than the forecast fields). We verified both directly: over a 5-step (30\,h) rollout on a single GPU, replay from stored perturbations and replay from latents plus seed each reproduce the original member bit-exactly (maximum absolute difference of exactly zero at every step). Reproduction across hardware configurations is bounded rather than bitwise: regenerating the same member on CPU differs from the GPU original by a maximum absolute difference of $2.7\times10^{-2}$ in the affected prognostic field, attributable to differing floating-point reduction orders between GPU and CPU kernel implementations, so exact replay should be performed on the archiving configuration. What distinguishes this representation from storing an RNG seed alone is not size but structure: because the stored representation is indexed by injection scale, it can be mathematically manipulated }\DIFaddend post-inference \DIFdelbegin \DIFdel{manipulation through mathematical operations such as scaling or interpolation. This is a capability that distinguishes SDL from methods that discard noiseafter inference. }\DIFdelend \DIFaddbegin \DIFadd{(rescaled per scale, or interpolated between members), whereas a seed permits only rigid replay. We note that comparably compact low-dimensional conditioning noise, as in \mbox{%DIFAUXCMD
+\cite{alet2024fgn}}\hskip0pt%DIFAUXCMD
+, is equally cheap to archive; the distinction we draw is the scale index, not the byte count. Post-hoc manipulation under either option requires re-running the decoder from the stored representation, at 23\% of the cost of a full forward pass per member per step (52~ms versus 228~ms on an NVIDIA A100 at batch size 1); the encoder pass and the latent draw are not repeated, and the full ensemble fields need never have been written to disk.
+}\DIFaddend 
+
+
+\DIFdelbegin %DIFDELCMD < \begin{figure}[ht]
+%DIFDELCMD < \centering
+%DIFDELCMD < \includegraphics[width=\textwidth]{reproducibility.png}
+%DIFDELCMD < %%%
+%DIFDELCMD < \caption{%
+{%DIFAUXCMD
+\DIFdelFL{Original ensemble member (left), regenerated forecast using stored latent tensor Z (center), and difference field (right) demonstrate exact reproduction and post-inference manipulation capability. The difference field shows maximum
+absolute error below 0.01 hPa, confirming that storing the latent tensor enables perfect regeneration of any ensemble member.}}
+%DIFAUXCMD
+%DIFDELCMD < \label{fig:reproducibility}
+%DIFDELCMD < \end{figure}
+%DIFDELCMD < 
+
+%DIFDELCMD < %%%
+\DIFdelend \subsection{Multi-Scale Uncertainty Control}
+\label{sec:multi_scale_control}
+
+% \begin{figure}[htbp]
+% \centering
+% \includegraphics[width=\textwidth]{latent_scaling_big_study.png}
+% \caption{Single-parameter latent scaling effects on ensemble mean MSLP. Rows show systematic $\beta_1$ (top), $\beta_2$ (middle), and $\beta_3$ (bottom) variation with other parameters fixed at 1.0. Winter Storm Izzy at 108h lead time; 20-member ensemble mean with 3 hPa contours.}
+% \label{fig:multiscale_control}
+% \end{figure}
+
+\begin{figure}[htbp]
+\centering
+\DIFdelbeginFL %DIFDELCMD < \includegraphics[width=\textwidth]{latent_scaling_big_study_anomoly.png}
+%DIFDELCMD < %%%
+\DIFdelendFL \DIFaddbeginFL \includegraphics[width=\textwidth]{latent_scaling_beta0_anomaly.png}
+\DIFaddendFL \caption{Z500 anomalies from \DIFdelbeginFL \DIFdelFL{baseline configuration }\DIFdelendFL \DIFaddbeginFL \DIFaddFL{the deterministic forecast }\DIFaddendFL (\DIFdelbeginFL \DIFdelFL{$\beta=[1,1,1]$}\DIFdelendFL \DIFaddbeginFL \DIFaddFL{$\beta=[0,0,0]$}\DIFaddendFL , member 0) demonstrating hierarchical control through single-parameter latent scaling. Columns represent systematic variation of $\beta_1$ (left), $\beta_2$ (center), and $\beta_3$ (right) across the range $[-3, 3]$ while holding remaining parameters at 1.0. \DIFaddbeginFL \DIFaddFL{The deterministic reference makes positive and negative $\beta$ directly comparable on a common scale. }\DIFaddendFL Valid January 17, 2022 at 18:00 UTC (108h lead time). \DIFaddbeginFL \DIFaddFL{The same analysis for Q700 and MSLP is provided in the Supporting Information.}\DIFaddendFL }
+\label{fig:multiscale_control}
+\end{figure}
+
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{ke_spectra.png}
+\caption{Kinetic energy power spectra for systematic $\beta$ parameter variation, valid January 17, 2022 at 18:00 UTC (108h lead time) using 20-member ensembles with global spatial averaging across all vertical levels. Panel (a) displays baseline spectrum ($\beta=[1,1,1]$). Panels (b-d) present spectra for $\beta_1$, $\beta_2$, and $\beta_3$ variations across the range $[-3, 3]$ (colored lines) with remaining parameters fixed at 1.0. Black dashed line denotes $\beta$ = 1 reference configuration. Inset panels in (b-c) provide magnified views of wavenumber ranges 2-6 and 1-20 respectively.}
+\label{fig:ke_spectra}
+\end{figure}
+
+We investigate whether SDL learns scale-dependent uncertainty decomposition aligned with the architectural hierarchy described in Table~\ref{tab:decoder_scales} through systematic manipulation of individual injection point contributions. During training, latent tensors are sampled from the standard normal distribution $\mathbf{Z} \sim \mathcal{N}(0, \mathbf{I})$ without additional scaling, which we denote as the $\beta = 1$ configuration. This establishes the nominal ensemble spread learned through CRPS optimization. \DIFaddbegin \DIFadd{In this and the following sections, $\mathbf{Z}_\ell$ denotes the stored per-layer perturbation representation of a member (Section~\ref{sec:reproducibility}); operations written on $\mathbf{Z}_\ell$ act on these stored tensors. }\DIFaddend At inference, we \DIFdelbegin \DIFdel{can manipulate this }\DIFdelend \DIFaddbegin \DIFadd{manipulate the }\DIFaddend learned uncertainty structure by applying layer-specific scaling $\mathbf{Z}_\beta = \{\beta_1\mathbf{Z}_1, \beta_2\mathbf{Z}_2, \beta_3\mathbf{Z}_3\}$, where $\beta_1, \beta_2, \beta_3$ are independent \DIFdelbegin \DIFdel{scaling factors influencing the }\DIFdelend \DIFaddbegin \DIFadd{gains on the perturbations injected at the }\DIFaddend coarsest (Level 1), intermediate (Level 2), and finest (Level 3) \DIFdelbegin \DIFdel{injection }\DIFdelend points respectively. \DIFaddbegin \DIFadd{Because the gain multiplies the injected perturbation, $\beta = 0$ at every site recovers the deterministic forecast exactly. }\DIFaddend This formulation enables targeted amplification or suppression of perturbations at specific meteorological scales. To isolate individual layer contributions, we systematically vary one parameter across the range $[-3.0, 3.0]$ while holding remaining parameters fixed at their nominal training value of 1.0.
+
+% Given stored latent tensors $\mathbf{Z} = \{\mathbf{Z}_1, \mathbf{Z}_2, \mathbf{Z}_3\}$ at the three injection points, we apply layer-specific scaling $\mathbf{Z}_\beta = \{\beta_1\mathbf{Z}_1, \beta_2\mathbf{Z}_2, \beta_3\mathbf{Z}_3\}$, where $\beta_1, \beta_2, \beta_3$ are independent scaling factors influencing the coarsest (Level 1), intermediate (Level 2), and finest (Level 3) injection points respectively.
+
+We analyze a global forecast valid January 17, 2022 at 18:00 UTC (108-hour lead time), corresponding to the mature phase of Winter Storm Izzy. For each parameter configuration, we generate ensemble member 0 using identical baseline noise but scaled \DIFdelbegin \DIFdel{latent tensors}\DIFdelend \DIFaddbegin \DIFadd{stored perturbations}\DIFaddend , computing Z500 anomalies relative to the \DIFdelbegin \DIFdel{baseline $\beta=[1,1,1]$ configuration}\DIFdelend \DIFaddbegin \DIFadd{deterministic $\beta=[0,0,0]$ forecast so that positive and negative $\beta$ are directly comparable on a common scale}\DIFaddend . Figure~\ref{fig:multiscale_control} presents the systematic single-parameter exploration across 21 configurations spanning seven values per parameter. The anomaly framework isolates the \DIFdelbegin \DIFdel{direct meteorological impact of latent scaling }\DIFdelend \DIFaddbegin \DIFadd{total meteorological contribution of the noise injection at each configuration }\DIFaddend by removing the \DIFdelbegin \DIFdel{dominant }\DIFdelend \DIFaddbegin \DIFadd{deterministic }\DIFaddend synoptic pattern common to all \DIFdelbegin \DIFdel{configurations. }\DIFdelend \DIFaddbegin \DIFadd{of them. Note that because the decoder is nonlinear, the $-\beta$ and $+\beta$ panels are not point-wise negations of one another for any individual forecast; the sign symmetry demonstrated in Section~5.7 is a property of the distribution over members, not of single fields.
+}\DIFaddend 
+
+Varying $\beta_1$ (left column of Figure~\ref{fig:multiscale_control}) while holding $\beta_2 = \beta_3 = 1.0$ reveals the coarsest layer's control over large-scale organization at the synoptic/meso-$\alpha$ boundary (Table~\ref{tab:decoder_scales}, Level~1: 800~km effective resolution). Z500 anomalies exhibit large-amplitude, spatially coherent patterns with magnitudes exceeding $\pm$600~m concentrated in mid-latitudes. Kinetic energy spectra (Figure~\ref{fig:ke_spectra}b) confirm that $\beta_1$ variations primarily modulate energy at synoptic scales and the large-scale end of the meso-$\alpha$ range (wavenumbers $n=2$--10), with the inset panel revealing complex, wavenumber-dependent energy redistribution: at $n=1$, $\beta=-3$ maximally increases KE; conversely, at the spectral peak ($n \approx 4$), $\beta=3$ generates the largest KE amplification. This wavenumber-dependent response demonstrates that coarse-layer perturbations redistribute energy across synoptic and large meso-$\alpha$ scales rather than applying uniform scaling.
+
+The center column explores $\beta_2$ variation with $\beta_1 = \beta_3 = 1.0$, isolating intermediate-layer contributions at the meso-$\alpha$ scale (Level~2: 400~km, Table~\ref{tab:decoder_scales}). Z500 anomalies show comparable mid-latitude amplitudes to $\beta_1$ but with different spatial organization reflecting the intermediate architectural scale. Spectral analysis (Figure~\ref{fig:ke_spectra}c) reveals that $\beta_2$ produces the broadest influence across the wavenumber spectrum: all $\beta_2$ values suppress KE at the largest scales ($n=1$--3) relative to baseline, while generating substantial modulation extending from synoptic scales through the meso-$\alpha$ range ($n=4$--20+). The inset panel demonstrates peak sensitivity at intermediate wavenumbers ($n=10$--20), consistent with this layer's meso-$\alpha$ effective resolution. This broad spectral footprint explains why $\beta_2$ variations produce the most pronounced global Z500 anomaly patterns despite operating at an intermediate architectural level.
+
+Right column results demonstrate that $\beta_3$ variation (finest layer, Level~3: 200~km at the meso-$\alpha$/meso-$\beta$ transition, Table~\ref{tab:decoder_scales}) produces minimal Z500 anomalies, typically below $\pm$200~m with limited spatial coherence. Spectral analysis (Figure~\ref{fig:ke_spectra}d) shows that $\beta_3$ effects emerge primarily at high wavenumbers ($n>20$--30) corresponding to meso-$\beta$ processes, with negligible impact on synoptic and large meso-$\alpha$ scales. This scale separation is consistent with the architectural design: perturbations at $2\times$ downsampling operate at scales below those dominating upper-tropospheric height fields, which are controlled by synoptic-scale and large meso-$\alpha$ wave dynamics.
+
+While each SDL layer exhibits sensitivity across multiple wavenumbers—reflecting the overlapping receptive fields inherent to convolutional architectures—the spectral and spatial analyses confirm hierarchical stratification aligned with architectural scale. The $\beta_1$ layer produces maximum kinetic energy modulation at synoptic scales ($n=2$--10), $\beta_2$ dominates at meso-$\alpha$ scales ($n=10$--20), and $\beta_3$ effects emerge primarily at meso-$\beta$ scales ($n>20$--30). This scale-dependent behavior parallels findings from physics-based ensemble systems, where forecast variance evolution exhibits strong scale dependence with rapid saturation at meso-$\beta$ scales and slower growth at synoptic and large meso-$\alpha$ scales \cite{rodwell2025}.
+
+\DIFaddbegin \DIFadd{A complementary way to isolate each injection point's contribution is single-scale elimination: setting one $\beta_\ell = 0$ removes that site's perturbation exactly while fresh independent noise is drawn at the remaining sites. Table~\ref{tab:elimination} reports 20-member ensembles for $\beta = [0,1,1]$, $[1,0,1]$, and $[1,1,0]$ against the $[1,1,1]$ control on the same Winter Storm Izzy case. The result is specific: eliminating the intermediate (Level~2) injection point collapses ensemble spread far more than eliminating either of the other two. At 108\,h its SSR falls to roughly half the control value in every field examined, and it produces the worst RMSE and CRPS of the three eliminations in every field at every lead time tested, whereas eliminating the coarsest or finest site leaves both spread and skill within roughly 10\% of the control. This is consistent with the Level-2 site's broad wavenumber footprint in Figure~\ref{fig:ke_spectra}c. Note that this is an inference-time elimination on a single case, not a retrained ablation; the two answer related but distinct questions, since a model fine-tuned without a given site could partially compensate through the remaining ones.
+}
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabular}{llcccc}
+\toprule
+\textbf{\DIFaddFL{Field}} & \textbf{\DIFaddFL{Configuration}} & \textbf{\DIFaddFL{RMSE}} & \textbf{\DIFaddFL{Spread}} & \textbf{\DIFaddFL{SSR}} & \textbf{\DIFaddFL{CRPS}} \\
+\midrule
+\DIFaddFL{MSLP (Pa) }& \DIFaddFL{control $[1,1,1]$ }& \DIFaddFL{255.6 }& \DIFaddFL{228.4 }& \DIFaddFL{0.89 }& \DIFaddFL{178.0 }\\
+ & \DIFaddFL{$\beta_1$ elim.\ $[0,1,1]$ }& \DIFaddFL{250.4 }& \DIFaddFL{207.8 }& \DIFaddFL{0.83 }& \DIFaddFL{175.0 }\\
+ & \DIFaddFL{$\beta_2$ elim.\ $[1,0,1]$ }& \DIFaddFL{281.0 }& \DIFaddFL{147.0 }& \DIFaddFL{0.52 }& \DIFaddFL{223.3 }\\
+ & \DIFaddFL{$\beta_3$ elim.\ $[1,1,0]$ }& \DIFaddFL{249.8 }& \DIFaddFL{226.7 }& \DIFaddFL{0.91 }& \DIFaddFL{172.0 }\\
+\midrule
+\DIFaddFL{Z500 (m) }& \DIFaddFL{control $[1,1,1]$ }& \DIFaddFL{490.2 }& \DIFaddFL{216.1 }& \DIFaddFL{0.44 }& \DIFaddFL{438.7 }\\
+ & \DIFaddFL{$\beta_1$ elim.\ $[0,1,1]$ }& \DIFaddFL{484.9 }& \DIFaddFL{200.8 }& \DIFaddFL{0.41 }& \DIFaddFL{435.3 }\\
+ & \DIFaddFL{$\beta_2$ elim.\ $[1,0,1]$ }& \DIFaddFL{494.4 }& \DIFaddFL{143.4 }& \DIFaddFL{0.29 }& \DIFaddFL{456.7 }\\
+ & \DIFaddFL{$\beta_3$ elim.\ $[1,1,0]$ }& \DIFaddFL{485.6 }& \DIFaddFL{215.4 }& \DIFaddFL{0.44 }& \DIFaddFL{434.5 }\\
+\midrule
+\DIFaddFL{T850 (K) }& \DIFaddFL{control $[1,1,1]$ }& \DIFaddFL{1.260 }& \DIFaddFL{0.973 }& \DIFaddFL{0.77 }& \DIFaddFL{0.921 }\\
+ & \DIFaddFL{$\beta_1$ elim.\ $[0,1,1]$ }& \DIFaddFL{1.239 }& \DIFaddFL{0.906 }& \DIFaddFL{0.73 }& \DIFaddFL{0.906 }\\
+ & \DIFaddFL{$\beta_2$ elim.\ $[1,0,1]$ }& \DIFaddFL{1.344 }& \DIFaddFL{0.673 }& \DIFaddFL{0.50 }& \DIFaddFL{1.085 }\\
+ & \DIFaddFL{$\beta_3$ elim.\ $[1,1,0]$ }& \DIFaddFL{1.234 }& \DIFaddFL{0.962 }& \DIFaddFL{0.78 }& \DIFaddFL{0.888 }\\
+\bottomrule
+\end{tabular}
+\caption{\DIFaddFL{Single-scale elimination at T+108\,h for the Winter Storm Izzy case (2022-01-13 00Z initialization): ensemble-mean RMSE, ensemble spread, spread-skill ratio, and CRPS from 20-member ensembles in which one injection point's gain is set to zero at inference while independent noise is drawn at the remaining sites. Eliminating the Level-2 (meso-$\alpha$) site roughly halves SSR and degrades RMSE and CRPS in every field, while eliminating Level~1 or Level~3 leaves spread and skill within roughly 10\% of the control. Inference-time elimination on a single case, not a retrained ablation.}}
+\label{tab:elimination}
+\end{table}
+
+\DIFaddend % ### Start the old figure showing ensemble mean (move to SI, or remove?)
+% We analyze Winter Storm Izzy at 108-hour lead time, selected because all ensemble members correctly predict cyclogenesis occurrence, enabling unambiguous interpretation of scale-dependent perturbation effects without confounding factors from qualitative forecast failures. For each parameter configuration, we generate 20-member ensembles and compute MSLP ensemble means. Gaussian smoothing ($\sigma=1.5$ grid points) is applied to isolate synoptic-scale patterns from sub-grid variability. Figure~\ref{fig:multiscale_control} presents the systematic single-parameter exploration across 21 configurations spanning seven values per parameter. To isolate individual layer contributions, we systematically vary one parameter across the range $[-3.0, 3.0]$ while holding remaining parameters fixed at their nominal training value of 1.0. This extended range enables qualitative exploration of learned scale dependencies, though quantitative calibration assessment (Section 5.7) focuses on the more conservative range $|\beta| \leq 2$ where ensemble metrics can be comprehensively validated.
+
+% Varying $\beta_1$ (left section of Figure~\ref{fig:multiscale_control}) while holding $\beta_2 = \beta_3 = 1.0$ reveals the coarsest layer's control over planetary- to synoptic-scale organization (Table 2, Level 1: 400-800 km effective resolution). Negative $\beta_1$ values fundamentally reorganize large-scale flow patterns: at $\beta_1 = -3.0$, the coastal cyclone shifts northward while the western trough exhibits reduced amplitude. At $\beta_1 = -2.0$, the pressure pattern becomes more meridionally oriented. Positive amplification demonstrates complementary effects: $\beta_1 = 2.0$ and $\beta_1 = 3.0$ produce enhanced trough amplification and subtle southward cyclone displacement. All configurations maintain spatially coherent synoptic structures across the tested range $\beta \in [-3, 3]$, with gradual rather than abrupt transitions between scaling factors. The preservation of spatial organization at extreme magnitudes demonstrates that the learned latent space exhibits smooth geometric properties, where perturbation direction (controlled by sign) and amplitude (controlled by magnitude) map consistently to meteorological variations. 
+
+% The middle section explores $\beta_2$ variation with $\beta_1 = \beta_3 = 1.0$, isolating intermediate-layer contributions at the mesoscale-synoptic transition (Level 2: 200-400 km, Table~\ref{tab:decoder_scales}). Unlike coarse-layer perturbations that reorganize basin-scale features, intermediate-layer scaling primarily modulates baroclinic structure and frontal intensity. At $\beta_2 = 2.0$, isobar spacing tightens along the coastal front without substantial cyclone repositioning, indicating enhanced pressure gradients within the established synoptic framework. Negative $\beta_2$ values weaken frontal definition while preserving overall storm location. This behavior confirms hierarchical separation: intermediate layers control mesoscale structure within synoptic-scale constraints established by coarse layers.
+
+% Right section results demonstrate that $\beta_3$ variation (finest layer, Level 3: 100-200 km) produces minimal impact on smoothed MSLP fields across the full parameter range, with synoptic patterns remaining nearly identical from $\beta_3 = -3.0$ to $\beta_3 = 3.0$. This minimal sensitivity reflects fundamental scale separation: perturbations at this level affect organized convective structure and frontal details (Table~\ref{tab:decoder_scales}) that fall below the spatial scale resolved by $\sigma = 1.5$ smoothing applied to synoptic fields. Unsmoothed fields (not shown) reveal that $\beta_3$ modulates local-scale pressure fluctuations without influencing synoptic organization.
+
+\subsection{Latent Interpolation Between Ensemble Members}
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabular}{lccccccc}
+\toprule
+\textbf{$T$} & $e{=}0.0$ & $0.1$ & $0.2$ & $\dots$ & $0.8$ & $0.9$ & $1.0$ \\
+\midrule
+0 & $\mathbf{Z}_i(0)$ & $0.9\mathbf{Z}_i{+}0.1\mathbf{Z}_j$ & $0.8\mathbf{Z}_i{+}0.2\mathbf{Z}_j$ & $\dots$ & $0.2\mathbf{Z}_i{+}0.8\mathbf{Z}_j$ & $0.1\mathbf{Z}_i{+}0.9\mathbf{Z}_j$ & $\mathbf{Z}_j(0)$ \\
+6h & $\mathbf{Z}_{e=0.0}(6\text{h})$ & $\mathbf{Z}_{e=0.1}(6\text{h})$ & $\mathbf{Z}_{e=0.2}(6\text{h})$ & $\dots$ & $\mathbf{Z}_{e=0.8}(6\text{h})$ & $\mathbf{Z}_{e=0.9}(6\text{h})$ & $\mathbf{Z}_{e=1.0}(6\text{h})$ \\
+12h & $\mathbf{Z}_{e=0.0}(12\text{h})$ & $\mathbf{Z}_{e=0.1}(12\text{h})$ & $\mathbf{Z}_{e=0.2}(12\text{h})$ & $\dots$ & $\mathbf{Z}_{e=0.8}(12\text{h})$ & $\mathbf{Z}_{e=0.9}(12\text{h})$ & $\mathbf{Z}_{e=1.0}(12\text{h})$ \\
+$\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ & $\ddots$ & $\vdots$ & $\vdots$ & $\vdots$ \\
+$T_f$ & $\mathbf{Z}_{e=0.0}(T_f)$ & $\mathbf{Z}_{e=0.1}(T_f)$ & $\mathbf{Z}_{e=0.2}(T_f)$ & $\dots$ & $\mathbf{Z}_{e=0.8}(T_f)$ & $\mathbf{Z}_{e=0.9}(T_f)$ & $\mathbf{Z}_{e=1.0}(T_f)$ \\
+\bottomrule
+\end{tabular}
+\caption{Latent interpolation between initial states $\mathbf{Z}_i(0)$ and $\mathbf{Z}_j(0)$ with autoregressive evolution to future forecast times $T$. Each column shows an interpolated latent trajectory.}
+\label{tab:latent_interp}
+\end{table}
+
+The deterministic latent space enables controlled exploration between ensemble members. Given two stored latent tensors $\mathbf{Z}_1$ and $\mathbf{Z}_2$ from different members, we generate intermediate forecasts:
+\begin{equation}
+\label{eq:latent_interp}
+\mathbf{Z}_e = (1-e)\mathbf{Z}_1 + e\mathbf{Z}_2, \quad e \in [0, 1]
+\end{equation}
+Table~\ref{tab:latent_interp} shows that interpolation applies independently at each forecast step. For every parameter $e \in [0,1]$, the latent state $\mathbf{Z}_e(T)$ is a weighted combination of $\mathbf{Z}_i(T)$ and $\mathbf{Z}_j(T)$. \DIFaddbegin \DIFadd{One quantifiable caveat should be noted. Because the two stored representations are independent and zero-mean, the linear interpolant has variance scaled by $e^2 + (1-e)^2$, which equals one only at the endpoints and falls to $0.5$ at $e = 0.5$: interpolated members are drawn from a slightly under-dispersed distribution, with standard deviation $\sqrt{0.5} \approx 0.71$ of an independent draw at the midpoint. Spherical interpolation would remove this variance deficit exactly, at the cost of no longer being a linear operation on the archive. There is also no architectural guarantee that a decoded interpolant is a valid draw from the forecast distribution; the dynamical consistency shown below is an empirical finding.
+}\DIFaddend 
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{latent_interpolation.png}
+\caption{Ten forecasts along the interpolation path between two ensemble members ($e = 0$ and $e = 1$) demonstrate smooth transitions in storm structure.}
+\label{fig:latent_interp}
+\end{figure}
+
+Figure~\ref{fig:latent_interp} shows ten interpolated forecasts for Winter Storm Izzy at 6.5-day lead time. At $e{=}0.00$, the forecast shows a broad trough over the central United States with a weak coastal disturbance. At $e{=}1.00$, the forecast shows a mature extratropical cyclone positioned offshore. The intermediate forecasts transition smoothly. The western trough weakens and shifts east. The coastal system intensifies and migrates northeast. Pressure gradients tighten as the offshore low deepens. Storm structure, trough orientation, and circulation patterns adjust systematically. \DIFdelbegin \DIFdel{Linear }\DIFdelend \DIFaddbegin \DIFadd{Empirically, linear }\DIFaddend paths through SDL's \DIFdelbegin \DIFdel{latent space }\DIFdelend \DIFaddbegin \DIFadd{stored representation }\DIFaddend produce dynamically consistent meteorological transformations \DIFaddbegin \DIFadd{for this case; consistent with the variance argument above, midpoint forecasts appear as intermediate rather than novel states}\DIFaddend .
+
+\subsection{Uniform Ensemble Spread Calibration}
+
+
+
+Multi-scale perturbation experiments (Section~\ref{sec:multi_scale_control}) demonstrate that individual SDL injection points exert independent control over uncertainty at different spatial scales, enabling targeted adjustments of synoptic versus mesoscale spread. While this hierarchical control provides scientific insight into learned uncertainty structures, operational recalibration workflows benefit from simpler parameterizations. Uniform scaling, where $\beta_1 = \beta_2 = \beta_3 = \beta$, reduces the adjustment space to a single interpretable parameter representing overall ensemble dispersion. Given \DIFdelbegin \DIFdel{stored latent tensor }\DIFdelend \DIFaddbegin \DIFadd{the stored representation }\DIFaddend $\mathbf{Z}$ \DIFaddbegin \DIFadd{of a member (Section~\ref{sec:reproducibility})}\DIFaddend , applying $\mathbf{Z}_{\beta} = \beta \mathbf{Z}$ uniformly across all SDL injection points enables post-inference spread adjustment \DIFdelbegin \DIFdel{without forecast regeneration}\DIFdelend \DIFaddbegin \DIFadd{by re-running only the decoder, without re-drawing noise, re-running the encoder, or archiving the full ensemble fields}\DIFaddend .
+
+Figure~\ref{fig:spread_control} quantifies the relationship between uniform latent scaling and ensemble spread for Winter Storm Izzy at 108-hour lead time. Five atmospheric variables demonstrate systematic spread modulation across $\beta \in [-3, 3]$, with uncertainty maxima concentrating in baroclinic zones, jet streams, and cyclone centers. The symmetric behavior with respect to $\beta = 0$ is clear. At the training distribution reference ($\beta = 1$), spread patterns align with dynamically expected structures and medium-range forecast error climatology\DIFaddbegin \DIFadd{: the perturbations selected by the afCRPS objective concentrate where the flow is genuinely uncertain, producing spread that tracks features visible in the ensemble mean. As $|\beta|$ grows, the amplitude within each scale band is scaled uniformly, so this flow-dependent structure is progressively dominated by the flow-independent spatial covariance of the injection basis itself, producing the broader, smoother spread patterns at $|\beta| = 3$}\DIFaddend . Both positive and negative amplification \DIFdelbegin \DIFdel{($|\beta| = 3$) extend spread uniformly }\DIFdelend \DIFaddbegin \DIFadd{extend spread }\DIFaddend while maintaining spatial organization\DIFdelbegin \DIFdel{and physical realism}\DIFdelend \DIFaddbegin \DIFadd{, but at the cost of moving away from the calibrated optimum (Figure~\ref{fig:latent_scaling_metrics})}\DIFaddend .
+
+\begin{figure}[b!]
+\centering
+\includegraphics[width=\textwidth]{ensemble_spread_control.png}
+\caption{Ensemble standard deviation across five atmospheric variables for Winter Storm Izzy at 108-hour lead time as a function of latent scaling factor $\beta$. Rows show T500, V500, Q700, Z500, and MSLP. Black contours depict ensemble mean fields. Each panel represents 20-member ensemble spread with uniform scaling $\beta_1 = \beta_2 = \beta_3 = \beta$ applied across all decoder injection points.}
+\label{fig:spread_control}
+\end{figure}
+
+Ensemble mean fields (black contours) vary systematically with $\beta$ scaling while preserving overall synoptic structure and demonstrating symmetric behavior with respect to $\beta$ = 0. \DIFdelbegin \DIFdel{Contour patterns }\DIFdelend \DIFaddbegin \DIFadd{Ensemble statistics }\DIFaddend at $\beta$ = -3 and $\beta$ = +3 exhibit similarity, as do configurations at $\beta$ = -1 and $\beta$ = +1, confirming that uniform latent scaling modulates both spread and ensemble central tendency in a \DIFdelbegin \DIFdel{geometrically symmetric manner}\DIFdelend \DIFaddbegin \DIFadd{statistically symmetric manner; individual member fields are not point-wise negations under $\beta \to -\beta$ because the decoder is nonlinear, but the distribution over members is invariant because the noise prior is zero-mean and symmetric}\DIFaddend . The preservation of dynamically consistent spatial patterns across the full range $|\beta| \leq 3$, where spread amplitudes deviate substantially from training distribution values, suggests that SDL's learned perturbation structure captures fundamental uncertainty relationships rather than merely fitting statistical properties of the training distribution. Quantitative verification of this symmetric scaling behavior is presented in Figure~\ref{fig:latent_scaling_metrics}.
+
+
+
+\begin{figure}[b!]
+\centering
+\includegraphics[width=\textwidth]{latent_scaling_metrics.png}
+\caption{Verification metrics versus uniform latent scaling factor $\beta \in [-3, 3]$ for the globe at 108-hour lead time. Rows show RMSE, CRPS, ensemble standard deviation (STD), and spread-skill ratio (SSR) across four atmospheric variable categories. Vertical dashed line at $\beta$ = 1.0 marks nominal training distribution. Note symmetric structure: both $\beta$ = $-1$ and $\beta$ = $+1$ produce well-calibrated ensembles with SSR $\approx 1.0$.}
+\label{fig:latent_scaling_metrics}
+\end{figure}
+
+Figure~\ref{fig:latent_scaling_metrics} reveals symmetric behavior with respect to $\beta = 0$, demonstrating a fundamental property of SDL's learned latent space. Ensemble standard deviation (third row) scales monotonically with $|\beta|$, approaching zero at $\beta = 0$ (deterministic forecast) and increasing approximately linearly for $|\beta| < 1.5$ across all variable categories. Critically, $\beta = -1$ produces ensemble spread nearly identical to $\beta = +1$, indicating that negative scaling inverts perturbation direction while maintaining equivalent uncertainty magnitudes. This symmetry demonstrates that the learned latent space supports bidirectional exploration of forecast uncertainty around the deterministic baseline. 
+
+Spread-skill ratio (bottom row) achieves values near unity at both $\beta \approx -1$ and $\beta \approx +1$, revealing that the symmetric latent structure produces equivalently calibrated ensembles despite training exclusively with positive latent samples ($\beta = 1$). \DIFdelbegin \DIFdel{Well-calibrated ensembles (SSR }\DIFdelend \DIFaddbegin \DIFadd{SSR remains }\DIFaddend within [0.8, 1.2] \DIFdelbegin \DIFdel{) persist }\DIFdelend across $|\beta| \in [0.75, 3.0]$ for all variable categories\DIFdelbegin \DIFdel{. Within }\DIFdelend \DIFaddbegin \DIFadd{; within }\DIFaddend the range explored, SSR degrades only as $\beta$ approaches zero, where ensemble spread collapses toward the deterministic limit while forecast error remains non-zero. \DIFaddbegin \DIFadd{We emphasize that a near-unity SSR at large $|\beta|$ does not indicate preserved forecast quality: because both ensemble spread and ensemble-mean RMSE grow with $|\beta|$, the ratio stays near one while CRPS degrades as $|\beta|$ departs from unity (top two rows). $\beta$ is therefore a spread-skill trade-off control, useful where deliberate over-dispersion is wanted (e.g., tail-risk applications), and not a free recalibration knob.
+}\DIFaddend 
+
+Ensemble mean RMSE (top row) exhibits U-shaped profiles symmetric around $\beta = 0$ with minima near $|\beta| \approx 1$ for all variable categories, confirming that forecast quality depends on perturbation magnitude rather than direction. For $|\beta| < 1.25$, RMSE remains within 10\% of minimum values across all variables. CRPS (second row) reveals optimal probabilistic performance near $|\beta| \approx 1$ with symmetric degradation as $|\beta|$ increases beyond 1.5 or decreases below 0.5. The smooth, predictable relationships between $|\beta|$ and ensemble spread enable operational post-hoc \DIFdelbegin \DIFdel{recalibration where archived latent tensors support retrospective spread adjustment without forecast regeneration}\DIFdelend \DIFaddbegin \DIFadd{spread adjustment: archived representations support retrospective rescaling at the cost of a decoder re-run (Section~\ref{sec:reproducibility})}\DIFaddend , a capability \DIFdelbegin \DIFdel{currently unavailable in existing }\DIFdelend \DIFaddbegin \DIFadd{unavailable in }\DIFaddend ML ensemble methods where stochastic perturbations are discarded after inference. Operational applications can select $|\beta| \approx 1.0$ for nominal uncertainty quantification, $|\beta| < 1.0$ for conservative spread estimates, or $|\beta| > 1.0$ for expanded phase space sampling, \DIFdelbegin \DIFdel{with equivalent calibration for both positive and negative perturbations}\DIFdelend \DIFaddbegin \DIFadd{noting that departures from $|\beta| = 1$ trade skill for spread as described above. The single-case trade-off shown here also holds at scale: aggregating over 101 initialization dates from the 2022 test year and 29 lead times (0-168\,h) for six variables (Z500, T850, T2m, Q700, Q500, MSLP) over uniform $\beta \in [0.25, 1.75]$, mean RMSE and CRPS are U-shaped in $\beta$ with minima at or within one grid step of $\beta = 1$ for every variable, while SSR increases monotonically and crosses unity between roughly $\beta = 1.2$ and $1.4$ depending on variable}\DIFaddend .
+
+\section{Discussion}
+
+\subsection{Learned Uncertainty Structure}
+
+SDL learns perturbation structure implicitly from ERA5 reanalysis through CRPS optimization, with no explicit physics encoded in the noise injection mechanism. ERA5 is generated by the IFS data assimilation system and inherits its uncertainty structure, including both physical variability and systematic model errors. SDL therefore learns to emulate IFS ensemble spread characteristics, spatial correlations, and trajectory divergence patterns present in the training data.
+
+Several lines of evidence suggest SDL learns structured representations rather than merely memorizing statistical distributions. Linear latent interpolation produces physically realistic intermediate states: pressure systems intensify or weaken gradually, trough axes rotate smoothly, and frontal boundaries shift systematically. This suggests the latent space possesses geometric structure where directions in $Z$-space correspond to meaningful meteorological variations. The systematic relationship between latent scaling factor $\beta$ and ensemble spread provides further evidence of learned structure. During training, latent tensors are sampled from $Z \sim \mathcal{N}(0, I)$ with the CRPS loss enforcing ensemble spread calibration against ERA5 variability. When $\beta \neq 1$ is applied at inference, forecasts remain physically reasonable with predictable spread scaling despite extrapolating beyond the training distribution.
+
+The learned latent space exhibits symmetric behavior with respect to $\beta = 0$, where opposite-sign perturbations produce equivalent ensemble dispersion. This is a property that emerged naturally from CRPS optimization without explicit architectural constraints. Well-calibrated ensembles (SSR within [0.8, 1.2]) persist across $|\beta| \in [0.75, 3.0]$ for all variable categories, representing threefold variations in ensemble dispersion relative to the training distribution. Calibration degrades only as $\beta$ approaches zero, where ensemble spread collapses toward the deterministic limit while forecast error remains non-zero. This symmetry enables operational flexibility: forecasters can explore alternative ensemble configurations through sign inversion, effectively doubling the available calibration states without additional computation.
+
+SDL's uncertainty quantification was calibrated against ERA5 variability from 1979–2018, and these learned uncertainty bounds may not generalize to other time periods or future climate states. For unprecedented weather regimes or atmospheric conditions substantially outside the training distribution, SDL's ensemble may underrepresent tail risks. Evaluating ensemble spread appropriateness under such out-of-distribution conditions remains an open question requiring targeted validation. This contrasts with physics-based stochastic parameterization schemes that can potentially extrapolate to novel regimes through explicit representation of physical processes.
+
+\DIFaddbegin \DIFadd{A related structural limitation concerns multimodality. SDL members are generated as perturbations about a single deterministic trajectory: the mechanism can represent flow-dependent, scale-structured spread that is non-Gaussian in the output fields, but it contains no mechanism for discrete scenario separation, such as two distinct cyclone tracks or cyclogenesis versus its absence, because there is no learned distribution over alternative atmospheric states from which to draw. Fully generative approaches such as diffusion models learn a joint distribution over forecast fields and can represent such bimodal outcomes directly \mbox{%DIFAUXCMD
+\cite{price2025gencast}}\hskip0pt%DIFAUXCMD
+. This limitation is an aspect of the same constraint as the tail-risk issue above: both stem from the perturbation structure being anchored to a single deterministic solution.
+}
+
+\DIFaddend Additionally, the 16-level vertical discretization optimized for lower-tropospheric resolution limits representation of stratospheric processes relevant to medium-range prediction. Sudden stratospheric warmings, stratosphere-troposphere coupling during blocking events, and quasi-biennial oscillation teleconnections may be inadequately captured in upper levels where vertical resolution is coarsest. Applications requiring explicit stratospheric dynamics would benefit from expanded vertical discretization or hybrid approaches combining fine tropospheric resolution with targeted stratospheric sampling.
+
+%%%%%%%%%%%%%% OG VERSION. The above is new rewrite aiming to reduce repetition (12/17/25).
+%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%
+% \subsection{Learned Uncertainty Structure}
+
+% SDL learns perturbation structure implicitly from ERA5 reanalysis through CRPS optimization, with no explicit physics encoded in the noise injection mechanism. ERA5 is generated by the IFS data assimilation system and inherits its uncertainty structure, including both physical variability and systematic model errors. SDL therefore learns to emulate IFS ensemble spread, correlations, and trajectory divergence present in the training data.
+
+% Several observations suggest SDL learns structured representations rather than merely memorizing statistics. Linear latent interpolation produces physically realistic intermediate states: pressure systems intensify or weaken gradually, trough axes rotate smoothly, and frontal boundaries shift systematically. This suggests the latent space has geometric structure where directions in $Z$-space correspond to meaningful meteorological variations. The systematic relationship between latent scaling factor $\beta$ and ensemble spread provides further evidence. During training, latent tensors are sampled from $Z \sim \mathcal{N}(0, I)$ and the CRPS loss forces ensemble spread to match ERA5's variability. When we apply $\beta \neq 1$ at inference, forecasts remain physically reasonable with predictable spread scaling despite extrapolating beyond the training distribution.
+
+% A remarkable property emerges from uniform latent scaling experiments: the learned latent space exhibits symmetric behavior with respect to $\beta = 0$. Configurations with $\beta = -1$ and $\beta = +1$ produce equivalently calibrated ensembles, despite training exclusively with positive latent samples. Reliable calibration (SSR within [0.8, 1.2]) persists across $|\beta| \in [0.75, 3.0]$ for all variable categories, representing threefold variations in ensemble dispersion relative to the training distribution. This symmetry indicates that SDL learns a bidirectional perturbation structure where negative scaling inverts perturbation direction while maintaining appropriate uncertainty magnitudes. Calibration degrades only as $\beta$ approaches zero, where ensemble spread collapses toward the deterministic limit. The symmetry emerges naturally from CRPS optimization without explicit architectural constraints, suggesting that the loss function induces a latent space geometry where opposite-sign perturbations of equal magnitude produce statistically equivalent ensemble spreads. This property enables operational flexibility: forecasters can explore alternative ensemble configurations through sign inversion, effectively doubling the available calibration states without additional computation.
+
+% The latent tensor $Z$ parameterizes a learned perturbation schedule applied at each SDL injection point throughout the forecast rollout. Unlike initial condition perturbation ensembles where storing $x_0$ suffices to reproduce a trajectory, SDL requires storing $Z$ to specify the complete sequence of stochastic perturbations. The deterministic mapping from $Z$ to forecast output enables perfect reproducibility because the same latent tensor always produces the same ensemble member. This addresses operational requirements for forecast verification and audit trails while requiring substantially less storage than archiving complete atmospheric fields.
+
+% A critical limitation of this data-driven approach is that SDL's learned uncertainty structure is bounded by the training distribution. The model cannot generate ensemble spreads or atmospheric scenarios fundamentally outside the range of variability present in ERA5 (1979–2022). This contrasts with physics-based stochastic parameterization schemes that can potentially extrapolate to novel regimes through explicit representation of physical processes.
+
+\subsection{Relationship to Physical Parameterization}
+
+Stochastic parameterization in numerical weather prediction represents model uncertainty arising from unresolved scales and uncertain physics \cite{berner2017stochastic, palmer2009stochastic, palmer2019stochastic}. Machine learning approaches for stochastic parameterization include generative adversarial networks applied to simplified atmospheric models \cite{gagne2020machine} and comprehensive reviews of data-driven stochastic methods \cite{christensen2024machine}. These methods are designed based on theoretical understanding of atmospheric processes and can be interpreted through physical mechanisms. 
+
+Despite this fundamental difference, SDL ensembles exhibit similar statistical properties to physics-based systems: calibrated spread-skill relationships, close-to uniform rank histograms, and realistic trajectory divergence. This suggests that the functional form of uncertainty, including how perturbations are structured across scales, variables, and forecast lead times, can be learned from data through appropriate training objectives. SDL never explicitly encodes knowledge about baroclinic instability or moist convection, yet it produces ensembles whose statistical behavior resembles systems that explicitly parameterize these processes through CRPS optimization on IFS-derived reanalysis data.
+
+The learned nature of SDL has both advantages and limitations compared to theory-driven approaches. SDL can capture systematic model errors and complex uncertainty patterns that emerge from the full modeling system without requiring explicit specification. However, it lacks interpretability in terms of physical processes and cannot generalize beyond training distribution bounds. \DIFaddbegin \DIFadd{We distinguish this from the scale interpretability claimed elsewhere in this paper: the uncertainty representation is interpretable in terms of spatial scale, since each latent has a known band of influence, but the perturbations are not interpretable as specific physical error sources such as convective or boundary-layer parameterization error. }\DIFaddend These approaches are complementary rather than competing. The learned perturbations could augment physics-based stochastic schemes by capturing emergent uncertainty patterns while retaining interpretable physical perturbations for fundamental atmospheric processes.
+
+While SDL shares computational efficiency with other CRPS-trained ensemble methods, its hierarchical latent parameterization distinguishes it through explicit control mechanisms. The learned latent space enables targeted scale-dependent perturbation and post-inference spread adjustment—capabilities that provide operational flexibility beyond what is achievable with fixed stochastic injection schemes. \DIFaddbegin \DIFadd{An alternative route to spectral control is through the loss function: \mbox{%DIFAUXCMD
+\citeA{lang2025multiscale} }\hskip0pt%DIFAUXCMD
+constrain the spectra of probabilistic forecasts with a multi-scale proper-score formulation. The two approaches are complementary rather than competing. A spectrally-aware loss constrains the marginal spectrum of the forecast but leaves the generative mechanism free, so the spectral content of any individual perturbation is emergent and not separately addressable at inference; SDL constrains the perturbation basis itself, so each latent has an a priori known band of influence, which is what makes $\beta$ a per-scale control. A common quantitative point of comparison between the two is the kinetic energy spectrum of the perturbations (Figure~\ref{fig:ke_spectra}).
+}\DIFaddend 
+
+% SDL requires N forward passes for N ensemble members without iterative refinement, matching the linear scaling characteristics of other CRPS-trained methods \cite{lang2024aifs, alet2024fgn, bonev2025fourcastnet3, fuxi_ens}. This contrasts with diffusion-based approaches that impose 20--50 denoising iterations per forecast timestep \cite{price2025gencast}. Compared to other CRPS-trained alternatives (AIFS-CRPS, FGN, FourCastNet 3), SDL's hierarchical architecture enables targeted manipulation of uncertainty at distinct spatial scales. This permits post-inference exploration of forecast scenarios through systematic latent perturbation, a capability not demonstrated in fixed-noise injection schemes, where linear interpolation of global noise vectors often fails to yield dynamically plausible intermediate states. Combined with training efficiency and reliable probabilistic skill for lower-tropospheric dynamical variables (spread-skill ratios approaching unity for U, V, T with nearly flat rank distributions), SDL provides a practical framework for operational ensemble systems with enhanced interpretability and control.
+
+\subsection{Hierarchical Uncertainty Decomposition}
+
+The multi-scale injection strategy produces scale-dependent uncertainty control that remains coherent even when individual layer perturbations are amplified beyond training distribution magnitudes. This robustness suggests the learned decomposition captures fundamental atmospheric uncertainty structure rather than distribution-specific artifacts. Critically, this hierarchical organization emerges from CRPS optimization without explicit architectural constraints enforcing scale separation, analogous to learned hierarchical representations in generative modeling \cite{karras2019style, karras2020analyzing} where stochastic injection combined with appropriate loss functions induces natural scale-dependent representations.
+
+\DIFaddbegin \DIFadd{We expect the approach to transfer beyond U-Net-like backbones, with one qualification. The essential requirement is not the skip-connection structure as such but a hierarchy of internal representations at distinct spatial resolutions: it is the resolution of the injection site, not the latent, that sets the spatial band a perturbation occupies (Table~\ref{tab:decoder_scales}). Any encoder-decoder backbone with multi-resolution feature maps (U-Net, U-ViT, hierarchical or Swin-style transformers) therefore supports SDL directly. For a flat, single-resolution transformer the scale separation would need to be supplied by the injection itself, for example by projecting the latent through a band-limited basis before it enters the residual stream. For graph-based backbones such as GraphCast or AIFS \mbox{%DIFAUXCMD
+\cite{Lam2023graphcast, lang2024aifs}}\hskip0pt%DIFAUXCMD
+, the natural analogue is injection at each level of the multi-mesh, with mesh refinement level playing the role of decoder resolution. We have tested only the encoder-decoder case; the latter two are reasoned expectations.
+}
+
+
+\DIFaddend \section{Conclusions}
+
+We introduce Stochastic Decomposition Layers, a computationally efficient method for converting deterministic machine learning weather models into calibrated probabilistic ensemble forecasting systems. SDL employs hierarchical noise decomposition to inject learned stochastic perturbations at multiple scales through latent-driven modulation, per-pixel noise, and learned channel modulation. When applied to WXFormer via transfer learning, SDL achieves three primary contributions.
+
+First, training efficiency through transfer learning: fine-tuning from pre-trained deterministic weights requires approximately 1.61\% of the computational cost needed to train the baseline model from scratch\DIFaddbegin \DIFadd{, the relevant marginal figure for a center that already operates a deterministic model; a like-for-like comparison against from-scratch generative training must use the pretraining-plus-fine-tuning total (Appendix~A)}\DIFaddend . Although all model weights undergo joint optimization during fine-tuning, the pre-trained initialization dramatically accelerates convergence compared to random initialization. Inference exhibits linear scaling with ensemble size, matching CRPS-trained alternatives\DIFdelbegin \DIFdel{while avoiding the iterative refinement overhead of diffusion methods}\DIFdelend \DIFaddbegin \DIFadd{, with each member generated in a single forward pass and no separate generative model or distillation stage required}\DIFaddend .
+
+Second, probabilistic forecast quality: evaluation on 2022 ERA5 reanalysis demonstrates reliable ensemble calibration through medium-range forecasts, with ensemble spread properly representing forecast uncertainty across dynamical and thermodynamic variables. The model maintains superior skill in the lower troposphere where vertical resolution is finest, with greater challenges in the upper atmosphere where the 16-level discretization provides coarser vertical sampling.
+
+Third, controllable uncertainty quantification: the explicit latent parameterization enables \DIFdelbegin \DIFdel{perfect reproducibility through compact latent storage}\DIFdelend \DIFaddbegin \DIFadd{exact regeneration from kilobyte-scale stored representations}\DIFaddend , post-inference spread adjustment \DIFdelbegin \DIFdel{via latent rescaling}\DIFdelend \DIFaddbegin \DIFadd{at the cost of re-running only the decoder}\DIFaddend , and systematic scenario exploration through latent interpolation. The learned latent space exhibits symmetric properties where opposite-sign perturbation scaling produces equivalent ensemble dispersion.
+
+SDL's learned uncertainty structure is bounded by the ERA5 training distribution (1979-2022), and may underrepresent tail risks for unprecedented weather regimes or climate states substantially different from the training period. Future work should explore state-dependent noise injection, training on multiple reanalysis products to capture inter-model spread, and hybrid approaches combining learned perturbations with physics-based stochastic parameterization.
+
+SDL \DIFdelbegin \DIFdel{demonstrates }\DIFdelend \DIFaddbegin \DIFadd{shows }\DIFaddend that hierarchical stochastic decomposition provides effective controllable generation for atmospheric prediction, offering a parameter-efficient \DIFdelbegin \DIFdel{alternative to diffusion-based methods }\DIFdelend \DIFaddbegin \DIFadd{route to ensemble capability for existing deterministic models }\DIFaddend while enabling post-inference control over ensemble spread and \DIFaddbegin \DIFadd{exact }\DIFaddend reproducibility through compact latent storage.
+
+\appendix
+
+\section{Baseline Model Training Methodology}
+\label{sec:train_details}
+
+\subsection{Deterministic Baseline Training Schedule}
+
+The deterministic WXFormer baseline model underwent progressive multi-step training following established curriculum learning protocols for autoregressive weather prediction. Training employed ERA5 reanalysis data spanning 1979-2017 with the temporal split and preprocessing procedures described in Section 3.
+
+The training curriculum comprised five sequential phases with progressively increasing rollout lengths to enable stable learning of long-horizon weather dynamics. Phase 1 employed single-step mean squared error (MSE) loss for 70 epochs using 1,781 batch updates per epoch with batch size 32. Subsequent phases utilized multi-step MSE loss with gradient computation at each autoregressive timestep to ensure proper temporal credit assignment throughout the rollout sequence.
+
+Phase 2 implemented two-step autoregressive training for 20 epochs using 1,780 batch updates per epoch with batch size 32. Phase 3 extended to four-step rollouts for 20 epochs using 1,000 batch updates per epoch with batch size 32. Phase 4 employed eight-step rollouts for 20 epochs using 500 batch updates per epoch with batch size 32. Phase 5 concluded with sixteen-step rollouts for 20 epochs using 100 batch updates per epoch with batch size 32.
+
+The systematic reduction in batch updates per epoch across phases accommodated memory constraints imposed by longer autoregressive sequences while maintaining consistent training sample coverage. Gradient backpropagation occurred at each timestep throughout all multi-step phases, ensuring comprehensive temporal gradient flow and stable convergence properties across extended forecast horizons.
+
+\subsection{Ensemble Fine-Tuning Configuration}
+
+SDL ensemble fine-tuning initialized from the fully trained deterministic baseline and optimized the introduced SDL parameters through joint fine-tuning of all model weights. Training employed single-step almost fair Continuous Ranked Probability Score (afCRPS) loss (Equation 2) for 20 epochs using 1,000 batch updates per epoch. Ensemble generation during training utilized batch dimension replication with effective batch size 10, corresponding to 10 ensemble members per input sample. This approach leveraged the pre-trained deterministic forecast skill as a strong initialization while requiring substantially reduced computational resources compared to training ensemble systems from random initialization.
+
+\subsection{Computational Cost Assessment}
+
+Computational cost comparison utilized forward and backward pass enumeration across all training phases. The complete deterministic baseline curriculum required 12,410,560 total forward passes distributed across: single-step training (3,988,160 passes), two-step training (2,278,400 passes), four-step training (2,560,000 passes), eight-step training (2,560,000 passes), and sixteen-step training (1,024,000 passes). Each forward pass required a corresponding backward pass for gradient computation, yielding equivalent totals for both operations.
+
+SDL ensemble fine-tuning required 200,000 forward passes and an equivalent number of backward passes over the 20-epoch training period. Applying standard computational cost ratios for transformer architectures, where backward passes require approximately twice the computational expense of forward passes, the relative training cost of SDL fine-tuning compared to baseline training equals 1.61\% of total baseline computational requirements. This efficiency gain demonstrates the practical advantage of transfer learning approaches for ensemble weather prediction systems.
+
+\section{Forecast Verification Methodology}
+\label{sec:skill_details}
+
+\subsection{Model Training and Native Resolutions}
+
+SDL-WXFormer was trained on ERA5 reanalysis regridded to 192×288 horizontal resolution (approximately 0.94° latitude × 1.25° longitude) using 16 selected model levels from ERA5's native 137-level hybrid sigma-pressure vertical coordinate system. The model produces forecasts on these model levels, which are then interpolated to standard pressure levels (500, 700, 850 hPa) during evaluation using the pressure-level interpolation procedure described in \cite{schreck2025}. ERA5 verification data undergo identical model-to-pressure level interpolation to ensure consistent comparison.
+
+The ECMWF IFS ensemble system (IFS-ENS) is accessed through WeatherBench 2 archives, which provides IFS-ENS forecasts regridded to a 240×121 equiangular grid. We use this WeatherBench 2 distribution format rather than the native IFS-ENS resolution (O640 octahedral reduced Gaussian grid, ~9 km) due to data storage constraints. The ECMWF high-resolution deterministic system (HRES) archived data are provided at 1440×721 resolution (0.25° regular latitude-longitude). Both operational systems provide output on pressure levels directly.
+
+\subsection{Verification Grid Configuration}
+
+All forecast verification in this study uses a common 192×288 grid. For ensemble forecast evaluation (Figures 2–3), IFS-ENS forecasts were bilinearly interpolated from the WeatherBench 2 distribution grid (240×121 equiangular) to the 192×288 regular latitude-longitude verification grid. ERA5 verification fields were similarly interpolated to 192×288 from their native resolution. SDL-WXFormer forecasts are produced natively at 192×288 resolution and require no horizontal interpolation.
+
+For deterministic forecast comparison (Figure~\ref{fig:pressure_levels}, first row), HRES forecasts were interpolated from 1440×721 to the 192×288 verification grid. This substantial spatial coarsening from 0.25° to approximately 1° resolution applies implicit smoothing that may reduce small-scale error magnitudes. ERA5 verification data were regridded to the same 192×288 grid.
+
+Following horizontal interpolation to the common grid, SDL-WXFormer predictions and ERA5 verification both undergo vertical interpolation from model levels to pressure levels. IFS-ENS and HRES forecasts are already provided on pressure levels and require no vertical interpolation.
+
+\subsection{Metric Computation and Implications}
+
+Forecast skill metrics (RMSE, MAE, ACC) are computed on the 192×288 verification grid using cosine-latitude weights normalized such that $\sum_{j} w_j = N_{\text{lat}}$ to account for meridional convergence. Ensemble metrics (CRPS, spread-skill ratio, rank histograms) use the almost-fair CRPS formulation (Equation 2) with $\alpha = 0.95$. The 2022 test period comprises 365 forecast initializations at 00Z\DIFaddbegin \DIFadd{, evaluated with 100 SDL-WXFormer members and 50 IFS-ENS members}\DIFaddend .
+
+The common verification grid enables direct metric comparison but introduces resolution-dependent effects. Coarsening HRES from 0.25° to 1° applies substantial spatial smoothing that suppresses small-scale features and may artificially reduce deterministic RMSE. However, effective resolution of numerical weather prediction models is typically 4–5 grid spacings due to numerical diffusion and spectral truncation, suggesting HRES effective resolution of approximately 1°–1.25° despite 0.25° nominal spacing. The 192×288 grid therefore captures the predictive information relevant for medium-range evaluation while enabling consistent comparison. Ensemble spread calibration (spread-skill ratios near unity, uniform rank histograms) indicates appropriate probabilistic skill at the scales resolved by this verification grid.
+
+
+
+% \begin{figure}[htbp]
+% \centering
+% \includegraphics[width=\textwidth]{latent_scaling_beta1_beta2.png}
+% \caption{A $4 \times 4$ experimental design with systematic variation of $\beta_1$ (horizontal axis) and $\beta_2$ (vertical axis) parameters while maintaining fixed $\beta_3 = 1.0$. Parameter values span $\{0.5, 1.0, 1.5, 2.0\}$ for both factors. Left-to-right progression represents systematic $\beta_1$ amplification from 0.5 through 2.0. Top-to-bottom progression represents systematic $\beta_2$ amplification across equivalent range. Center configuration $[\beta_1, \beta_2, \beta_3] = [1.0, 1.0, 1.0]$ serves as baseline reference condition. MSLP ensemble mean (20 members) at 108-hour lead time; MSLP contours at 3~hPa intervals with Gaussian smoothing ($\sigma = 1.5$) applied for visualization clarity.}
+% \label{fig:beta12_grid}
+% \end{figure}
+
+
+% \begin{figure}[htbp]
+% \centering
+% \includegraphics[width=\textwidth]{latent_scaling_beta2_beta3.png}
+% \caption{A $4 \times 4$ experimental design with systematic variation of $\beta_3$ (horizontal axis) and $\beta_2$ (vertical axis) parameters while maintaining fixed $\beta_1 = 0.5$. Parameter values span $\{0.5, 1.0, 1.5, 2.0\}$ for both factors. Left-to-right progression represents systematic $\beta_3$ amplification from 0.5 through 2.0. Top-to-bottom progression represents systematic $\beta_2$ amplification across equivalent range. Configuration $[\beta_1, \beta_2, \beta_3] = [0.5, 1.0, 1.0]$ (row 2, column 2) serves as the reference condition for this parameter subspace. MSLP ensemble mean (20 members) at 108-hour lead time; MSLP contours at 3~hPa intervals with Gaussian smoothing ($\sigma = 1.5$) applied for visualization clarity.}
+% \label{fig:beta23_grid}
+% \end{figure}
+
+
+\section*{Open Research Section}
+The ERA5 reanalysis data for this study can be accessed through the NSF NCAR Research Data Archive \cite{hersbach2020era5}. Operational IFS-HRES deterministic forecasts and IFS-ENS ensemble forecasts are obtained from the WeatherBench 2 archive \cite{rasp2023weatherbench2}, which provides regridded ECMWF operational predictions on standardized verification grids at 240×121 (ensemble) and 1440×721 (deterministic) horizontal resolutions. The neural networks described here and the simulation code used to train and test the models are archived at \url{https://github.com/NCAR/miles-credit}. 
+
+\acknowledgments
+\DIFaddbegin \DIFadd{We thank the two anonymous reviewers, whose careful and constructive reviews materially improved this manuscript. }\DIFaddend This material is based upon work supported by the NSF National Center for Atmospheric Research, which is a major facility sponsored by the U.S. National Science Foundation under Cooperative Agreement No. 1852977. This research has also been supported by NSF Grant No. RISE-2019758. We would like to acknowledge high-performance computing support from Derecho and Casper \cite{Cheyenne} provided by the Computational and Information Systems Laboratory, NCAR, and sponsored by the National Science Foundation. 
+
+\subsection*{Conflict of Interest Statement}
+The authors have no conflicts of interest to disclose.
+
+\bibliography{references}
+
+\end{document}
+
