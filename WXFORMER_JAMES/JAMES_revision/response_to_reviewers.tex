@@ -54,47 +54,49 @@
 Dear Editor and Reviewers,
 
 We thank the reviewers for their thorough evaluation of our manuscript. Their
-constructive feedback has strengthened both the scientific content and presentation
-clarity. We have carefully addressed all concerns through manuscript revision, and we
-are grateful in particular to Reviewer~3, whose scrutiny of our storage accounting
-uncovered a genuine error that we have now corrected. Below we provide point-by-point
-responses to each comment.
+feedback strengthened both the scientific content and the presentation. We
+addressed every concern through revision. We are especially grateful to
+Reviewer~3, whose scrutiny of our storage accounting caught a genuine error,
+which we have now corrected. Below we give point-by-point responses to each
+comment.
 
-Three notes on the scope of the revision. First, Reviewer~3 requests a retrained
-baseline (Comment~1) and retrained ablations (Comment~2). Rather than defend the
-claims that required them with new training runs, we have removed those claims: the
-paper no longer asserts a skill advantage over global noise injection, and the design
-assertions that rested on unreported ``preliminary experiments'' have been deleted or
-replaced with their actual rationale. Where the underlying question can be answered at
-inference time from existing forecasts, we answer it. Second, we have added the
-multivariate calibration diagnostics requested in Comment~4, which require only
-additional scoring of forecasts already produced. Third, in correcting the storage
-accounting (Comment~11) we found the problem ran deeper than the reviewer could have
-seen from the text; the corrected presentation now gives both legitimate archival
-options with their true sizes and leaves the choice to the user.
+Three notes on the scope of the revision. First, Reviewer~3 asks for a
+retrained baseline (Comment~1) and retrained ablations (Comment~2). Rather
+than defend the claims that required them with new training runs, we removed
+those claims: the paper no longer asserts a skill advantage over global noise
+injection, and the design assertions that rested on unreported ``preliminary
+experiments'' have been deleted or replaced with their actual rationale.
+Where the underlying question can be answered at inference time from
+existing forecasts, we answer it. Second, we added the multivariate
+calibration diagnostics requested in Comment~4, which require only
+additional scoring of forecasts already produced, not new training. Third,
+correcting the storage accounting (Comment~11) turned up a problem that ran
+deeper than the reviewer could have seen from the text. The corrected
+presentation now gives both legitimate archival options with their true
+sizes and leaves the choice to the user.
 
 \section*{Response to the Associate Editor}
 
 \textbf{Editor Comment:} ``While both reviewers highlight the strengths of your work,
 they also raise points that need to be addressed. I therefore return the paper to you
-for Major Corrections.'' (Evaluation: Accurate Key Points --- No.)
+for Major Corrections.'' (Evaluation: Accurate Key Points: No.)
 
-\textbf{Response:} We thank the Associate Editor for handling the manuscript. We have
-addressed every point raised by both reviewers, confining the revision to the passages
-they identified. Regarding the Key Points evaluation: Key Point~2 was inaccurate on
-two counts identified by Reviewer~3 --- it claimed spread adjustment ``without
-regenerating members'' when rescaling in fact requires re-running the decoder
-(Comment~5), and it rested on an incorrect storage figure (Comment~11). It now reads:
-``Ensemble members are archived as kilobyte-scale latent representations, enabling
-exact regeneration and post-inference spread adjustment by re-running only the
-decoder.''
+\textbf{Response:} We thank the Associate Editor for handling the manuscript. We
+addressed every point raised by both reviewers, and confined the revision to the
+passages they identified. On the Key Points evaluation: Key Point~2 was inaccurate
+on two counts identified by Reviewer~3. It claimed spread adjustment ``without
+regenerating members,'' but rescaling in fact requires re-running the decoder
+(Comment~5). It also rested on an incorrect storage figure (Comment~11). It now
+reads: ``Ensemble members are archived as kilobyte-scale latent representations,
+enabling exact regeneration and post-inference spread adjustment by re-running only
+the decoder.''
 
 \section*{Response to Reviewer 1}
 
 We appreciate Reviewer 1's positive assessment of the work as ``a valuable result to
 add to the rapidly proliferating field of ML-based weather models,'' and their
 recommendation of minor revisions. Several of their questions identified genuine gaps
-in our exposition, which we have closed as described below.
+in our exposition. We close those gaps below.
 
 \subsection*{Comment 1: Noise Handling During Autoregressive Rollout}
 
@@ -110,16 +112,16 @@ from my reading.''
 it is the most important operational detail of the method. A new, independent latent
 is drawn at every 6-hour step, at each of the three injection points, so an $N$-step
 forecast for one member consumes $3N$ independent draws. Noise is not held fixed along
-the trajectory, and members are not evolved deterministically after the first step.
-The reviewer correctly inferred this from Table~3, whose rows are forecast times ---
-but that table appears in Section~5.6, long after the method is introduced. We have
-added the explicit statement to Section~2.4 (Ensemble Generation): ``Noise is
-re-injected at every autoregressive step. At each 6\,h step $t$ of the rollout, an
-independent latent $\mathbf{Z}_\ell^{(t)} \sim \mathcal{N}(0,\mathbf{I})$ is drawn at
-each of the three injection points $\ell$, so that an $N$-step forecast consumes $3N$
-latent draws per member. A member is identified by the complete ordered set
-$\{\mathbf{Z}_\ell^{(t)}\}$, and it is this set that is archived (Section~5.4).'' A
-forward reference has been added to the Table~3 caption.
+the trajectory. Members are not evolved deterministically after the first step. The
+reviewer correctly inferred this from Table~3, whose rows are forecast times, but that
+table appears in Section~5.6, long after the method is introduced. We added the
+explicit statement to Section~2.4 (Ensemble Generation): ``Noise is re-injected at
+every autoregressive step. At each 6\,h step $t$ of the rollout, an independent latent
+$\mathbf{Z}_\ell^{(t)} \sim \mathcal{N}(0,\mathbf{I})$ is drawn at each of the three
+injection points $\ell$, so that an $N$-step forecast consumes $3N$ latent draws per
+member. A member is identified by the complete ordered set $\{\mathbf{Z}_\ell^{(t)}\}$,
+and it is this set that is archived (Section~5.4).'' We also added a forward reference
+to the Table~3 caption.
 
 \subsection*{Comment 2: Applicability Beyond U-Net-Like Architectures}
 
@@ -132,20 +134,19 @@ transformers? Some sense of how these might be adapted in other contexts would
 significantly improve the applicability of the method as a way to produce coherent
 ensemble perturbations.''
 
-\textbf{Response:} We have added a paragraph to the Discussion (Section~6.3)
-addressing architectural generality. The essential requirement is not the U-Net skip
-structure as such but a hierarchy of internal representations at distinct spatial
-resolutions: it is the resolution of the injection site, not the latent, that sets the
-spatial band a perturbation occupies, which is why Table~2 can map injection points
-onto meteorological scales at all. Any encoder--decoder backbone with multi-resolution
+\textbf{Response:} We added a paragraph to the Discussion (Section~6.3) on
+architectural generality. The essential requirement is not the U-Net skip structure
+itself, but a hierarchy of internal representations at distinct spatial resolutions.
+It is the resolution of the injection site, not the latent, that sets the spatial band
+a perturbation occupies. That is why Table~2 can map injection points onto
+meteorological scales at all. Any encoder--decoder backbone with multi-resolution
 feature maps (U-Net, U-ViT, hierarchical or Swin-style transformers) therefore
 supports SDL directly. For a flat, single-resolution transformer, the scale separation
-would need to be supplied by the injection itself, for example by projecting the
-latent through a band-limited basis before it enters the residual stream. For
-graph-based backbones such as GraphCast or AIFS, the natural analogue is injection at
-each level of the multi-mesh, with mesh refinement level playing the role of decoder
-resolution. The new paragraph presents the latter two cases explicitly as reasoned
-expectations rather than tested results.
+would need to come from the injection itself, for example by projecting the latent
+through a band-limited basis before it enters the residual stream. For graph-based
+backbones such as GraphCast or AIFS, the natural analogue is injection at each level
+of the multi-mesh, with mesh refinement level playing the role of decoder resolution.
+We present these two cases explicitly as reasoned expectations, not tested results.
 
 \subsection*{Comment 3: Comparison with Loss-Based Spectral Constraints}
 
@@ -156,16 +157,16 @@ store ensembles that the loss-based method doesn't provide. Are there any other 
 points of comparison between these two alternative approaches, particularly around how
 one might compare their frequency contributions to the forecast fields?''
 
-\textbf{Response:} We have added this comparison to Section~6.2. The distinction we
-draw: a spectrally-weighted loss constrains the marginal spectrum of the forecast
-error but leaves the generative mechanism free, so the spectral content of any
-individual perturbation is emergent and not separately addressable at inference. SDL
-instead constrains the perturbation basis, so each latent has an a priori known band
-of influence --- which is precisely what makes $\beta$ a per-scale control rather than
-a global one. The two approaches are complementary and could be combined. For a common
-quantitative point of comparison, we suggest the kinetic energy spectrum of the
-perturbation, computable for either method, which we already report for SDL in
-Figure~7. Lang et al.\ (arXiv:2506.10868) has been added to the references.
+\textbf{Response:} We added this comparison to Section~6.2. The distinction is this: a
+spectrally-weighted loss constrains the marginal spectrum of the forecast error but
+leaves the generative mechanism free, so the spectral content of any individual
+perturbation is emergent and not addressable at inference. SDL instead constrains the
+perturbation basis, so each latent has a known band of influence in advance. That is
+precisely what makes $\beta$ a per-scale control rather than a global one. The two
+approaches are complementary and could be combined. For a common quantitative point of
+comparison, we suggest the kinetic energy spectrum of the perturbation, which is
+computable for either method and which we already report for SDL in Figure~7. We added
+Lang et al.\ (arXiv:2506.10868) to the references.
 
 \subsection*{Comment 4: Storage Comparison with Low-Dimensional Noise Injection}
 
@@ -178,23 +179,24 @@ However, Alet et al.\ (arXiv:2506.10772) inject noise into the conditional norm 
 in the graph transformer, which has a much lower dimensionality --- could you comment
 on how these would compare for efficient reproducibility purposes?''
 
-\textbf{Response:} A fair challenge, which connects directly to Reviewer~3's
-Comment~11, where our storage accounting was found to be in error. The corrected
-figures are given in full there. In brief, the storage-minimal archival recipe is
-three 442-dimensional latent vectors per forecast step plus the RNG seed
-($3\times442\times4\,\mathrm{B}=5.3$\,kB per member per step); a self-contained
-alternative (storing the realized per-layer perturbations, no seed required) is
-larger, and the revised text presents both. At the kilobyte scale we agree the size
+\textbf{Response:} A fair challenge, and it connects directly to Reviewer~3's
+Comment~11, where our storage accounting turned out to be wrong. The corrected figures
+are given in full there. In brief, the storage-minimal archival recipe is three
+442-dimensional latent vectors per forecast step plus the RNG seed
+($3\times442\times4\,\mathrm{B}=5.3$\,kB per member per step). A self-contained
+alternative, storing the realized per-layer perturbations with no seed required, is
+larger, and the revised text presents both. At the kilobyte scale, we agree the size
 argument no longer distinguishes SDL from conditional-normalization noise of the kind
-Alet et al.\ use, which is comparably compact. We have therefore narrowed the claim:
-we no longer argue that SDL's representation is smaller, but that it is structured ---
-the latents are indexed by injection scale, which is what supports the per-scale
-$\beta$ rescaling (Section~5.5) and interpolation (Section~5.6). A flat conditioning
-vector is equally cheap to archive but exposes no scale axis to manipulate. We have
-also softened the contrast against seed-based storage in Section~5.4, since exact
-regeneration from latents itself requires the seed governing the per-pixel noise (see
-Reviewer~3, Comment~11); the structural argument survives, but the clean dichotomy did
-not, and Alet et al.\ (2025) is now cited as a comparably compact alternative.
+Alet et al.\ use, which is comparably compact. We have therefore narrowed the claim. We
+no longer argue that SDL's representation is smaller, only that it is structured: the
+latents are indexed by injection scale, and that indexing is what supports the
+per-scale $\beta$ rescaling (Section~5.5) and interpolation (Section~5.6). A flat
+conditioning vector is just as cheap to archive but exposes no scale axis to
+manipulate. We also softened the contrast against seed-based storage in Section~5.4,
+since exact regeneration from latents still requires the seed governing the per-pixel
+noise (see Reviewer~3, Comment~11). The structural argument survives, but the clean
+dichotomy did not. Alet et al.\ (2025) is now cited as a comparably compact
+alternative.
 
 \subsection*{Comment 5: Reference Configuration for Figure 6 Anomalies}
 
@@ -205,17 +207,17 @@ than [0,0,0] which is just the deterministic model), so there is an asymmetry in
 Figure 6 and I can't really tell if +/-3 can really be compared on this scale.''
 
 \textbf{Response:} We agree. This is a presentation problem, and it is also the source
-of the reviewer's later question in Comment~9, so one fix resolves both. We have
+of the reviewer's later question in Comment~9, so one fix resolves both. We
 regenerated Figure~6 with anomalies taken relative to $\beta=[0,0,0]$, the unperturbed
-deterministic forecast, so that positive and negative $\beta$ are directly comparable
-on a common scale. This also makes the figure consistent with Section~5.7 and
-Figure~11, which already use $\beta=0$ as the reference. The caption and the
-corresponding text in Section~5.5 have been updated to state the reference explicitly.
-The regenerated figure confirms that against the deterministic reference the anomaly
-patterns are ordered by $|\beta|$ within each column (larger magnitudes give
-larger-amplitude, more spatially extensive anomalies, with consistent sign structure
-across the $\beta$ ladder), so positive and negative values can now be read on a
-common scale as the reviewer requested.
+deterministic forecast, so positive and negative $\beta$ are directly comparable on a
+common scale. This also makes the figure consistent with Section~5.7 and Figure~11,
+which already use $\beta=0$ as the reference. We updated the caption and the
+corresponding text in Section~5.5 to state the reference explicitly. The regenerated
+figure confirms that, against the deterministic reference, the anomaly patterns are
+ordered by $|\beta|$ within each column: larger magnitudes give larger-amplitude, more
+spatially extensive anomalies, with consistent sign structure across the $\beta$
+ladder. Positive and negative values can now be read on a common scale, as the
+reviewer requested.
 
 \subsection*{Comment 6: Generalization of Figure 6 Beyond Geopotential}
 
@@ -223,17 +225,17 @@ common scale as the reviewer requested.
 relatively smooth in structure compared to some other fields. Do other fields respond
 differently, and are the interpretations in Figure 6 generalizable?''
 
-\textbf{Response:} A reasonable request, satisfiable from existing runs. We have
-added the same per-layer analysis for two fields of different spectral character ---
-700\,hPa specific humidity and mean sea-level pressure --- to the Supporting
-Information, with a summary sentence in the main text. All three fields (Z500, Q700,
-MSLP) show the same qualitative behavior: spatially coherent anomalies whose
-amplitude and extent scale with $|\beta|$ at each injection site, confirming that the
-per-layer interpretation of Figure~6 is not specific to the smoothness of
-geopotential. We note that Figure~10 already shows five variables (T500, V500, Q700,
-Z500, MSLP) responding to uniform $\beta$ scaling, so the multi-variable behavior was
-partly established; what was missing was the per-layer decomposition for fields other
-than Z500, which the new SI figures supply.
+\textbf{Response:} A reasonable request, and one we can satisfy from existing runs. We
+added the same per-layer analysis for two fields of different spectral character,
+700\,hPa specific humidity and mean sea-level pressure, to the Supporting Information,
+with a summary sentence in the main text. All three fields (Z500, Q700, MSLP) show the
+same qualitative behavior: spatially coherent anomalies whose amplitude and extent
+scale with $|\beta|$ at each injection site. This confirms that the per-layer
+interpretation of Figure~6 is not specific to the smoothness of geopotential.
+Figure~10 already shows five variables (T500, V500, Q700, Z500, MSLP) responding to
+uniform $\beta$ scaling, so the multi-variable behavior was partly established. What
+was missing was the per-layer decomposition for fields other than Z500, which the new
+SI figures now supply.
 
 \subsection*{Comment 7: Validity of Linearly Interpolated Latent States}
 
@@ -245,22 +247,22 @@ this should work, either from the architecture or CRPS metric? Or is this just a
 example of how high-dimensional latent spaces work in practice?''
 
 \textbf{Response:} The reviewer is right to press on this, and we do not over-claim in
-the revision: there is no architectural guarantee, and we now say so. There is,
-however, one quantifiable statement. Our interpolation (Equation~3) is linear,
-$\mathbf{Z}_e=(1-e)\mathbf{Z}_1+e\mathbf{Z}_2$. Because the two stored representations
-are independent and zero-mean, the interpolant is zero-mean with variance scaled by
-$e^2+(1-e)^2$, which equals one only at the endpoints and falls to $0.5$ at $e=0.5$.
-The interpolant therefore has the right symmetry but is under-dispersed, with standard
-deviation $\sqrt{0.5}\approx0.71$ of an independent draw at the midpoint --- the
-familiar norm-shrinkage effect. This is now stated in Section~5.6, along with the
-observation that spherical interpolation would remove the variance deficit exactly at
-the cost of no longer being a linear operation on the archive. It also gives a
-concrete reading of the smooth transitions in Figure~9: midpoint forecasts are drawn
-from a slightly narrower effective distribution than the endpoints, consistent with
-their appearing as intermediate rather than novel states. Separately, a valid latent
-draw does not guarantee that the decoded field is a valid draw from the forecast
-distribution; that is an empirical property, and the closing sentence of Section~5.6
-has been softened to present it as one.
+the revision. There is no architectural guarantee, and we now say so. There is,
+however, one quantifiable statement we can make. Our interpolation (Equation~3) is
+linear, $\mathbf{Z}_e=(1-e)\mathbf{Z}_1+e\mathbf{Z}_2$. Because the two stored
+representations are independent and zero-mean, the interpolant is zero-mean with
+variance scaled by $e^2+(1-e)^2$. That factor equals one only at the endpoints and
+falls to $0.5$ at $e=0.5$. The interpolant therefore has the right symmetry but is
+under-dispersed, with standard deviation $\sqrt{0.5}\approx0.71$ of an independent
+draw at the midpoint: the familiar norm-shrinkage effect. We now state this in
+Section~5.6, along with the observation that spherical interpolation would remove the
+variance deficit exactly, at the cost of no longer being a linear operation on the
+archive. It also gives a concrete reading of the smooth transitions in Figure~9:
+midpoint forecasts are drawn from a slightly narrower effective distribution than the
+endpoints, consistent with their appearing as intermediate rather than novel states.
+Separately, a valid latent draw does not guarantee that the decoded field is a valid
+draw from the forecast distribution. That is an empirical property, not a guaranteed
+one, and we softened the closing sentence of Section~5.6 to present it as such.
 
 \subsection*{Comment 8: Interpretation of Figure 9 at Large versus Nominal Beta}
 
@@ -272,13 +274,13 @@ capture the structures that produce the bulk of the uncertainty, and increasing 
 ensemble spread takes them further away from that optimum? A bit more explanation
 would help me understand this better.''
 
-\textbf{Response:} The reviewer's reading is ours, and we have added it to the text.
-At $\beta=1$ the perturbations are the ones the afCRPS objective selected, and they
-concentrate where the flow is genuinely uncertain --- the baroclinic zones, jet
-streams, and cyclone centers noted in Section~5.7. As $|\beta|$ grows, amplitude
-within each scale band is scaled uniformly, so the flow-dependent structure is
-progressively swamped by the flow-independent spatial covariance of the injection
-basis itself, producing the broad smooth patterns. Figure~11 supports this reading
+\textbf{Response:} The reviewer's reading is ours, and we added it to the text. At
+$\beta=1$, the perturbations are the ones the afCRPS objective selected, and they
+concentrate where the flow is genuinely uncertain: the baroclinic zones, jet streams,
+and cyclone centers noted in Section~5.7. As $|\beta|$ grows, amplitude within each
+scale band is scaled uniformly, so the flow-dependent structure is progressively
+swamped by the flow-independent spatial covariance of the injection basis itself.
+That produces the broad, smooth patterns. Figure~11 supports this reading
 quantitatively: ensemble-mean RMSE and CRPS are both minimal near $|\beta|\approx1$
 and degrade away from it. This is the same trade-off Reviewer~3 identifies in their
 Comment~6, and the two passages now cross-reference each other.
@@ -293,13 +295,13 @@ averaged over a full year they produce visually identical statistical scores? Or
 I missed something?''
 
 \textbf{Response:} The reviewer has diagnosed this correctly and has not missed
-anything: both readings are true and they are not in conflict. Because the decoder is
+anything. Both readings are true, and they are not in conflict. Because the decoder is
 nonlinear, $-\beta$ does not produce the point-wise negation of the $+\beta$ field for
 any individual forecast. But because the latent prior is zero-mean and symmetric, the
 distribution over members is invariant under $\beta\to-\beta$, so aggregated scores
 are identical up to sampling noise. The residual visual asymmetry in Figure~6 was
 largely an artifact of the $\beta=[1,1,1]$ reference, now changed to $\beta=[0,0,0]$
-per Comment~5. We have added a sentence making the per-forecast-asymmetry versus
+per Comment~5. We added a sentence making the per-forecast-asymmetry versus
 distributional-symmetry distinction explicit, and reworded the description of the
 $\beta=\pm3$ contour ``similarity'' in Section~5.7 so that it is attributed to
 ensemble statistics rather than to individual fields.
@@ -313,25 +315,25 @@ reproducing the field from the stored latent tensor using different hardware or
 compute configurations? GPU vs CPU, for example? This would certainly give a better
 view as to how robustly reproducible this is.''
 
-\textbf{Response:} We agree on both counts, and we have run the suggested experiment.
+\textbf{Response:} We agree on both counts, and we ran the suggested experiment.
 Figure~5 has been replaced with a cross-configuration reproducibility test:
 regeneration from the stored representation on the same GPU, and on CPU, reporting
 maximum absolute differences per field. This tests the property that matters
-operationally --- portable reproduction --- rather than reproduction within a single
+operationally, portable reproduction, rather than reproduction within a single
 process, which the reviewer rightly calls obvious.
 
-The measured outcome, over a 5-step (30\,h) rollout on an NVIDIA A100: regeneration
-on the same GPU is bit-exact (maximum absolute difference of exactly zero at every
-step, both when replaying the stored perturbation tensors and when reconstructing
-them from the stored latents plus RNG seed). Regeneration on CPU is not bit-exact:
-the maximum absolute difference against the GPU-generated original is $2.7\times
-10^{-2}$ (in the physical units of the affected prognostic field), attributable to
-differing floating-point reduction orders between GPU (cuBLAS/cuDNN) and CPU
+The measured outcome, over a 5-step (30\,h) rollout on an NVIDIA A100: regeneration on
+the same GPU is bit-exact. The maximum absolute difference is exactly zero at every
+step, both when replaying the stored perturbation tensors and when reconstructing them
+from the stored latents plus RNG seed. Regeneration on CPU is not bit-exact. The
+maximum absolute difference against the GPU-generated original is $2.7\times
+10^{-2}$ (in the physical units of the affected prognostic field), which we attribute
+to differing floating-point reduction orders between GPU (cuBLAS/cuDNN) and CPU
 (MKL/oneDNN) kernel implementations. The revised text therefore states that
-reproduction is exact within a fixed hardware and software configuration and bounded,
-not bitwise, across configurations. We were not able to test across different GPU
-architectures, as the GPU partitions available to us at the time of revision carry
-the same device model (A100); we note this in the caption.
+reproduction is exact within a fixed hardware and software configuration, and
+bounded, not bitwise, across configurations. We were not able to test across different
+GPU architectures, since the GPU partitions available to us at the time of revision
+all carry the same device model (A100). We note this limitation in the caption.
 
 \section*{Response to Reviewer 3}
 
@@ -349,22 +351,21 @@ comparison (with the same backbone, same training setup) is an important additio
 the paper's central argument.''
 
 \textbf{Response:} The reviewer is right that the comparison is absent, and we accept
-the criticism of the framing. We have not run the baseline; instead we have removed
-the claims that required it. A controlled comparison would mean fine-tuning a second
-model from the same deterministic checkpoint with conditional-normalization injection
-under the same afCRPS objective and schedule, then repeating the full 2022
-verification, and we do not believe the paper's contribution depends on winning that
-comparison. The contribution is that SDL exposes ensemble spread as an explicit,
-scale-indexed, post-hoc addressable quantity --- an architectural property established
-by the $\beta$ and interpolation results, not a skill claim. We have rewritten the
-three passages the reviewer cites so that global noise injection is described as an
-alternative design with different properties rather than as a weaker baseline. In
-particular, the Abstract's assertion that the global structure ``increases training
-expense'' has been removed (we retain only the interpretability distinction, which
-follows from where the noise enters), and the Introduction now states plainly: ``We do
-not claim a skill advantage over global conditioning; establishing one would require
-an independently fine-tuned model on the same backbone, which we have not undertaken
-here.''
+the criticism of the framing. We have not run the baseline. Instead, we removed the
+claims that required it. A controlled comparison would mean fine-tuning a second model
+from the same deterministic checkpoint with conditional-normalization injection, under
+the same afCRPS objective and schedule, then repeating the full 2022 verification. We
+do not believe the paper's contribution depends on winning that comparison. The
+contribution is that SDL exposes ensemble spread as an explicit, scale-indexed,
+post-hoc addressable quantity: an architectural property established by the $\beta$
+and interpolation results, not a skill claim. We rewrote the three passages the
+reviewer cites so that global noise injection is described as an alternative design
+with different properties, not as a weaker baseline. In particular, we removed the
+Abstract's assertion that the global structure ``increases training expense'' (we
+retain only the interpretability distinction, which follows from where the noise
+enters), and the Introduction now states plainly: ``We do not claim a skill advantage
+over global conditioning. Establishing one would require an independently fine-tuned
+model on the same backbone, which we have not undertaken here.''
 
 \subsection*{Comment 2 (Q2): Ablation of Core Design Choices}
 
@@ -376,42 +377,41 @@ superior ensemble quality over training SDL parameters alone (L231-232, 627-628)
 which is stated twice with no supporting data.''
 
 \textbf{Response:} Agreed in substance: ``preliminary experiments showed'' is not
-evidence. We have taken three actions depending on what the manuscript actually claims
-in each case.
+evidence. We took three different actions, depending on what the manuscript actually
+claims in each case.
 
-First, claims we have deleted. The assertion that joint full-weight fine-tuning yields
-superior ensemble quality is deleted in both places the reviewer identifies. We have
-no reportable evidence for it and prefer deletion to softening; joint fine-tuning is
-now described simply as the configuration we used.
+First, claims we deleted. The assertion that joint full-weight fine-tuning yields
+superior ensemble quality is now deleted in both places the reviewer identifies. We
+have no reportable evidence for it, and we prefer deletion to softening. Joint
+fine-tuning is now described simply as the configuration we used.
 
-Second, claims that already have a stated rationale, which we have sharpened rather
-than removed. We would gently note that two of the three design choices are not in
-fact attributed to preliminary experiments in the manuscript: decoder-only injection
-is justified by computational constraints (Section~2.3), and independent latents are
-justified on scale-separation grounds --- synoptic/meso-$\alpha$ and meso-$\beta$
+Second, claims that already had a stated rationale, which we sharpened rather than
+removed. We would gently note that two of the three design choices are not actually
+attributed to preliminary experiments in the manuscript. Decoder-only injection is
+justified by computational constraints (Section~2.3). Independent latents are
+justified on scale-separation grounds: synoptic/meso-$\alpha$ and meso-$\beta$
 processes have different predictability characteristics, so distinct uncertainty
-representations per scale are the design intent (Section~2.2). We have made both
-rationales unmistakable and note that the implementation retains switches for each
-configuration, so the comparisons remain available to future work.
+representations per scale are the design intent (Section~2.2). We made both
+rationales unmistakable. The implementation retains switches for each configuration,
+so the comparisons remain available to future work.
 
-Third, evidence we can supply without retraining. The per-scale question --- what
-does each injection point contribute? --- is answerable at inference by single-scale
+Third, evidence we can supply without retraining. The per-scale question, what does
+each injection point contribute, is answerable at inference by single-scale
 elimination: setting one scale's gain to zero removes that injection point's
 contribution exactly, with fresh independent noise draws at the remaining sites. We
 ran 20-member ensembles for $\beta=[0,1,1]$, $[1,0,1]$, and $[1,1,0]$ against the
-$[1,1,1]$ control on the Winter Storm Izzy case, and the new table reports RMSE,
-spread, SSR, and CRPS at five lead times. The result is specific: eliminating the
-intermediate (meso-$\alpha$, Level~2) injection point collapses ensemble spread far
-more than eliminating either of the other two --- at 108\,h its SSR falls to roughly
-half the control value in every field examined (e.g., Z500 0.29 vs.\ 0.44; MSLP 0.52
-vs.\ 0.89; T850 0.50 vs.\ 0.77), and it produces the worst RMSE and CRPS of the
-three eliminations in every field at every lead time --- whereas eliminating the
-coarsest or finest site leaves both spread and skill within roughly 10\% of the
-control. This is consistent with the manuscript's spectral finding that the Level-2
-site has the broadest wavenumber footprint (Figure~7c). The caption states clearly
-that this is an inference-time elimination on a single case, not a retrained
-ablation --- the two answer related but distinct questions. For $\alpha$, see our
-response to Comment~3.
+$[1,1,1]$ control on the Winter Storm Izzy case. The new table reports RMSE, spread,
+SSR, and CRPS at five lead times. The result is specific. Eliminating the intermediate
+(meso-$\alpha$, Level~2) injection point collapses ensemble spread far more than
+eliminating either of the other two. At 108\,h its SSR falls to roughly half the
+control value in every field examined (e.g., Z500 0.29 vs.\ 0.44; MSLP 0.52 vs.\ 0.89;
+T850 0.50 vs.\ 0.77), and it produces the worst RMSE and CRPS of the three
+eliminations in every field at every lead time. Eliminating the coarsest or finest
+site, by contrast, leaves both spread and skill within roughly 10\% of the control.
+This is consistent with the manuscript's spectral finding that the Level-2 site has
+the broadest wavenumber footprint (Figure~7c). The caption states clearly that this is
+an inference-time elimination on a single case, not a retrained ablation. The two
+answer related but distinct questions. For $\alpha$, see our response to Comment~3.
 
 \subsection*{Comment 3 (Q3): Selection and Learnability of the Noise Scaling
 Parameter}
@@ -424,23 +424,23 @@ it's not learnable?''
 
 \textbf{Response:} We should simply have described what we did, and the revision now
 does. The value $\alpha=0.235$ was chosen by a short sweep over candidate values,
-selecting the one for which the afCRPS training loss began lowest --- that is, the
-value at which the initial ensemble spread was already of sensible magnitude relative
-to the deterministic 6-hour error, so that fine-tuning did not spend early updates
-correcting a badly scaled perturbation. It was not tuned against validation skill and
-we do not claim it is optimal.
+selecting the one for which the afCRPS training loss began lowest. That is, the value
+at which the initial ensemble spread was already of sensible magnitude relative to the
+deterministic 6-hour error, so fine-tuning did not spend early updates correcting a
+badly scaled perturbation. It was not tuned against validation skill, and we do not
+claim it is optimal.
 
-On learnability, there is a precise answer. From Equation~1 the injected perturbation
+On learnability, there is a precise answer. From Equation~1, the injected perturbation
 is $\alpha \cdot \mathbf{R}_{\text{Gauss}} \odot \mathbf{S}(\mathbf{Z}_\ell) \odot
 \mathbf{M}$, which is linear in $\alpha$, in the learned linear map producing
 $\mathbf{S}$, and in the learned channel modulation $\mathbf{M}$. Any global rescaling
-of $\alpha$ is therefore absorbed exactly by $\mathbf{S}$ or $\mathbf{M}$: making
+of $\alpha$ is therefore absorbed exactly by $\mathbf{S}$ or $\mathbf{M}$. Making
 $\alpha$ learnable adds no expressiveness, only a reparameterization of parameters the
 model already learns. Its role is confined to initialization, which is exactly why
-selecting it by initial loss is the appropriate criterion and why holding it fixed
-costs nothing. (We have confirmed in the released checkpoint that all three noise
-factors retain the value 0.235 exactly, consistent with the manuscript's statement
-that $\alpha$ is non-trainable.) Section~2.3 has been rewritten accordingly.
+selecting it by initial loss is the appropriate criterion, and why holding it fixed
+costs nothing. (We confirmed in the released checkpoint that all three noise factors
+retain the value 0.235 exactly, consistent with the manuscript's statement that
+$\alpha$ is non-trainable.) Section~2.3 has been rewritten accordingly.
 
 \subsection*{Comment 4 (Q4): Multivariate and Spatial-Dependence Diagnostics}
 
@@ -449,30 +449,30 @@ histograms); no multivariate or spatial-dependence diagnostic is reported, which
 the relevant test for whether the learned perturbations capture
 cross-variable/spatial covariance.''
 
-\textbf{Response:} A fair point, and the diagnostic most relevant to a method whose
-stated appeal is structured perturbations. It requires no retraining, only additional
-scoring of forecasts already produced, so we have added two diagnostics.
+\textbf{Response:} A fair point, and it is the diagnostic most relevant to a method
+whose stated appeal is structured perturbations. It requires no retraining, only
+additional scoring of forecasts we had already produced, so we added two diagnostics.
 
 First, the variogram score of order $p=0.5$ (Scheuerer and Hamill, 2015), which is
-specifically sensitive to spatial dependence structure, computed for the SDL ensemble
-over 12 initializations (first of each month of 2022, 00Z) at 24, 120, and 240\,h for
-Z500, T850, and Q850 on a spatially pooled grid (every sixth point; pairwise sums
-scale quadratically in the number of points, and the pooling is stated in the
-caption). The score grows monotonically with lead time for every field, with the
+specifically sensitive to spatial dependence structure. We computed it for the SDL
+ensemble over 12 initializations (first of each month of 2022, 00Z) at 24, 120, and
+240\,h for Z500, T850, and Q850, on a spatially pooled grid (every sixth point, since
+pairwise sums scale quadratically in the number of points). The pooling is stated in
+the caption. The score grows monotonically with lead time for every field, with the
 largest relative growth for Z500, consistent with its longer error-growth timescale.
 One honest limitation: our archives hold IFS-ENS only as summary statistics and
-regridded distribution products, not raw member fields at matching valid times, so we
-report the SDL variogram score as a documented baseline with its lead-time scaling
-rather than as a head-to-head comparison; we state this in the text.
+regridded distribution products, not raw member fields at matching valid times. We
+therefore report the SDL variogram score as a documented baseline with its lead-time
+scaling, not as a head-to-head comparison, and we state this in the text.
 
-Second, and more directly interpretable: the cross-variable spatial correlation
+Second, and more directly interpretable, the cross-variable spatial correlation
 between $Z_{500}$ and $T_{850}$, computed per member and compared against the same
 correlation in ERA5 at each of the 36 initialization--lead combinations. The SDL
-members track the ERA5 coupling essentially exactly --- mean member correlation 0.939
+members track the ERA5 coupling essentially exactly: mean member correlation 0.939
 versus 0.936 in ERA5, mean absolute difference 0.004, per-combination differences
 within $[-0.024,+0.016]$ with no systematic sign bias, out to 240\,h. The stochastic
 perturbations do not degrade this physically meaningful cross-variable relationship
-even at 10 days, which addresses the reviewer's underlying question about whether the
+even at 10 days. This addresses the reviewer's underlying question about whether the
 learned perturbations respect cross-variable covariance.
 
 \subsection*{Comment 5 (Q5): Cost of Post-Inference Spread Adjustment}
@@ -483,19 +483,19 @@ rescaling actually requires re-running the decoder, and that cost is not quantif
 The claim conflates storage savings with compute savings. The authors should clarify
 this aspect.''
 
-\textbf{Response:} The reviewer is correct and we have withdrawn the claim as stated.
-Rescaling $\beta$ requires re-running the decoder; what is avoided is the encoder
-pass, the latent draw, and --- the point that motivated the design --- ever having to
+\textbf{Response:} The reviewer is correct, and we have withdrawn the claim as stated.
+Rescaling $\beta$ requires re-running the decoder. What is avoided is the encoder
+pass, the latent draw, and, the point that motivated the design, ever having to
 archive the full ensemble fields. We have now measured the cost rather than leaving it
 implicit. On a single NVIDIA A100 GPU (batch size 1), a full forward pass takes
 228\,ms per member per step, while a decoder-only re-run from cached encoder output
-takes 52\,ms: the re-run is 23\% of a full forward pass, a factor of 4.3 savings.
+takes 52\,ms. The re-run is 23\% of a full forward pass, a factor of 4.3 savings.
 Extrapolated to rescaling an archived 100-member, 15-day (60-step) forecast, this is
 approximately 5.2 minutes of decoder re-runs versus 22.8 minutes of full regeneration
-on the same device. The phrase ``without forecast regeneration'' has been corrected in
-all three locations and in Key Point~2, replaced by: ``Adjusting $\beta$ requires
+on the same device. We corrected the phrase ``without forecast regeneration'' in all
+three locations and in Key Point~2, replacing it with: ``Adjusting $\beta$ requires
 re-running the decoder from the stored latents, at 23\% of the cost of a full forward
-pass per member per step (measured on an A100); the encoder pass and the latent draw
+pass per member per step (measured on an A100). The encoder pass and the latent draw
 are not repeated, and the full ensemble fields need never have been written to
 disk.''
 
@@ -507,31 +507,31 @@ $\beta$ therefore trades skill for spread rather than acting as a free
 calibration-preserving knob. This should be stated in the text to avoid overstating
 results.''
 
-\textbf{Response:} A correct reading of our own Figure~11, and we have adopted it.
-SSR is a ratio; holding it near unity while both numerator and denominator grow is
-not calibration preservation. The underlying facts were already reported ---
-ensemble-mean RMSE is U-shaped with minima near $|\beta|\approx1$, and CRPS degrades
-symmetrically away from it --- but the interpretation the reviewer supplies was
-missing, and the operational recommendation of $|\beta|>1$ for expanded sampling read
-as cost-free without it. We have added: ``Because both ensemble spread and
-ensemble-mean RMSE grow with $|\beta|$, the near-unity SSR across this range reflects
-a trade-off rather than preserved forecast quality: CRPS degrades as $|\beta|$
-departs from~1. $\beta$ should therefore be understood as a spread--skill control,
-useful where deliberate over-dispersion is wanted (e.g., tail-risk applications), and
-not as a free recalibration knob.'' The operational guidance in Section~5.7 has been
-qualified accordingly.
+\textbf{Response:} A correct reading of our own Figure~11, and we have adopted it. SSR
+is a ratio. Holding it near unity while both numerator and denominator grow is not
+calibration preservation. The underlying facts were already reported: ensemble-mean
+RMSE is U-shaped with minima near $|\beta|\approx1$, and CRPS degrades symmetrically
+away from it. What was missing was the interpretation the reviewer supplies, and
+without it the operational recommendation of $|\beta|>1$ for expanded sampling read as
+cost-free. We added: ``Because both ensemble spread and ensemble-mean RMSE grow with
+$|\beta|$, the near-unity SSR across this range reflects a trade-off rather than
+preserved forecast quality: CRPS degrades as $|\beta|$ departs from~1. $\beta$ should
+therefore be understood as a spread--skill control, useful where deliberate
+over-dispersion is wanted (e.g., tail-risk applications), and not as a free
+recalibration knob.'' The operational guidance in Section~5.7 has been qualified
+accordingly.
 
-We have also strengthened the empirical basis of this passage. The original Figure~11
-trade-off was a single case (Winter Storm Izzy at 108\,h); we have added a
+We also strengthened the empirical basis of this passage. The original Figure~11
+trade-off was a single case (Winter Storm Izzy at 108\,h). We added a
 multi-initialization version of the same analysis, aggregating RMSE, spread, SSR, and
 CRPS as functions of uniform $\beta$ over 101 initialization dates from the 2022 test
 year and 29 lead times (0--168\,h), for six variables (Z500, T850, T2m, Q700, Q500,
 MSLP), over the range $\beta \in [0.25, 1.75]$. Every variable shows a U-shaped mean
-RMSE and CRPS curve minimized at or within one grid step of $\beta=1$, while SSR
+RMSE and CRPS curve, minimized at or within one grid step of $\beta=1$, while SSR
 increases monotonically with $\beta$ and crosses unity between roughly $\beta=1.2$
-and $1.4$ depending on variable. This confirms the reviewer's reading at scale ---
+and $1.4$ depending on variable. This confirms the reviewer's reading at scale:
 $\beta$ is a spread--skill trade-off, and the trained operating point sits at the
-skill optimum --- and replaces a single-case claim with a 101-initialization one.
+skill optimum. It replaces a single-case claim with a 101-initialization one.
 
 \subsection*{Comment 7 (Q7): Efficiency Argument and Consistency Models}
 
@@ -542,25 +542,25 @@ Stock et al., 2025, SWIFT: An Autoregressive Consistency Model for Efficient Wea
 Forecasting, NeurIPS 2025). Please compare SDL's inference cost with that of these
 models as well.''
 
-\textbf{Response:} The reviewer is right that the blanket claim is out of date, and
-we have revised it. Consistency and distillation approaches target exactly the
-overhead we invoked, and SWIFT is a direct example; the citation has been added. The
-revised passage reads: ``Diffusion-based weather models have conventionally required
-learning full denoising trajectories during training and tens of iterative refinement
-steps per forecast at inference. Consistency and distillation approaches now reduce
-inference to a few steps or one (e.g., Stock et al., 2025), so step count alone no
-longer separates these methods from single-pass alternatives; the remaining
-distinction is whether a separate generative model and distillation stage are
-required at all.'' On the requested comparison: SDL generates a member in one forward
-pass of the backbone, so against a well-distilled one-step consistency model the
-inference step count is comparable rather than dramatically better, and we say so.
-What remains distinct is that SDL requires no separate generative model and no
-distillation stage --- the ensemble capability is obtained by fine-tuning the
-existing deterministic backbone at 1.61\% of its training cost --- and that its
-perturbations remain addressable by scale after inference. We report our own cost in
-backbone forward passes per member (one) and quote published step counts for few-step
-models, marking which numbers are ours and which are quoted; we have not benchmarked
-SWIFT ourselves and do not present a timing comparison against it.
+\textbf{Response:} The reviewer is right that the blanket claim is out of date, and we
+revised it. Consistency and distillation approaches target exactly the overhead we
+invoked, and SWIFT is a direct example. We added the citation. The revised passage
+reads: ``Diffusion-based weather models have conventionally required learning full
+denoising trajectories during training and tens of iterative refinement steps per
+forecast at inference. Consistency and distillation approaches now reduce inference to
+a few steps or one (e.g., Stock et al., 2025), so step count alone no longer separates
+these methods from single-pass alternatives. The remaining distinction is whether a
+separate generative model and distillation stage are required at all.'' On the
+requested comparison: SDL generates a member in one forward pass of the backbone, so
+against a well-distilled one-step consistency model the inference step count is
+comparable rather than dramatically better, and we say so. What remains distinct is
+that SDL requires no separate generative model and no distillation stage (the ensemble
+capability comes from fine-tuning the existing deterministic backbone at 1.61\% of its
+training cost), and that its perturbations remain addressable by scale after
+inference. We report our own cost in backbone forward passes per member (one) and
+quote published step counts for few-step models, marking clearly which numbers are
+ours and which are quoted. We have not benchmarked SWIFT ourselves and do not present
+a timing comparison against it.
 
 \subsection*{Comment 8 (Q8): Like-for-Like Cost Accounting and Expressivity Limits}
 
@@ -583,36 +583,36 @@ one technical correction to the characterization of the mechanism that does not
 change the reviewer's conclusion.
 
 On cost accounting: we agree the marginal figure is not a like-for-like comparison
-against a from-scratch generative model. The revision reports both totals --- the
-1.61\% fine-tuning increment, which is the operationally relevant number for a center
-that already runs a deterministic model and is our intended use case, and the
-pretraining-plus-fine-tuning total, which is the correct basis for comparison against
-training a generative model from scratch --- and names the framing for each.
-Appendix~A.3 already contains the forward-pass counts needed (12{,}410{,}560 baseline
-versus 200{,}000 fine-tuning), so this is a framing change rather than new analysis.
+against a from-scratch generative model. The revision reports both totals and names
+the framing for each: the 1.61\% fine-tuning increment, which is the operationally
+relevant number for a center that already runs a deterministic model and is our
+intended use case, and the pretraining-plus-fine-tuning total, which is the correct
+basis for comparison against training a generative model from scratch. Appendix~A.3
+already contains the forward-pass counts needed (12{,}410{,}560 baseline versus
+200{,}000 fine-tuning), so this is a framing change, not new analysis.
 
 On the mechanism: the perturbation is not linear in the two noise sources. From
 Equation~1 it is $\alpha \cdot \mathbf{R}_{\text{Gauss}} \odot
 \mathbf{S}(\mathbf{Z}_\ell) \odot \mathbf{M}$, where $\mathbf{R}_{\text{Gauss}}$ and
 $\mathbf{Z}_\ell$ are independent Gaussians and $\mathbf{S}$ is affine in
-$\mathbf{Z}_\ell$; the perturbation is therefore bilinear in the two sources --- a
+$\mathbf{Z}_\ell$. The perturbation is therefore bilinear in the two sources: a
 product of independent Gaussians, symmetric but heavy-tailed, and already
 non-Gaussian before the decoder nonlinearity acts. The manuscript did not make this
-structure clear enough for the reviewer to see it, which is our fault, and the text
-following Equation~1 has been clarified.
+structure clear enough for the reviewer to see it. That is our fault, and we clarified
+the text following Equation~1.
 
 On expressivity: the correction does not rescue the substantive point, and we concede
 it without argument. SDL members are perturbations about a single deterministic
-trajectory; the mechanism can represent flow-dependent, scale-structured,
-non-Gaussian spread, but it has no mechanism for discrete scenario separation --- two
-distinct cyclone tracks, or cyclogenesis versus none --- because there is no learned
-distribution over alternative atmospheric states to draw from. A diffusion model
-learns the joint distribution and can represent such bimodality directly. A new
-paragraph in Section~6.1 states this limitation in the reviewer's terms,
-cross-referenced to the out-of-distribution tail-risk limitation already noted there,
-since the two are aspects of the same constraint. The ``substantially more
-efficient'' sentence has been narrowed to a statement about the marginal cost of
-adding ensemble capability to an existing deterministic model.
+trajectory. The mechanism can represent flow-dependent, scale-structured, non-Gaussian
+spread, but it has no mechanism for discrete scenario separation, such as two distinct
+cyclone tracks, or cyclogenesis versus none, because there is no learned distribution
+over alternative atmospheric states to draw from. A diffusion model learns the joint
+distribution and can represent such bimodality directly. A new paragraph in
+Section~6.1 states this limitation in the reviewer's terms, cross-referenced to the
+out-of-distribution tail-risk limitation already noted there, since the two are
+aspects of the same constraint. We narrowed the ``substantially more efficient''
+sentence to a statement about the marginal cost of adding ensemble capability to an
+existing deterministic model.
 
 \subsection*{Comment 9 (Q9): Reconciling the Two Interpretability Claims}
 
@@ -621,12 +621,12 @@ adding ensemble capability to an existing deterministic model.
 interpretability in terms of physical processes' (L548-549).''
 
 \textbf{Response:} These were contradictory as written. What we meant is that the
-uncertainty representation is interpretable in terms of spatial scale --- each latent
-has a known band of influence --- while the perturbations are not interpretable as
-specific physical error sources such as convective or boundary-layer parameterization
-error. The Abstract now reads ``provides a scale-interpretable representation of
-forecast uncertainty,'' and a clause distinguishing the two senses has been added to
-the Discussion passage.
+uncertainty representation is interpretable in terms of spatial scale, since each
+latent has a known band of influence, while the perturbations are not interpretable
+as specific physical error sources such as convective or boundary-layer
+parameterization error. The Abstract now reads ``provides a scale-interpretable
+representation of forecast uncertainty,'' and we added a clause distinguishing the two
+senses to the Discussion passage.
 
 \subsection*{Comment 10 (Q10): Evaluation Ensemble Size}
 
@@ -634,19 +634,19 @@ the Discussion passage.
 text (x-axis in Figs. 2 and 3 imply about 100 members for SDL vs. 50 for IFS-ENS;
 training used M = 10, L235). This should be clarified.''
 
-\textbf{Response:} The reviewer's inference is correct --- 100 members for
-SDL-WXFormer, 50 for IFS-ENS, and $M=10$ during training --- and we should have
-stated it. The sizes are now given in Section~5.1 and in the captions of Figures~2
-and~3. We also address the fairness question this implies: a sentence has been added
-noting which diagnostics are ensemble-size sensitive (spread, SSR, rank histograms)
-and which are approximately not (the almost-fair CRPS, which corrects for finite
-ensemble size via Equation~2), and we report SDL scores subsampled to 50 members
-alongside the 100-member scores so the IFS-ENS comparison is not confounded by size.
-The subsampling comparison confirms the insensitivity directly: over 12
-initializations (the first of each month of 2022, 00Z) at 24, 120, and 240\,h lead
-times, reducing the Z500 ensemble from 100 to 50 members changes area-weighted
-ensemble-mean RMSE by less than 0.6\%, spread by less than 0.4\%, SSR by less than
-0.9\%, and CRPS by less than 0.7\% at every lead time tested.
+\textbf{Response:} The reviewer's inference is correct: 100 members for SDL-WXFormer,
+50 for IFS-ENS, and $M=10$ during training. We should have stated it. The sizes are
+now given in Section~5.1 and in the captions of Figures~2 and~3. We also address the
+fairness question this implies. We added a sentence noting which diagnostics are
+ensemble-size sensitive (spread, SSR, rank histograms) and which are approximately not
+(the almost-fair CRPS, which corrects for finite ensemble size via Equation~2), and we
+report SDL scores subsampled to 50 members alongside the 100-member scores, so the
+IFS-ENS comparison is not confounded by size. The subsampling comparison confirms the
+insensitivity directly. Over 12 initializations (the first of each month of 2022,
+00Z) at 24, 120, and 240\,h lead times, reducing the Z500 ensemble from 100 to 50
+members changes area-weighted ensemble-mean RMSE by less than 0.6\%, spread by less
+than 0.4\%, SSR by less than 0.9\%, and CRPS by less than 0.7\% at every lead time
+tested.
 
 \subsection*{Comment 11 (Q11): Archived Representation and Storage Arithmetic}
 
@@ -657,20 +657,20 @@ the `$\sim$35 MB per member' full-field baseline (line 354) does not reconcile w
 the comparison.''
 
 \textbf{Response:} The reviewer is right on every count, and the problem runs deeper
-than the text revealed. We are grateful for the scrutiny; correcting it has
+than the text revealed. We are grateful for the scrutiny. Correcting it has
 strengthened the paper's claim considerably.
 
-The inconsistency was real: Section~2.3 describes storing latent tensors while
+The inconsistency was real. Section~2.3 describes storing latent tensors, while
 Section~5.4 states that the computed noise perturbations are archived instead. These
 are different objects, and both of our numbers were wrong. The published
 $\sim$5\,MB figure applied the output-variable channel count (71) to the decoder
-grids, which matches neither object: the realized perturbations live on the decoder
+grids, which matches neither object. The realized perturbations live on the decoder
 feature maps (1024, 512, and 256 channels on the internally padded grid), giving
 \[
   1024{\times}36{\times}48 + 512{\times}72{\times}96 + 256{\times}144{\times}192
   = 1.24\times10^{7}\ \text{floats} = 49.5\ \mathrm{MB}
 \]
-per member per step --- roughly ten times larger than reported and, as the reviewer's
+per member per step: roughly ten times larger than reported, and, as the reviewer's
 corrected baseline shows, larger than the forecast fields themselves
 ($71{\times}192{\times}288$ float32 $=15.7$\,MB, not $\sim$35\,MB). The comparison as
 published pointed the wrong way.
@@ -684,38 +684,38 @@ the use case:
 $3\times442\times4\,\mathrm{B}=5.3$\,kB per member per step, a factor of roughly
 $3\times10^{3}$ below the full fields. The caveat, now stated: the latents alone do
 not determine the member, because the per-pixel noise $\mathbf{R}_{\text{Gauss}}$ is
-drawn inside each layer; exact regeneration under Option~A requires the latents
-together with the RNG seed --- a handful of integers, negligible in size, but part of
+drawn inside each layer. Exact regeneration under Option~A requires the latents
+together with the RNG seed, a handful of integers, negligible in size, but part of
 the recipe.
 
 \emph{Option B: realized perturbation tensors (self-contained).} Archiving the
 per-layer perturbations after $\mathbf{R}_{\text{Gauss}}$ is drawn removes the seed
 dependence entirely, at a cost of 49.5\,MB per member per step. This is the
 representation our analysis tooling used, so the paper's $\beta$-rescaling and
-interpolation results were in fact produced under Option~B; under Option~A the
+interpolation results were in fact produced under Option~B. Under Option~A, the
 identical manipulations are available after reconstructing the perturbations from
 the latents and seed.
 
 Both options require the decoder re-run quantified under Comment~5 for any post-hoc
-manipulation. We have verified both directly before making the claim: over a 5-step
+manipulation. We verified both directly before making the claim. Over a 5-step
 (30\,h) rollout on an NVIDIA A100, replay from stored perturbation tensors (Option~B)
 and replay from stored latents plus RNG seed with the per-pixel noise re-drawn
-(Option~A) each reproduce the original ensemble member bit-exactly --- maximum
-absolute difference of exactly zero at every step for both paths. Sections~2.3
-and~5.4 have been made consistent, the arithmetic is shown explicitly, the corrected
-figures replace the 5\,MB value in the Abstract, Plain Language Summary, and Key
-Point~2, and the baseline is corrected to 15.7\,MB.
+(Option~A) each reproduce the original ensemble member bit-exactly: maximum absolute
+difference of exactly zero at every step for both paths. Sections~2.3 and~5.4 have
+been made consistent, the arithmetic is shown explicitly, the corrected figures
+replace the 5\,MB value in the Abstract, Plain Language Summary, and Key Point~2, and
+the baseline is corrected to 15.7\,MB.
 
 \subsection*{Comment 12 (Q12): Test Period Consistency}
 
 \textbf{Reviewer Comment:} ``L221-222 state testing on 2020-2022; L247 and L687-688
 state 2022. This should be reconciled.''
 
-\textbf{Response:} Both statements are true but the distinction was never drawn:
+\textbf{Response:} Both statements are true, but the distinction was never drawn.
 2020--2022 is the held-out test split following Schreck et al.\ (2025), while all
 results reported here verify against 2022 only, on 00Z initializations. Section~3 now
 reads ``testing (2020--2022), of which the 2022 00Z initializations are used for all
-verification reported here,'' and 2022 is used consistently wherever results are
+verification reported here.'' 2022 is used consistently wherever results are
 reported.
 
 \subsection*{Comment 13 (Q13): Symbol Collision for the Noise Scaling Parameter}
@@ -724,10 +724,10 @@ reported.
 hyperparameter, the authors may want to use using a different noise-scaling scalar for
 SDL in eq. 1.''
 
-\textbf{Response:} Agreed --- the collision is genuine and confusing, since
+\textbf{Response:} Agreed. The collision is genuine and confusing, since
 $\alpha=0.235$ (Equation~1) and $\alpha=0.95$ (Equation~2) appear within two pages of
-each other. The SDL noise-scaling scalar in Equation~1 has been renamed $\sigma_0$
-and updated throughout the text, Table~1, and captions; the afCRPS hyperparameter
+each other. We renamed the SDL noise-scaling scalar in Equation~1 to $\sigma_0$ and
+updated it throughout the text, Table~1, and captions. The afCRPS hyperparameter
 retains $\alpha$.
 
 \subsection*{Comment 14 (Q14): Training Data Specification}
@@ -736,11 +736,11 @@ retains $\alpha$.
 that used in Schreck et al., 2025 and Sha et al., 2025b, it is still worth specifying
 the temporal resolution and spatial domain.''
 
-\textbf{Response:} Section~3 has been extended to specify the 6-hourly temporal
-resolution, the global domain, the horizontal grid used for training, and the
-composition of the 74 input variables across upper-air levels, surface fields, static
-fields, and forcing. The 16 selected model levels and the 1979--2017 / 2018--2019 /
-2020--2022 split were already stated and are retained.
+\textbf{Response:} We extended Section~3 to specify the 6-hourly temporal resolution,
+the global domain, the horizontal grid used for training, and the composition of the
+74 input variables across upper-air levels, surface fields, static fields, and
+forcing. The 16 selected model levels and the 1979--2017 / 2018--2019 / 2020--2022
+split were already stated and are retained.
 
 \subsection*{Comment 15 (Q15): Grid Specification Consistency}
 
@@ -754,13 +754,13 @@ verification?''
 \textbf{Response:} The reviewer's proposed reading is correct, and the inconsistency
 was real. The 192$\times$288 grid (approximately 0.94$^\circ$ latitude $\times$
 1.25$^\circ$ longitude, the CESM finite-volume grid) is used end-to-end for training,
-fine-tuning, inference, and verification. Section~3 has been revised to give the data
-path once and in order: ERA5 native 0.25$^\circ$ archive, regridded using
-conservative interpolation (following the approach of WeatherBench2, as described in
-the cited data-processing references, Sha et al., 2025a,b), to the single
-192$\times$288 grid used throughout. The 360$\times$181 figure has been removed or
-relabeled explicitly as an intermediate archive resolution rather than the training
-grid, cross-referenced to Appendix~B.1.
+fine-tuning, inference, and verification. We revised Section~3 to give the data path
+once and in order: the ERA5 native 0.25$^\circ$ archive, regridded using conservative
+interpolation (following the approach of WeatherBench2, as described in the cited
+data-processing references, Sha et al., 2025a,b), to the single 192$\times$288 grid
+used throughout. We removed the 360$\times$181 figure, or relabeled it explicitly as
+an intermediate archive resolution rather than the training grid, cross-referenced to
+Appendix~B.1.
 
 \subsection*{Comment 16 (Q16): Introducing the Role of Beta at First Appearance}
 
@@ -770,13 +770,13 @@ noise and explaining the purpose of using them. This would improve clarity.''
 
 \textbf{Response:} Agreed. The symbols $\beta_1,\beta_2,\beta_3$ first appear in
 Table~2 and Section~2.3 as labels for injection points, but their function is not
-defined until Section~5.5. We have added at first appearance: ``The parameters
-$\beta_1$, $\beta_2$ and $\beta_3$ are per-scale gains applied at inference time to
-the stochastic perturbation injected at each point. They are fixed at unity
-throughout training and varied only afterwards, which is what allows ensemble spread
-to be adjusted by spatial scale on an already-generated forecast (Section~5.5).''
-(Wording chosen to match the implementation, which scales the injected perturbation;
-see the notation note in the preamble checklist.)
+defined until Section~5.5. We added at first appearance: ``The parameters $\beta_1$,
+$\beta_2$ and $\beta_3$ are per-scale gains applied at inference time to the
+stochastic perturbation injected at each point. They are fixed at unity throughout
+training and varied only afterwards, which is what allows ensemble spread to be
+adjusted by spatial scale on an already-generated forecast (Section~5.5).'' (Wording
+chosen to match the implementation, which scales the injected perturbation. See the
+notation note in the preamble checklist.)
 
 \subsection*{Comment 17 (Q17): Introduction Definition Too Terse}
 
@@ -786,14 +786,14 @@ architecture.''
 
 \textbf{Response:} Agreed. The sentence introducing SDL as layers that ``separate
 latent-driven modulation from per-pixel stochasticity'' presumed the reader already
-knew the decomposition being referred to. It has been expanded into three sentences of
-plain description that do not presume knowledge of the WXFormer decoder --- what is
+knew the decomposition being referred to. We expanded it into three sentences of
+plain description that do not presume knowledge of the WXFormer decoder: what is
 injected, where it enters the network, and why the separation matters for scale
-control --- with the formal definition left to Section~2.2.
+control. The formal definition is left to Section~2.2.
 
 \vspace{1em}
 
-We thank both reviewers again for their careful reading, which has materially improved
+We thank both reviewers again for their careful reading. It has materially improved
 the manuscript.
 
 \end{document}
