@@ -1,7 +1,7 @@
 # MILES-TAILS: Rare Event Sampling for AI Weather Prediction
 
 <p align="center">
-  <img src="images/tails_new.png" alt="MILES-TAILS" width="600"/>
+  <img src="images/tails.png" alt="MILES-TAILS" width="600"/>
 </p>
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
